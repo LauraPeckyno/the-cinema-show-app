@@ -1,0 +1,25 @@
+# Project TODO
+
+- [x] Generate custom app logo (cinema-themed)
+- [x] Configure cinema dark theme colors in theme.config.js
+- [x] Update app.config.ts with branding (name, logo, mic permissions)
+- [x] Set up tab navigation (Home, Tracks, About)
+- [x] Add icon mappings in icon-symbol.tsx
+- [x] Build Home/Welcome screen with cinema atmosphere
+- [x] Build Track Selection screen with Dark/Light sections
+- [x] Build Now Playing/Experience screen with visualizer
+- [x] Build About screen with album/artist info
+- [x] Implement SoundCloud streaming via WebView widget
+- [x] Implement microphone permission request
+- [x] Implement microphone recording/sampling
+- [x] Implement audio level metering from mic input
+- [x] Implement per-song BPM sync visualization
+- [x] Implement 10 unique audio filter/effect indicators
+- [x] Implement mic sensitivity slider
+- [x] Implement effect intensity slider
+- [x] Implement play/pause controls for SoundCloud tracks
+- [x] Implement audio visualizer component
+- [x] Add track progress bar
+- [x] Add cinema-themed animations and polish
+- [x] Write unit tests for core functionality
+- [x] Final integration testing and bug fixes
