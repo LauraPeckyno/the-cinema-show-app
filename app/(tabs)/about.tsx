@@ -3,6 +3,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
+import { ArtDecoDivider, ArtDecoFrame, ArtDecoHeader, ArtDecoSunburst } from "@/components/art-deco";
 
 export default function AboutScreen() {
   const colors = useColors();
@@ -31,12 +32,11 @@ export default function AboutScreen() {
         <Text style={[styles.artist, { color: colors.primary }]}>Robert Peckyno</Text>
         <Text style={[styles.year, { color: colors.muted }]}>2026 Instrumental Album</Text>
 
-        {/* Divider */}
-        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+        <ArtDecoDivider width={200} color={colors.primary} />
 
         {/* Description */}
+        <ArtDecoHeader title="THE ALBUM" color={colors.primary} textColor={colors.foreground} />
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>ABOUT THE ALBUM</Text>
           <Text style={[styles.bodyText, { color: colors.muted }]}>
             "The Cinema Show" is an instrumental album themed around movie theaters and the
             moviegoing experience. Split into two sides — Dark and Light — the album explores
@@ -45,8 +45,8 @@ export default function AboutScreen() {
           </Text>
         </View>
 
+        <ArtDecoHeader title="THE APP" color={colors.primary} textColor={colors.foreground} />
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>ABOUT THE APP</Text>
           <Text style={[styles.bodyText, { color: colors.muted }]}>
             Inspired by the Inception companion app, The Cinema Show uses your device's
             microphone to sample ambient sounds from your environment. These samples are
@@ -55,42 +55,41 @@ export default function AboutScreen() {
             with cinematic music.
           </Text>
           <Text style={[styles.bodyText, { color: colors.muted, marginTop: 12 }]}>
-            Each of the 10 tracks applies a different filter and effect to your ambient
+            Each of the 16 tracks applies a different filter and effect to your ambient
             audio — from spectral reverb and granular stutter to vocoder pulses and
             harmonic freeze. No two listening sessions are ever the same.
           </Text>
         </View>
 
         {/* Links */}
+        <ArtDecoHeader title="SOUNDCLOUD" color={colors.primary} textColor={colors.foreground} />
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>LISTEN ON SOUNDCLOUD</Text>
-          <Pressable
-            onPress={() => openLink("https://soundcloud.com/imaginaurium/sets/the-cinema-show-dark-2026")}
-            style={({ pressed }) => [
-              styles.linkButton,
-              { borderColor: colors.border },
-              pressed && { opacity: 0.7 },
-            ]}
-          >
-            <Text style={[styles.linkText, { color: colors.primary }]}>
-              The Cinema Show [Dark]
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => openLink("https://soundcloud.com/imaginaurium/sets/the-cinema-show-light")}
-            style={({ pressed }) => [
-              styles.linkButton,
-              { borderColor: colors.border },
-              pressed && { opacity: 0.7 },
-            ]}
-          >
-            <Text style={[styles.linkText, { color: colors.primary }]}>
-              The Cinema Show [Light]
-            </Text>
-          </Pressable>
+          <ArtDecoFrame color="#8B0000" style={styles.linkFrame}>
+            <Pressable
+              onPress={() => openLink("https://soundcloud.com/imaginaurium/sets/the-cinema-show-dark-2026")}
+              style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+            >
+              <Text style={[styles.linkText, { color: "#E57373" }]}>
+                {"\u{1F311}"}  The Cinema Show [Dark]
+              </Text>
+              <Text style={[styles.linkDesc, { color: colors.muted }]}>7 tracks — atmospheric and haunting</Text>
+            </Pressable>
+          </ArtDecoFrame>
+          <ArtDecoFrame color={colors.primary} style={styles.linkFrame}>
+            <Pressable
+              onPress={() => openLink("https://soundcloud.com/imaginaurium/sets/the-cinema-show-light")}
+              style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+            >
+              <Text style={[styles.linkText, { color: colors.primary }]}>
+                {"\u{2600}\u{FE0F}"}  The Cinema Show [Light]
+              </Text>
+              <Text style={[styles.linkDesc, { color: colors.muted }]}>9 tracks — uplifting and inspiring</Text>
+            </Pressable>
+          </ArtDecoFrame>
         </View>
 
         {/* Credits */}
+        <ArtDecoDivider width={160} color={colors.primary} />
         <View style={[styles.section, styles.credits]}>
           <Text style={[styles.creditText, { color: colors.muted }]}>
             Music by Robert Peckyno / @streamingkeys
@@ -111,12 +110,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   artContainer: {
-    width: 160,
-    height: 160,
-    borderRadius: 20,
+    width: 140,
+    height: 140,
+    borderRadius: 16,
     overflow: "hidden",
     marginTop: 16,
-    marginBottom: 20,
+    marginBottom: 16,
     shadowColor: "#C8A951",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -124,8 +123,8 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   albumArt: {
-    width: 160,
-    height: 160,
+    width: 140,
+    height: 140,
   },
   title: {
     fontSize: 26,
@@ -142,38 +141,28 @@ const styles = StyleSheet.create({
   year: {
     fontSize: 13,
     marginTop: 4,
-  },
-  divider: {
-    width: 60,
-    height: 2,
-    borderRadius: 1,
-    marginVertical: 24,
+    marginBottom: 4,
   },
   section: {
     width: "100%",
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    letterSpacing: 2,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   bodyText: {
     fontSize: 14,
     lineHeight: 22,
+    textAlign: "center",
   },
-  linkButton: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginBottom: 10,
-    alignItems: "center",
+  linkFrame: {
+    marginBottom: 12,
   },
   linkText: {
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "700",
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  linkDesc: {
+    fontSize: 12,
   },
   credits: {
     alignItems: "center",

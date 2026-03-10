@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useReducer, useCallback, useRef, useEffect } from "react";
 import { Platform } from "react-native";
-import { requestRecordingPermissionsAsync, setAudioModeAsync } from "expo-audio";
 import { Track } from "@/constants/tracks";
 import { micEngine } from "@/lib/mic-engine";
 import { getEffectProcessor } from "@/lib/audio-effects";
@@ -109,18 +108,13 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
   const requestMicPermission = useCallback(async () => {
     try {
       if (Platform.OS === "web") {
-        // On web, permission is requested when getUserMedia is called
         dispatch({ type: "SET_MIC_PERMISSION", granted: true });
         return true;
       }
-      const status = await requestRecordingPermissionsAsync();
+      // On native, request permission through expo-audio
+      const ExpoAudio = await import("expo-audio");
+      const status = await ExpoAudio.requestRecordingPermissionsAsync();
       dispatch({ type: "SET_MIC_PERMISSION", granted: status.granted });
-      if (status.granted) {
-        await setAudioModeAsync({
-          playsInSilentMode: true,
-          allowsRecording: true,
-        });
-      }
       return status.granted;
     } catch (e) {
       dispatch({ type: "SET_ERROR", error: "Failed to request microphone permission" });
@@ -138,21 +132,16 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
 
   const toggleMic = useCallback(async () => {
     const currentState = stateRef.current;
-    
+
     if (currentState.isMicActive) {
       // Stop mic
-      micEngine.stop();
+      await micEngine.stop();
       dispatch({ type: "SET_MIC_ACTIVE", active: false });
       dispatch({ type: "SET_MIC_LEVEL", level: 0, processedLevel: 0 });
       return;
     }
 
-    // Start mic
-    if (!currentState.micPermissionGranted && Platform.OS !== "web") {
-      const granted = await requestMicPermission();
-      if (!granted) return;
-    }
-
+    // Start mic — the mic engine handles permission requests internally on native
     const started = await micEngine.start({
       onLevelUpdate: (rawLevel: number) => {
         const s = stateRef.current;
@@ -180,16 +169,15 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
       },
       onError: (error: string) => {
         dispatch({ type: "SET_ERROR", error });
+        dispatch({ type: "SET_MIC_ACTIVE", active: false });
       },
     });
 
     if (started) {
       dispatch({ type: "SET_MIC_ACTIVE", active: true });
-      if (Platform.OS === "web") {
-        dispatch({ type: "SET_MIC_PERMISSION", granted: true });
-      }
+      dispatch({ type: "SET_MIC_PERMISSION", granted: true });
     }
-  }, [requestMicPermission]);
+  }, []);
 
   const setMicSensitivity = useCallback((value: number) => {
     dispatch({ type: "SET_MIC_SENSITIVITY", value });

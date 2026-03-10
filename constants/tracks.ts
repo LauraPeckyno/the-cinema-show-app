@@ -18,7 +18,9 @@ export interface Track {
 }
 
 export const TRACKS: Track[] = [
-  // === DARK SIDE ===
+  // ═══════════════════════════════════════════════════════════════════
+  // DARK SIDE (7 tracks)
+  // ═══════════════════════════════════════════════════════════════════
   {
     id: 1,
     title: "Corpse Parade",
@@ -49,7 +51,7 @@ export const TRACKS: Track[] = [
   },
   {
     id: 3,
-    title: "Mutation and Madness",
+    title: "MutationandMadness",
     side: "dark",
     bpm: 100,
     soundcloudUrl: "https://soundcloud.com/imaginaurium/mutationandmadness",
@@ -77,6 +79,20 @@ export const TRACKS: Track[] = [
   },
   {
     id: 5,
+    title: "Corpse on the Grating",
+    side: "dark",
+    bpm: 85,
+    soundcloudUrl: "https://soundcloud.com/imaginaurium/corpse-on-the-grating",
+    effect: {
+      name: "Metallic Resonance",
+      description: "Industrial metallic filtering with resonant feedback and grating harmonics",
+      color: "#455A64",
+      icon: "\u{2699}\u{FE0F}",
+    },
+    durationEstimate: 230,
+  },
+  {
+    id: 6,
     title: "Expiation",
     side: "dark",
     bpm: 70,
@@ -89,9 +105,26 @@ export const TRACKS: Track[] = [
     },
     durationEstimate: 260,
   },
-  // === LIGHT SIDE ===
   {
-    id: 6,
+    id: 7,
+    title: "Calling Me Home",
+    side: "dark",
+    bpm: 72,
+    soundcloudUrl: "https://soundcloud.com/imaginaurium/calling-me-home",
+    effect: {
+      name: "Phantom Echo",
+      description: "Distant whisper-like delays with pitch-shifted ghostly trails",
+      color: "#263238",
+      icon: "\u{1F30C}",
+    },
+    durationEstimate: 270,
+  },
+
+  // ═══════════════════════════════════════════════════════════════════
+  // LIGHT SIDE (9 tracks)
+  // ═══════════════════════════════════════════════════════════════════
+  {
+    id: 8,
     title: "Road Show",
     side: "light",
     bpm: 120,
@@ -105,7 +138,7 @@ export const TRACKS: Track[] = [
     durationEstimate: 200,
   },
   {
-    id: 7,
+    id: 9,
     title: "Recessional",
     side: "light",
     bpm: 95,
@@ -119,7 +152,7 @@ export const TRACKS: Track[] = [
     durationEstimate: 230,
   },
   {
-    id: 8,
+    id: 10,
     title: "Inspirational Soundscapes",
     side: "light",
     bpm: 110,
@@ -133,7 +166,21 @@ export const TRACKS: Track[] = [
     durationEstimate: 215,
   },
   {
-    id: 9,
+    id: 11,
+    title: "Excitement and Elimination",
+    side: "light",
+    bpm: 128,
+    soundcloudUrl: "https://soundcloud.com/imaginaurium/excitement-and-elimination",
+    effect: {
+      name: "Sidechain Pump",
+      description: "Rhythmic ducking that creates a pumping, breathing effect synced to the beat",
+      color: "#E65100",
+      icon: "\u{1F4A5}",
+    },
+    durationEstimate: 205,
+  },
+  {
+    id: 12,
     title: "Acoustic Atmospheres",
     side: "light",
     bpm: 105,
@@ -147,7 +194,7 @@ export const TRACKS: Track[] = [
     durationEstimate: 225,
   },
   {
-    id: 10,
+    id: 13,
     title: "Thoroughly Positive Pitzy",
     side: "light",
     bpm: 130,
@@ -159,6 +206,48 @@ export const TRACKS: Track[] = [
       icon: "\u{1F916}",
     },
     durationEstimate: 195,
+  },
+  {
+    id: 14,
+    title: "Much Ado",
+    side: "light",
+    bpm: 115,
+    soundcloudUrl: "https://soundcloud.com/imaginaurium/much-ado",
+    effect: {
+      name: "Prism Split",
+      description: "Splits audio into spectral bands with rainbow-shifted delays",
+      color: "#AD1457",
+      icon: "\u{1F308}",
+    },
+    durationEstimate: 210,
+  },
+  {
+    id: 15,
+    title: "Rings",
+    side: "light",
+    bpm: 88,
+    soundcloudUrl: "https://soundcloud.com/imaginaurium/rings",
+    effect: {
+      name: "Orbital Resonance",
+      description: "Circular panning with resonant ring modulation and slow phase sweep",
+      color: "#1565C0",
+      icon: "\u{1F4AB}",
+    },
+    durationEstimate: 240,
+  },
+  {
+    id: 16,
+    title: "Brothers",
+    side: "light",
+    bpm: 92,
+    soundcloudUrl: "https://soundcloud.com/imaginaurium/brothers",
+    effect: {
+      name: "Warm Chorus",
+      description: "Rich chorus doubling with warm saturation and gentle detuning",
+      color: "#2E7D32",
+      icon: "\u{1F91D}",
+    },
+    durationEstimate: 235,
   },
 ];
 

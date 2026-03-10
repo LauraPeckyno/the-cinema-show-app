@@ -1,19 +1,8 @@
-import { Text, View, StyleSheet, Dimensions } from "react-native";
+import { ScrollView, Text, View, Pressable, StyleSheet, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
-import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withTiming,
-  withSequence,
-  Easing,
-} from "react-native-reanimated";
-import { useEffect } from "react";
-import { Pressable } from "react-native";
+import { ArtDecoDivider, ArtDecoFrame, ArtDecoSunburst, ArtDecoHeader, ArtDecoCorner } from "@/components/art-deco";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -21,91 +10,102 @@ export default function HomeScreen() {
   const router = useRouter();
   const colors = useColors();
 
-  // Subtle pulsing glow animation
-  const glowOpacity = useSharedValue(0.3);
-  useEffect(() => {
-    glowOpacity.value = withRepeat(
-      withSequence(
-        withTiming(0.7, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0.3, { duration: 2000, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      false
-    );
-  }, []);
-
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: glowOpacity.value,
-  }));
-
   return (
     <ScreenContainer containerClassName="bg-background">
-      <View style={styles.container}>
-        <LinearGradient
-          colors={["#0A0A14", "#1A1A2E", "#242440", "#1A1A2E", "#0A0A14"]}
-          style={StyleSheet.absoluteFillObject}
-        />
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.container}>
+          {/* ─── Art Deco Sunburst Header ─── */}
+          <View style={styles.sunburstWrap}>
+            <ArtDecoSunburst size={SCREEN_WIDTH * 0.6} color={colors.primary} />
+          </View>
 
-        {/* Ambient glow behind the logo */}
-        <Animated.View style={[styles.glowCircle, glowStyle]}>
-          <LinearGradient
-            colors={["transparent", "#C8A95120", "#C8A95140", "#C8A95120", "transparent"]}
-            style={StyleSheet.absoluteFillObject}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-          />
-        </Animated.View>
+          {/* ─── Title Section ─── */}
+          <View style={styles.titleSection}>
+            <Text style={[styles.subtitle, { color: colors.primary }]}>
+              {"— AN IMMERSIVE AUDIO EXPERIENCE —"}
+            </Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>
+              THE CINEMA{"\n"}SHOW
+            </Text>
+            <Text style={[styles.artist, { color: colors.muted }]}>
+              by Robert Peckyno
+            </Text>
+          </View>
 
-        {/* Logo */}
-        <View style={styles.logoContainer}>
-          <Image
-            source={require("@/assets/images/icon.png")}
-            style={styles.logo}
-            contentFit="contain"
-          />
+          <ArtDecoDivider width={SCREEN_WIDTH * 0.75} color={colors.primary} />
+
+          {/* ─── Headphones Required Notice ─── */}
+          <ArtDecoFrame color={colors.primary} style={styles.headphonesFrame}>
+            <View style={styles.headphonesContent}>
+              <Text style={styles.headphonesIcon}>{"\u{1F3A7}"}</Text>
+              <Text style={[styles.headphonesTitle, { color: colors.primary }]}>
+                HEADPHONES REQUIRED
+              </Text>
+              <Text style={[styles.headphonesText, { color: colors.muted }]}>
+                This experience uses your device microphone to sample ambient sounds
+                and blend them with the music. To avoid audio feedback, please connect
+                headphones or earbuds before starting.
+              </Text>
+            </View>
+          </ArtDecoFrame>
+
+          {/* ─── Description ─── */}
+          <ArtDecoHeader title="THE EXPERIENCE" color={colors.primary} textColor={colors.foreground} />
+
+          <View style={styles.descriptionSection}>
+            <Text style={[styles.description, { color: colors.muted }]}>
+              Step into a world where your surroundings become part of the music.
+              The Cinema Show captures ambient sounds through your microphone and
+              weaves them into an instrumental soundtrack — creating a unique,
+              one-of-a-kind listening experience that is different every time.
+            </Text>
+          </View>
+
+          {/* ─── How It Works ─── */}
+          <ArtDecoHeader title="HOW IT WORKS" color={colors.primary} textColor={colors.foreground} />
+
+          <View style={styles.stepsContainer}>
+            {[
+              { num: "I", text: "Choose a track from the Dark or Light side of the album" },
+              { num: "II", text: "Enable your microphone to capture ambient sounds" },
+              { num: "III", text: "Each track applies a unique effect to your environment" },
+              { num: "IV", text: "The result is a one-of-a-kind immersive soundscape" },
+            ].map((step, i) => (
+              <View key={i} style={styles.stepRow}>
+                <View style={[styles.stepNumContainer, { borderColor: colors.primary + "60" }]}>
+                  <Text style={[styles.stepNum, { color: colors.primary }]}>{step.num}</Text>
+                </View>
+                <Text style={[styles.stepText, { color: colors.foreground }]}>{step.text}</Text>
+              </View>
+            ))}
+          </View>
+
+          <ArtDecoDivider width={SCREEN_WIDTH * 0.6} color={colors.primary} />
+
+          {/* ─── CTA Button ─── */}
+          <Pressable
+            onPress={() => router.push("/(tabs)/tracks" as any)}
+            style={({ pressed }) => [
+              styles.ctaButton,
+              { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
+            ]}
+          >
+            <Text style={[styles.ctaText, { color: colors.background }]}>
+              {"\u{1F3AC}"}  EXPLORE THE ALBUM
+            </Text>
+          </Pressable>
+
+          {/* ─── Album Info ─── */}
+          <View style={styles.albumInfo}>
+            <Text style={[styles.albumInfoText, { color: colors.muted }]}>
+              16 Tracks  {"\u{00B7}"}  Dark & Light Sides  {"\u{00B7}"}  2026
+            </Text>
+          </View>
         </View>
-
-        {/* Title */}
-        <Text style={[styles.title, { color: colors.foreground }]}>THE CINEMA SHOW</Text>
-        <Text style={[styles.subtitle, { color: colors.primary }]}>by Robert Peckyno</Text>
-
-        {/* Tagline */}
-        <Text style={[styles.tagline, { color: colors.muted }]}>
-          Your world becomes the soundtrack
-        </Text>
-
-        {/* Description */}
-        <View style={styles.descriptionBox}>
-          <Text style={[styles.description, { color: colors.muted }]}>
-            Capture the sounds around you and blend them with cinematic instrumentals.
-            Each track transforms your environment into a unique immersive experience.
-          </Text>
-        </View>
-
-        {/* Enter Button */}
-        <Pressable
-          onPress={() => router.push({ pathname: "/(tabs)/tracks" } as any)}
-          style={({ pressed }) => [
-            styles.enterButton,
-            { backgroundColor: colors.primary },
-            pressed && { transform: [{ scale: 0.97 }], opacity: 0.9 },
-          ]}
-        >
-          <Text style={[styles.enterButtonText, { color: "#0A0A14" }]}>
-            Enter the Theater
-          </Text>
-        </Pressable>
-
-        {/* Film strip decoration */}
-        <View style={styles.filmStrip}>
-          {Array.from({ length: 12 }).map((_, i) => (
-            <View
-              key={i}
-              style={[styles.filmHole, { backgroundColor: colors.border }]}
-            />
-          ))}
-        </View>
-      </View>
+      </ScrollView>
     </ScreenContainer>
   );
 }
@@ -114,87 +114,114 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
+    paddingTop: 8,
   },
-  glowCircle: {
-    position: "absolute",
-    width: SCREEN_WIDTH * 0.8,
-    height: SCREEN_WIDTH * 0.8,
-    borderRadius: SCREEN_WIDTH * 0.4,
-    top: "15%",
-    alignSelf: "center",
+  sunburstWrap: {
+    marginBottom: -8,
+    opacity: 0.6,
   },
-  logoContainer: {
-    width: 140,
-    height: 140,
-    borderRadius: 28,
-    overflow: "hidden",
-    marginBottom: 24,
-    shadowColor: "#C8A951",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  logo: {
-    width: 140,
-    height: 140,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "800",
-    letterSpacing: 4,
-    textAlign: "center",
-    marginBottom: 4,
+  titleSection: {
+    alignItems: "center",
+    marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 11,
     fontWeight: "600",
-    letterSpacing: 2,
-    textAlign: "center",
-    marginBottom: 20,
+    letterSpacing: 3,
+    marginBottom: 8,
   },
-  tagline: {
-    fontSize: 14,
-    fontStyle: "italic",
+  title: {
+    fontSize: 38,
+    fontWeight: "800",
     textAlign: "center",
-    marginBottom: 24,
+    letterSpacing: 4,
+    lineHeight: 44,
+  },
+  artist: {
+    fontSize: 14,
+    fontWeight: "500",
+    marginTop: 8,
     letterSpacing: 1,
   },
-  descriptionBox: {
-    maxWidth: 320,
-    marginBottom: 32,
+  headphonesFrame: {
+    marginHorizontal: 12,
+    marginVertical: 12,
+    width: SCREEN_WIDTH - 56,
+  },
+  headphonesContent: {
+    alignItems: "center",
+    paddingVertical: 4,
+  },
+  headphonesIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  headphonesTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 2,
+    marginBottom: 8,
+  },
+  headphonesText: {
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: "center",
+  },
+  descriptionSection: {
+    paddingHorizontal: 8,
+    marginBottom: 8,
   },
   description: {
     fontSize: 14,
     lineHeight: 22,
     textAlign: "center",
   },
-  enterButton: {
-    paddingHorizontal: 40,
-    paddingVertical: 16,
-    borderRadius: 30,
-    marginBottom: 40,
+  stepsContainer: {
+    width: "100%",
+    paddingHorizontal: 8,
+    marginBottom: 16,
+    gap: 12,
   },
-  enterButtonText: {
-    fontSize: 18,
-    fontWeight: "700",
+  stepRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  stepNumContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepNum: {
+    fontSize: 14,
+    fontWeight: "800",
     letterSpacing: 1,
   },
-  filmStrip: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    justifyContent: "space-evenly",
-    paddingVertical: 8,
+  stepText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
   },
-  filmHole: {
-    width: 8,
-    height: 8,
-    borderRadius: 2,
-    opacity: 0.4,
+  ctaButton: {
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  ctaText: {
+    fontSize: 16,
+    fontWeight: "800",
+    letterSpacing: 2,
+  },
+  albumInfo: {
+    marginTop: 16,
+  },
+  albumInfoText: {
+    fontSize: 12,
+    letterSpacing: 1,
   },
 });

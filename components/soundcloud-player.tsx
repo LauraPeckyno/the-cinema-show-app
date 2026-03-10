@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useEffect } from "react";
+import React, { useRef, useCallback, useEffect, useState } from "react";
 import { View, StyleSheet, Platform } from "react-native";
 import { Track } from "@/constants/tracks";
 
@@ -14,11 +14,52 @@ interface SoundCloudPlayerProps {
 }
 
 /**
- * SoundCloud player using an iframe embed.
- * On web, renders a hidden iframe with the SoundCloud widget.
- * On native, we use a minimal approach since WebView isn't bundled by default.
+ * SoundCloud player component.
+ * - On web: uses an iframe with the SoundCloud Widget API
+ * - On native (Android/iOS): uses react-native-webview to embed the same widget
  */
 export function SoundCloudPlayer({
+  track,
+  isPlaying,
+  volume,
+  onPlay,
+  onPause,
+  onProgress,
+  onReady,
+  onFinish,
+}: SoundCloudPlayerProps) {
+  if (Platform.OS === "web") {
+    return (
+      <WebSoundCloudPlayer
+        track={track}
+        isPlaying={isPlaying}
+        volume={volume}
+        onPlay={onPlay}
+        onPause={onPause}
+        onProgress={onProgress}
+        onReady={onReady}
+        onFinish={onFinish}
+      />
+    );
+  }
+
+  return (
+    <NativeSoundCloudPlayer
+      track={track}
+      isPlaying={isPlaying}
+      volume={volume}
+      onPlay={onPlay}
+      onPause={onPause}
+      onProgress={onProgress}
+      onReady={onReady}
+      onFinish={onFinish}
+    />
+  );
+}
+
+// ─── Web Implementation (iframe) ────────────────────────────────────────────
+
+function WebSoundCloudPlayer({
   track,
   isPlaying,
   volume,
@@ -39,15 +80,12 @@ export function SoundCloudPlayer({
 
   // Load SC Widget API script
   useEffect(() => {
-    if (Platform.OS !== "web") return;
     if (scriptLoadedRef.current) return;
-
     const existing = document.querySelector('script[src*="api.js"]');
     if (existing) {
       scriptLoadedRef.current = true;
       return;
     }
-
     const script = document.createElement("script");
     script.src = "https://w.soundcloud.com/player/api.js";
     script.async = true;
@@ -57,34 +95,20 @@ export function SoundCloudPlayer({
     document.head.appendChild(script);
   }, []);
 
-  // Initialize widget when iframe is ready
   const initWidget = useCallback(() => {
-    if (Platform.OS !== "web") return;
     if (!iframeRef.current) return;
-
     const checkSC = () => {
       if (typeof (window as any).SC !== "undefined" && (window as any).SC.Widget) {
         const widget = (window as any).SC.Widget(iframeRef.current);
         widgetRef.current = widget;
-
         widget.bind((window as any).SC.Widget.Events.READY, () => {
           readyRef.current = true;
           widget.setVolume(volume);
           onReady?.();
         });
-
-        widget.bind((window as any).SC.Widget.Events.PLAY, () => {
-          onPlay?.();
-        });
-
-        widget.bind((window as any).SC.Widget.Events.PAUSE, () => {
-          onPause?.();
-        });
-
-        widget.bind((window as any).SC.Widget.Events.FINISH, () => {
-          onFinish?.();
-        });
-
+        widget.bind((window as any).SC.Widget.Events.PLAY, () => onPlay?.());
+        widget.bind((window as any).SC.Widget.Events.PAUSE, () => onPause?.());
+        widget.bind((window as any).SC.Widget.Events.FINISH, () => onFinish?.());
         widget.bind((window as any).SC.Widget.Events.PLAY_PROGRESS, (data: any) => {
           if (data && onProgress) {
             onProgress(data.relativePosition, data.currentPosition / 1000);
@@ -94,12 +118,9 @@ export function SoundCloudPlayer({
         setTimeout(checkSC, 200);
       }
     };
-
-    // Small delay to let iframe load
     setTimeout(checkSC, 500);
   }, [volume, onReady, onPlay, onPause, onFinish, onProgress]);
 
-  // Control playback
   useEffect(() => {
     if (!widgetRef.current || !readyRef.current) return;
     if (isPlaying) {
@@ -109,13 +130,11 @@ export function SoundCloudPlayer({
     }
   }, [isPlaying]);
 
-  // Control volume
   useEffect(() => {
     if (!widgetRef.current || !readyRef.current) return;
     widgetRef.current.setVolume(volume);
   }, [volume]);
 
-  // Reload widget when track changes
   useEffect(() => {
     if (!widgetRef.current || !readyRef.current) return;
     readyRef.current = false;
@@ -129,20 +148,15 @@ export function SoundCloudPlayer({
     });
   }, [track.soundcloudUrl]);
 
-  if (Platform.OS !== "web") {
-    // For native, we'd use react-native-webview, but for now return null
-    return null;
-  }
-
   return (
-    <View style={styles.container}>
+    <View style={styles.hiddenContainer}>
       <iframe
         ref={(el) => {
           iframeRef.current = el;
           if (el) initWidget();
         }}
         width="100%"
-        height="0"
+        height="166"
         scrolling="no"
         frameBorder="no"
         allow="autoplay"
@@ -153,14 +167,225 @@ export function SoundCloudPlayer({
   );
 }
 
+// ─── Native Implementation (react-native-webview) ──────────────────────────
+
+function NativeSoundCloudPlayer({
+  track,
+  isPlaying,
+  volume,
+  onPlay,
+  onPause,
+  onProgress,
+  onReady,
+  onFinish,
+}: SoundCloudPlayerProps) {
+  const webViewRef = useRef<any>(null);
+  const [isWidgetReady, setIsWidgetReady] = useState(false);
+  const isPlayingRef = useRef(isPlaying);
+  isPlayingRef.current = isPlaying;
+
+  // We dynamically import WebView to avoid crashes if not installed
+  const [WebViewComponent, setWebViewComponent] = useState<any>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const mod = await import("react-native-webview");
+        if (mounted) {
+          setWebViewComponent(() => mod.default || mod.WebView);
+        }
+      } catch (e) {
+        console.warn("react-native-webview not available:", e);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const embedUrl = track.soundcloudUrl;
+
+  // Build the HTML page that embeds the SoundCloud widget
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { margin: 0; padding: 0; background: #000; overflow: hidden; }
+    iframe { width: 100%; height: 166px; }
+  </style>
+</head>
+<body>
+  <iframe id="sc-widget"
+    width="100%" height="166" scrolling="no" frameborder="no" allow="autoplay"
+    src="https://w.soundcloud.com/player/?url=${encodeURIComponent(embedUrl)}&color=%23C8A951&auto_play=false&hide_related=true&show_comments=false&show_user=false&show_reposts=false&show_teaser=false&visual=false">
+  </iframe>
+  <script src="https://w.soundcloud.com/player/api.js"></script>
+  <script>
+    var widget = null;
+    var ready = false;
+
+    function initWidget() {
+      if (typeof SC === 'undefined' || !SC.Widget) {
+        setTimeout(initWidget, 200);
+        return;
+      }
+      var iframe = document.getElementById('sc-widget');
+      widget = SC.Widget(iframe);
+
+      widget.bind(SC.Widget.Events.READY, function() {
+        ready = true;
+        widget.setVolume(${volume});
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
+      });
+
+      widget.bind(SC.Widget.Events.PLAY, function() {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'play' }));
+      });
+
+      widget.bind(SC.Widget.Events.PAUSE, function() {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'pause' }));
+      });
+
+      widget.bind(SC.Widget.Events.FINISH, function() {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'finish' }));
+      });
+
+      widget.bind(SC.Widget.Events.PLAY_PROGRESS, function(data) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'progress',
+          position: data.relativePosition,
+          time: data.currentPosition / 1000
+        }));
+      });
+    }
+
+    setTimeout(initWidget, 300);
+  </script>
+</body>
+</html>`;
+
+  // Handle messages from the WebView
+  const handleMessage = useCallback(
+    (event: any) => {
+      try {
+        const data = JSON.parse(event.nativeEvent.data);
+        switch (data.type) {
+          case "ready":
+            setIsWidgetReady(true);
+            onReady?.();
+            break;
+          case "play":
+            onPlay?.();
+            break;
+          case "pause":
+            onPause?.();
+            break;
+          case "finish":
+            onFinish?.();
+            break;
+          case "progress":
+            onProgress?.(data.position, data.time);
+            break;
+        }
+      } catch (e) {
+        // ignore parse errors
+      }
+    },
+    [onReady, onPlay, onPause, onFinish, onProgress]
+  );
+
+  // Control playback via injected JS
+  useEffect(() => {
+    if (!webViewRef.current || !isWidgetReady) return;
+    const js = isPlaying
+      ? "if(widget && ready) widget.play(); true;"
+      : "if(widget && ready) widget.pause(); true;";
+    webViewRef.current.injectJavaScript(js);
+  }, [isPlaying, isWidgetReady]);
+
+  // Control volume
+  useEffect(() => {
+    if (!webViewRef.current || !isWidgetReady) return;
+    webViewRef.current.injectJavaScript(
+      `if(widget && ready) widget.setVolume(${volume}); true;`
+    );
+  }, [volume, isWidgetReady]);
+
+  // Load new track
+  useEffect(() => {
+    if (!webViewRef.current || !isWidgetReady) return;
+    setIsWidgetReady(false);
+    const loadJs = `
+      if(widget && ready) {
+        ready = false;
+        widget.load('${embedUrl}', {
+          auto_play: false,
+          callback: function() {
+            ready = true;
+            widget.setVolume(${volume});
+            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
+          }
+        });
+      }
+      true;
+    `;
+    webViewRef.current.injectJavaScript(loadJs);
+  }, [track.soundcloudUrl]);
+
+  if (!WebViewComponent) {
+    return null;
+  }
+
+  const WV = WebViewComponent;
+
+  return (
+    <View style={styles.nativeContainer}>
+      <WV
+        ref={webViewRef}
+        source={{ html: htmlContent }}
+        onMessage={handleMessage}
+        javaScriptEnabled={true}
+        domStorageEnabled={true}
+        mediaPlaybackRequiresUserAction={false}
+        allowsInlineMediaPlayback={true}
+        mixedContentMode="always"
+        originWhitelist={["*"]}
+        style={styles.webview}
+        androidLayerType="hardware"
+        allowsProtectedMedia={true}
+        setSupportMultipleWindows={false}
+        onError={(e: any) => console.warn("WebView error:", e.nativeEvent)}
+      />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
+  hiddenContainer: {
     width: 1,
     height: 1,
     overflow: "hidden",
     position: "absolute",
-    top: -100,
-    left: -100,
+    top: -9999,
+    left: -9999,
     opacity: 0,
+  },
+  nativeContainer: {
+    width: 300,
+    height: 200,
+    overflow: "hidden",
+    position: "absolute",
+    top: -9999,
+    left: -9999,
+    opacity: 0.01,
+    zIndex: -1,
+  },
+  webview: {
+    width: 300,
+    height: 200,
+    backgroundColor: "transparent",
   },
 });

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import {
   Text,
   View,
@@ -6,7 +6,6 @@ import {
   Pressable,
   Dimensions,
   ScrollView,
-  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -17,7 +16,7 @@ import { AudioVisualizer } from "@/components/audio-visualizer";
 import { SoundCloudPlayer } from "@/components/soundcloud-player";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useKeepAwake } from "expo-keep-awake";
-import { getEffectProcessor } from "@/lib/audio-effects";
+import { ArtDecoDivider, ArtDecoFrame, ArtDecoCorner } from "@/components/art-deco";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -111,7 +110,6 @@ export default function NowPlayingScreen() {
     currentTrack,
     isPlaying,
     isMicActive,
-    micLevel,
     processedMicLevel,
     micSensitivity,
     effectIntensity,
@@ -204,8 +202,6 @@ export default function NowPlayingScreen() {
   const effectColor = currentTrack.effect.color;
   const isDark = currentTrack.side === "dark";
   const estimatedDuration = currentTrack.durationEstimate;
-
-  // Use processedMicLevel for the visualizer (it has the effect applied)
   const visualizerLevel = isMicActive ? processedMicLevel : 0;
 
   return (
@@ -241,7 +237,7 @@ export default function NowPlayingScreen() {
           </Pressable>
           <View style={styles.headerCenter}>
             <Text style={[styles.sideLabel, { color: effectColor }]}>
-              {isDark ? "DARK SIDE" : "LIGHT SIDE"}
+              {isDark ? "\u{1F311} DARK SIDE" : "\u{2600}\u{FE0F} LIGHT SIDE"}
             </Text>
             <Text style={[styles.trackName, { color: colors.foreground }]} numberOfLines={1}>
               {currentTrack.title}
@@ -249,6 +245,9 @@ export default function NowPlayingScreen() {
           </View>
           <View style={styles.headerRight} />
         </View>
+
+        {/* Art Deco Divider */}
+        <ArtDecoDivider width={SCREEN_WIDTH * 0.5} color={effectColor} />
 
         {/* Visualizer */}
         <View style={styles.visualizerArea}>
@@ -397,19 +396,28 @@ export default function NowPlayingScreen() {
           />
         </View>
 
-        {/* Effect Description */}
-        <View style={[styles.effectDescBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.effectDescTitle, { color: effectColor }]}>
-            {currentTrack.effect.icon} {currentTrack.effect.name}
-          </Text>
-          <Text style={[styles.effectDescText, { color: colors.muted }]}>
-            {currentTrack.effect.description}
-          </Text>
-          {isMicActive && (
-            <Text style={[styles.effectActiveText, { color: colors.success }]}>
-              Effect active — ambient audio is being processed
+        {/* Effect Description with Art Deco Frame */}
+        <View style={styles.effectDescWrapper}>
+          <ArtDecoFrame color={effectColor} cornerSize={28}>
+            <Text style={[styles.effectDescTitle, { color: effectColor }]}>
+              {currentTrack.effect.icon} {currentTrack.effect.name}
             </Text>
-          )}
+            <Text style={[styles.effectDescText, { color: colors.muted }]}>
+              {currentTrack.effect.description}
+            </Text>
+            {isMicActive && (
+              <Text style={[styles.effectActiveText, { color: colors.success }]}>
+                Effect active — ambient audio is being processed
+              </Text>
+            )}
+          </ArtDecoFrame>
+        </View>
+
+        {/* Headphones reminder */}
+        <View style={styles.headphonesReminder}>
+          <Text style={[styles.headphonesReminderText, { color: colors.muted }]}>
+            {"\u{1F3A7}"} Best experienced with headphones
+          </Text>
         </View>
       </ScrollView>
     </ScreenContainer>
@@ -444,7 +452,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 8,
+    paddingBottom: 4,
   },
   backButton: {
     padding: 8,
@@ -469,7 +477,7 @@ const styles = StyleSheet.create({
   visualizerArea: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
+    paddingVertical: 12,
   },
   statusRow: {
     flexDirection: "row",
@@ -652,11 +660,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginLeft: -8,
   },
-  effectDescBox: {
+  effectDescWrapper: {
     marginHorizontal: 24,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
+    marginBottom: 16,
   },
   effectDescTitle: {
     fontSize: 14,
@@ -671,5 +677,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontStyle: "italic",
     marginTop: 8,
+  },
+  headphonesReminder: {
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  headphonesReminderText: {
+    fontSize: 12,
+    fontStyle: "italic",
   },
 });

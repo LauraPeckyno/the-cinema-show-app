@@ -5,6 +5,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useAudioEngine } from "@/lib/audio-engine";
 import { DARK_TRACKS, LIGHT_TRACKS, Track } from "@/constants/tracks";
+import { ArtDecoHeader, ArtDecoDivider, ArtDecoCorner } from "@/components/art-deco";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -19,11 +20,15 @@ function TrackCard({ track, onPress }: { track: Track; onPress: () => void }) {
         styles.card,
         {
           backgroundColor: colors.surface,
-          borderColor: colors.border,
+          borderColor: isDark ? "#8B000030" : colors.primary + "30",
         },
         pressed && { transform: [{ scale: 0.98 }], opacity: 0.85 },
       ]}
     >
+      {/* Art Deco corner ornaments */}
+      <ArtDecoCorner position="top-left" size={18} color={isDark ? "#8B0000" : colors.primary} />
+      <ArtDecoCorner position="top-right" size={18} color={isDark ? "#8B0000" : colors.primary} />
+
       {/* Effect color accent bar */}
       <View style={[styles.accentBar, { backgroundColor: track.effect.color }]} />
 
@@ -38,7 +43,7 @@ function TrackCard({ track, onPress }: { track: Track; onPress: () => void }) {
               {track.bpm} BPM
             </Text>
           </View>
-          <View style={[styles.trackNumber, { backgroundColor: track.effect.color + "30" }]}>
+          <View style={[styles.trackNumber, { backgroundColor: track.effect.color + "30", borderColor: track.effect.color + "50" }]}>
             <Text style={[styles.trackNumberText, { color: track.effect.color }]}>
               {String(track.id).padStart(2, "0")}
             </Text>
@@ -53,19 +58,6 @@ function TrackCard({ track, onPress }: { track: Track; onPress: () => void }) {
         </Text>
       </View>
     </Pressable>
-  );
-}
-
-function SectionHeader({ title, subtitle, isDark }: { title: string; subtitle: string; isDark: boolean }) {
-  const colors = useColors();
-  return (
-    <View style={styles.sectionHeader}>
-      <View style={styles.sectionTitleRow}>
-        <View style={[styles.sectionDot, { backgroundColor: isDark ? "#6A0DAD" : "#FF6F00" }]} />
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{title}</Text>
-      </View>
-      <Text style={[styles.sectionSubtitle, { color: colors.muted }]}>{subtitle}</Text>
-    </View>
   );
 }
 
@@ -97,6 +89,7 @@ export default function TracksScreen() {
         <Text style={[styles.pageSubtitle, { color: colors.muted }]}>
           Each track applies a unique filter to your ambient sounds
         </Text>
+        <ArtDecoDivider width={SCREEN_WIDTH * 0.6} color={colors.primary} />
       </View>
       <FlatList
         data={data}
@@ -106,20 +99,30 @@ export default function TracksScreen() {
         renderItem={({ item }) => {
           if (item.type === "header-dark") {
             return (
-              <SectionHeader
-                title="DARK SIDE"
-                subtitle="Haunting, atmospheric, and experimental"
-                isDark={true}
-              />
+              <View style={styles.sectionHeader}>
+                <ArtDecoHeader
+                  title={"\u{1F311}  DARK SIDE"}
+                  color="#8B0000"
+                  textColor={colors.foreground}
+                />
+                <Text style={[styles.sectionSubtitle, { color: colors.muted }]}>
+                  Haunting, atmospheric, and experimental
+                </Text>
+              </View>
             );
           }
           if (item.type === "header-light") {
             return (
-              <SectionHeader
-                title="LIGHT SIDE"
-                subtitle="Uplifting, rhythmic, and inspiring"
-                isDark={false}
-              />
+              <View style={styles.sectionHeader}>
+                <ArtDecoHeader
+                  title={"\u{2600}\u{FE0F}  LIGHT SIDE"}
+                  color={colors.primary}
+                  textColor={colors.foreground}
+                />
+                <Text style={[styles.sectionSubtitle, { color: colors.muted }]}>
+                  Uplifting, rhythmic, and inspiring
+                </Text>
+              </View>
             );
           }
           if (item.type === "track" && "track" in item) {
@@ -139,6 +142,7 @@ export default function TracksScreen() {
 
 const styles = StyleSheet.create({
   headerArea: {
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 4,
@@ -152,35 +156,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
     letterSpacing: 0.5,
+    marginBottom: 4,
   },
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 100,
   },
   sectionHeader: {
-    marginTop: 24,
-    marginBottom: 12,
-    paddingHorizontal: 4,
-  },
-  sectionTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  sectionDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    letterSpacing: 2,
+    marginTop: 8,
+    marginBottom: 8,
   },
   sectionSubtitle: {
     fontSize: 12,
-    marginTop: 4,
-    marginLeft: 18,
+    textAlign: "center",
+    marginTop: -4,
+    marginBottom: 4,
   },
   card: {
     borderRadius: 12,
@@ -222,6 +212,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },

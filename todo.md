@@ -23,3 +23,8 @@
 - [x] Add cinema-themed animations and polish
 - [x] Write unit tests for core functionality
 - [x] Final integration testing and bug fixes
+- [x] Fix audio playback on native Android (SoundCloud iframe not producing sound, progress not advancing)
+- [x] Implement proper microphone permission request flow on Android
+- [x] Add headphones required notice on home screen
+- [x] Add art-deco style UI embellishments across all screens
+- [x] Expand tracklist from 10 to all 16 album tracks with unique effects
