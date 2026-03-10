@@ -28,3 +28,4 @@
 - [x] Add headphones required notice on home screen
 - [x] Add art-deco style UI embellishments across all screens
 - [x] Expand tracklist from 10 to all 16 album tracks with unique effects
+- [x] Fix 8 non-playing tracks: Thoroughly Positive Pitzy, Inspirational Soundscapes, Recessional, Road Show, Calling Me Home, Corpse on the Grating, Krampus Wishes, Corpse Parade

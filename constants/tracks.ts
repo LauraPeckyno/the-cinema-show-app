@@ -26,7 +26,7 @@ export const TRACKS: Track[] = [
     title: "Corpse Parade",
     side: "dark",
     bpm: 80,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/corpse-parade",
+    soundcloudUrl: "https://soundcloud.com/imaginaurium/corpseparade",
     effect: {
       name: "Spectral Reverb",
       description: "Deep cathedral reverb with spectral shimmer and ghostly echoes",
@@ -68,7 +68,7 @@ export const TRACKS: Track[] = [
     title: "Krampus Wishes",
     side: "dark",
     bpm: 75,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/krampus-wishes",
+    soundcloudUrl: "https://soundcloud.com/imaginaurium/krampuswishes",
     effect: {
       name: "Reverse Swell",
       description: "Reversed audio swells with dark tremolo and sub-bass boost",
@@ -82,7 +82,7 @@ export const TRACKS: Track[] = [
     title: "Corpse on the Grating",
     side: "dark",
     bpm: 85,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/corpse-on-the-grating",
+    soundcloudUrl: "https://soundcloud.com/imaginaurium/corpseonthegrating",
     effect: {
       name: "Metallic Resonance",
       description: "Industrial metallic filtering with resonant feedback and grating harmonics",
@@ -110,7 +110,7 @@ export const TRACKS: Track[] = [
     title: "Calling Me Home",
     side: "dark",
     bpm: 72,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/calling-me-home",
+    soundcloudUrl: "https://soundcloud.com/imaginaurium/calling",
     effect: {
       name: "Phantom Echo",
       description: "Distant whisper-like delays with pitch-shifted ghostly trails",
@@ -128,7 +128,7 @@ export const TRACKS: Track[] = [
     title: "Road Show",
     side: "light",
     bpm: 120,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/road-show",
+    soundcloudUrl: "https://soundcloud.com/imaginaurium/roadshow",
     effect: {
       name: "Rhythmic Gate",
       description: "Tempo-synced gate that chops audio into rhythmic patterns",
@@ -142,7 +142,7 @@ export const TRACKS: Track[] = [
     title: "Recessional",
     side: "light",
     bpm: 95,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/recessional",
+    soundcloudUrl: "https://soundcloud.com/imaginaurium/2020-recessional",
     effect: {
       name: "Shimmer Delay",
       description: "Pitch-shifted delay with ascending octave shimmer",
@@ -156,7 +156,7 @@ export const TRACKS: Track[] = [
     title: "Inspirational Soundscapes",
     side: "light",
     bpm: 110,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/inspirational-soundscapes-the-drive2succeed",
+    soundcloudUrl: "https://soundcloud.com/imaginaurium/drive2succeed",
     effect: {
       name: "Harmonic Freeze",
       description: "Spectral freeze that sustains harmonic content as pads",
@@ -198,7 +198,7 @@ export const TRACKS: Track[] = [
     title: "Thoroughly Positive Pitzy",
     side: "light",
     bpm: 130,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/thoroughly-positive-pitzy",
+    soundcloudUrl: "https://soundcloud.com/imaginaurium/thoroughly-positive-pitzy-2",
     effect: {
       name: "Vocoder Pulse",
       description: "Vocoder-style processing synced to rhythmic pulses",
