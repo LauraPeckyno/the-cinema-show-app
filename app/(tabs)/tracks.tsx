@@ -6,10 +6,20 @@ import { useColors } from "@/hooks/use-colors";
 import { useAudioEngine } from "@/lib/audio-engine";
 import { DARK_TRACKS, LIGHT_TRACKS, Track } from "@/constants/tracks";
 import { ArtDecoHeader, ArtDecoDivider, ArtDecoCorner } from "@/components/art-deco";
+import { useTrackDurations } from "@/hooks/use-track-durations";
+
+/** Format milliseconds to m:ss */
+function formatMs(ms: number): string {
+  if (!ms || ms <= 0) return "";
+  const totalSec = Math.floor(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-function TrackCard({ track, onPress }: { track: Track; onPress: () => void }) {
+function TrackCard({ track, onPress, durationLabel }: { track: Track; onPress: () => void; durationLabel: string }) {
   const colors = useColors();
   const isDark = track.side === "dark";
 
@@ -39,9 +49,16 @@ function TrackCard({ track, onPress }: { track: Track; onPress: () => void }) {
             <Text style={[styles.trackTitle, { color: colors.foreground }]} numberOfLines={1}>
               {track.title}
             </Text>
-            <Text style={[styles.trackBpm, { color: colors.primary }]}>
-              {track.bpm} BPM
-            </Text>
+            <View style={styles.trackMeta}>
+              <Text style={[styles.trackBpm, { color: colors.primary }]}>
+                {track.bpm} BPM
+              </Text>
+              {durationLabel ? (
+                <Text style={[styles.trackDuration, { color: colors.muted }]}>
+                  {durationLabel}
+                </Text>
+              ) : null}
+            </View>
           </View>
           <View style={[styles.trackNumber, { backgroundColor: track.effect.color + "30", borderColor: track.effect.color + "50" }]}>
             <Text style={[styles.trackNumberText, { color: track.effect.color }]}>
@@ -65,6 +82,7 @@ export default function TracksScreen() {
   const router = useRouter();
   const colors = useColors();
   const { selectTrack } = useAudioEngine();
+  const { getDuration } = useTrackDurations();
 
   const handleTrackPress = (track: Track) => {
     selectTrack(track);
@@ -130,6 +148,15 @@ export default function TracksScreen() {
               <TrackCard
                 track={item.track!}
                 onPress={() => handleTrackPress(item.track!)}
+                durationLabel={(() => {
+                  const cachedSec = getDuration(item.track!.id);
+                  if (cachedSec > 0) {
+                    const m = Math.floor(cachedSec / 60);
+                    const s = Math.floor(cachedSec % 60);
+                    return `${m}:${s.toString().padStart(2, "0")}`;
+                  }
+                  return formatMs(item.track!.durationMs);
+                })()}
               />
             );
           }
@@ -203,10 +230,19 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.5,
   },
+  trackMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 2,
+  },
   trackBpm: {
     fontSize: 12,
     fontWeight: "600",
-    marginTop: 2,
+  },
+  trackDuration: {
+    fontSize: 12,
+    fontVariant: ["tabular-nums"] as any,
   },
   trackNumber: {
     width: 32,

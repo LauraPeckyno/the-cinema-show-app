@@ -17,6 +17,7 @@ import { SoundCloudPlayer } from "@/components/soundcloud-player";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useKeepAwake } from "expo-keep-awake";
 import { ArtDecoDivider, ArtDecoFrame, ArtDecoCorner } from "@/components/art-deco";
+import { reportTrackDuration } from "@/hooks/use-track-durations";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -102,6 +103,7 @@ export default function NowPlayingScreen() {
     setEffectIntensity,
     setVolume,
     updatePlaybackProgress,
+    setTrackDuration,
     setPlaying,
     setLoading,
   } = useAudioEngine();
@@ -116,6 +118,7 @@ export default function NowPlayingScreen() {
     volume,
     playbackProgress,
     playbackTime,
+    trackDuration,
     isLoading,
   } = state;
 
@@ -154,6 +157,17 @@ export default function NowPlayingScreen() {
   const handleSCReady = useCallback(() => {
     setLoading(false);
   }, [setLoading]);
+
+  const handleSCDuration = useCallback(
+    (durationMs: number) => {
+      setTrackDuration(durationMs);
+      // Also report to the global duration cache so the track list can display it
+      if (currentTrack) {
+        reportTrackDuration(currentTrack.id, durationMs);
+      }
+    },
+    [setTrackDuration, currentTrack]
+  );
 
   const handleSCPlay = useCallback(() => {
     setPlaying(true);
@@ -201,7 +215,12 @@ export default function NowPlayingScreen() {
 
   const effectColor = currentTrack.effect.color;
   const isDark = currentTrack.side === "dark";
-  const estimatedDuration = currentTrack.durationEstimate;
+  // Use actual SoundCloud duration if available, then durationMs from track data, then estimate
+  const displayDuration = trackDuration > 0
+    ? trackDuration
+    : currentTrack.durationMs > 0
+      ? currentTrack.durationMs / 1000
+      : currentTrack.durationEstimate;
   const visualizerLevel = isMicActive ? processedMicLevel : 0;
 
   return (
@@ -221,6 +240,7 @@ export default function NowPlayingScreen() {
         onPause={handleSCPause}
         onProgress={handleSCProgress}
         onFinish={handleSCFinish}
+        onDuration={handleSCDuration}
       />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -314,7 +334,7 @@ export default function NowPlayingScreen() {
               {formatTime(playbackTime)}
             </Text>
             <Text style={[styles.timeText, { color: colors.muted }]}>
-              {formatTime(estimatedDuration)}
+              {trackDuration > 0 ? formatTime(displayDuration - playbackTime) : formatTime(displayDuration)}
             </Text>
           </View>
         </View>

@@ -18,6 +18,7 @@ export interface AudioEngineState {
   processedMicLevel: number; // 0-1 after effect processing
   playbackProgress: number; // 0-1
   playbackTime: number; // seconds
+  trackDuration: number; // actual duration in seconds from SoundCloud (0 = not yet fetched)
   isLoading: boolean;
   error: string | null;
 }
@@ -34,6 +35,7 @@ const initialState: AudioEngineState = {
   processedMicLevel: 0,
   playbackProgress: 0,
   playbackTime: 0,
+  trackDuration: 0,
   isLoading: false,
   error: null,
 };
@@ -50,13 +52,14 @@ type AudioAction =
   | { type: "SET_VOLUME"; value: number }
   | { type: "SET_MIC_LEVEL"; level: number; processedLevel: number }
   | { type: "SET_PLAYBACK_PROGRESS"; progress: number; time: number }
+  | { type: "SET_TRACK_DURATION"; duration: number }
   | { type: "SET_LOADING"; loading: boolean }
   | { type: "SET_ERROR"; error: string | null };
 
 function audioReducer(state: AudioEngineState, action: AudioAction): AudioEngineState {
   switch (action.type) {
     case "SET_TRACK":
-      return { ...state, currentTrack: action.track, playbackProgress: 0, playbackTime: 0, isPlaying: false, isLoading: !!action.track };
+      return { ...state, currentTrack: action.track, playbackProgress: 0, playbackTime: 0, trackDuration: 0, isPlaying: false, isLoading: !!action.track };
     case "SET_PLAYING":
       return { ...state, isPlaying: action.playing };
     case "SET_MIC_ACTIVE":
@@ -73,6 +76,8 @@ function audioReducer(state: AudioEngineState, action: AudioAction): AudioEngine
       return { ...state, micLevel: action.level, processedMicLevel: action.processedLevel };
     case "SET_PLAYBACK_PROGRESS":
       return { ...state, playbackProgress: action.progress, playbackTime: action.time };
+    case "SET_TRACK_DURATION":
+      return { ...state, trackDuration: action.duration };
     case "SET_LOADING":
       return { ...state, isLoading: action.loading };
     case "SET_ERROR":
@@ -94,6 +99,7 @@ interface AudioEngineContextType {
   setEffectIntensity: (value: number) => void;
   setVolume: (value: number) => void;
   updatePlaybackProgress: (progress: number, time: number) => void;
+  setTrackDuration: (durationMs: number) => void;
   setPlaying: (playing: boolean) => void;
   setLoading: (loading: boolean) => void;
 }
@@ -199,6 +205,11 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
     dispatch({ type: "SET_PLAYING", playing });
   }, []);
 
+  const setTrackDuration = useCallback((durationMs: number) => {
+    // Convert from milliseconds to seconds
+    dispatch({ type: "SET_TRACK_DURATION", duration: durationMs / 1000 });
+  }, []);
+
   const setLoading = useCallback((loading: boolean) => {
     dispatch({ type: "SET_LOADING", loading });
   }, []);
@@ -222,6 +233,7 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
         setEffectIntensity,
         setVolume,
         updatePlaybackProgress,
+        setTrackDuration,
         setPlaying,
         setLoading,
       }}

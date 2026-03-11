@@ -42,6 +42,26 @@ describe("Track Data", () => {
       expect(track.soundcloudUrl).toMatch(/^https:\/\/soundcloud\.com\/imaginaurium\//);
     }
   });
+
+  it("should have durationMs for all tracks", () => {
+    for (const track of TRACKS) {
+      expect(track.durationMs).toBeGreaterThan(0);
+      expect(track.durationMs).toBeLessThan(600000); // less than 10 minutes
+    }
+  });
+
+  it("should format durationMs correctly to m:ss", () => {
+    for (const track of TRACKS) {
+      const sec = Math.floor(track.durationMs / 1000);
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      const formatted = `${m}:${s.toString().padStart(2, "0")}`;
+      expect(formatted).toMatch(/^\d+:\d{2}$/);
+      // All current tracks are between 30s and 37s
+      expect(sec).toBeGreaterThanOrEqual(30);
+      expect(sec).toBeLessThanOrEqual(40);
+    }
+  });
 });
 
 describe("Audio Effects Processor", () => {

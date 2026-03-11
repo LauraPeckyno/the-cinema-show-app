@@ -11,6 +11,7 @@ interface SoundCloudPlayerProps {
   onProgress?: (progress: number, time: number) => void;
   onReady?: () => void;
   onFinish?: () => void;
+  onDuration?: (durationMs: number) => void;
 }
 
 /**
@@ -27,6 +28,7 @@ export function SoundCloudPlayer({
   onProgress,
   onReady,
   onFinish,
+  onDuration,
 }: SoundCloudPlayerProps) {
   if (Platform.OS === "web") {
     return (
@@ -39,6 +41,7 @@ export function SoundCloudPlayer({
         onProgress={onProgress}
         onReady={onReady}
         onFinish={onFinish}
+        onDuration={onDuration}
       />
     );
   }
@@ -53,6 +56,7 @@ export function SoundCloudPlayer({
       onProgress={onProgress}
       onReady={onReady}
       onFinish={onFinish}
+      onDuration={onDuration}
     />
   );
 }
@@ -68,6 +72,7 @@ function WebSoundCloudPlayer({
   onProgress,
   onReady,
   onFinish,
+  onDuration,
 }: SoundCloudPlayerProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const widgetRef = useRef<any>(null);
@@ -104,6 +109,12 @@ function WebSoundCloudPlayer({
         widget.bind((window as any).SC.Widget.Events.READY, () => {
           readyRef.current = true;
           widget.setVolume(volume);
+          // Fetch actual duration from the widget
+          widget.getDuration((durationMs: number) => {
+            if (durationMs && onDuration) {
+              onDuration(durationMs);
+            }
+          });
           onReady?.();
         });
         widget.bind((window as any).SC.Widget.Events.PLAY, () => onPlay?.());
@@ -143,6 +154,12 @@ function WebSoundCloudPlayer({
       callback: () => {
         readyRef.current = true;
         widgetRef.current.setVolume(volume);
+        // Fetch actual duration after loading new track
+        widgetRef.current.getDuration((durationMs: number) => {
+          if (durationMs && onDuration) {
+            onDuration(durationMs);
+          }
+        });
         onReady?.();
       },
     });
@@ -178,6 +195,7 @@ function NativeSoundCloudPlayer({
   onProgress,
   onReady,
   onFinish,
+  onDuration,
 }: SoundCloudPlayerProps) {
   const webViewRef = useRef<any>(null);
   const [isWidgetReady, setIsWidgetReady] = useState(false);
@@ -238,6 +256,10 @@ function NativeSoundCloudPlayer({
       widget.bind(SC.Widget.Events.READY, function() {
         ready = true;
         widget.setVolume(${volume});
+        // Fetch actual duration from the widget
+        widget.getDuration(function(durationMs) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'duration', durationMs: durationMs }));
+        });
         window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
       });
 
@@ -276,6 +298,11 @@ function NativeSoundCloudPlayer({
           case "ready":
             setIsWidgetReady(true);
             onReady?.();
+            break;
+          case "duration":
+            if (data.durationMs && onDuration) {
+              onDuration(data.durationMs);
+            }
             break;
           case "play":
             onPlay?.();
@@ -326,6 +353,10 @@ function NativeSoundCloudPlayer({
           callback: function() {
             ready = true;
             widget.setVolume(${volume});
+            // Fetch actual duration after loading new track
+            widget.getDuration(function(durationMs) {
+              window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'duration', durationMs: durationMs }));
+            });
             window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
           }
         });

@@ -14,7 +14,8 @@ export interface Track {
   bpm: number;
   soundcloudUrl: string;
   effect: AudioEffect;
-  durationEstimate: number; // estimated duration in seconds
+  durationEstimate: number; // estimated duration in seconds (used as fallback)
+  durationMs: number; // actual duration in milliseconds from SoundCloud
 }
 
 export const TRACKS: Track[] = [
@@ -34,6 +35,7 @@ export const TRACKS: Track[] = [
       icon: "\u{1F47B}",
     },
     durationEstimate: 240,
+    durationMs: 35212,
   },
   {
     id: 2,
@@ -48,6 +50,7 @@ export const TRACKS: Track[] = [
       icon: "\u{1F300}",
     },
     durationEstimate: 210,
+    durationMs: 30708,
   },
   {
     id: 3,
@@ -62,6 +65,7 @@ export const TRACKS: Track[] = [
       icon: "\u{26A1}",
     },
     durationEstimate: 220,
+    durationMs: 30601,
   },
   {
     id: 4,
@@ -76,6 +80,7 @@ export const TRACKS: Track[] = [
       icon: "\u{1F504}",
     },
     durationEstimate: 250,
+    durationMs: 35229,
   },
   {
     id: 5,
@@ -90,6 +95,7 @@ export const TRACKS: Track[] = [
       icon: "\u{2699}\u{FE0F}",
     },
     durationEstimate: 230,
+    durationMs: 30248,
   },
   {
     id: 6,
@@ -104,6 +110,7 @@ export const TRACKS: Track[] = [
       icon: "\u{1F4FC}",
     },
     durationEstimate: 260,
+    durationMs: 34642,
   },
   {
     id: 7,
@@ -118,6 +125,7 @@ export const TRACKS: Track[] = [
       icon: "\u{1F30C}",
     },
     durationEstimate: 270,
+    durationMs: 36973,
   },
 
   // ═══════════════════════════════════════════════════════════════════
@@ -136,6 +144,7 @@ export const TRACKS: Track[] = [
       icon: "\u{1F3B5}",
     },
     durationEstimate: 200,
+    durationMs: 30077,
   },
   {
     id: 9,
@@ -150,6 +159,7 @@ export const TRACKS: Track[] = [
       icon: "\u{2728}",
     },
     durationEstimate: 230,
+    durationMs: 30172,
   },
   {
     id: 10,
@@ -164,6 +174,7 @@ export const TRACKS: Track[] = [
       icon: "\u{2744}\u{FE0F}",
     },
     durationEstimate: 215,
+    durationMs: 32607,
   },
   {
     id: 11,
@@ -178,6 +189,7 @@ export const TRACKS: Track[] = [
       icon: "\u{1F4A5}",
     },
     durationEstimate: 205,
+    durationMs: 30282,
   },
   {
     id: 12,
@@ -192,6 +204,7 @@ export const TRACKS: Track[] = [
       icon: "\u{1F30A}",
     },
     durationEstimate: 225,
+    durationMs: 30243,
   },
   {
     id: 13,
@@ -206,6 +219,7 @@ export const TRACKS: Track[] = [
       icon: "\u{1F916}",
     },
     durationEstimate: 195,
+    durationMs: 32803,
   },
   {
     id: 14,
@@ -220,6 +234,7 @@ export const TRACKS: Track[] = [
       icon: "\u{1F308}",
     },
     durationEstimate: 210,
+    durationMs: 30869,
   },
   {
     id: 15,
@@ -234,6 +249,7 @@ export const TRACKS: Track[] = [
       icon: "\u{1F4AB}",
     },
     durationEstimate: 240,
+    durationMs: 30371,
   },
   {
     id: 16,
@@ -248,6 +264,7 @@ export const TRACKS: Track[] = [
       icon: "\u{1F91D}",
     },
     durationEstimate: 235,
+    durationMs: 30217,
   },
 ];
 
