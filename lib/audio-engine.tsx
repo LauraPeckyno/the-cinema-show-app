@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useReducer, useCallback, useRef, useEffect } from "react";
 import { Platform } from "react-native";
 import { Track } from "@/constants/tracks";
-import { micEngine } from "@/lib/mic-engine";
-import { getEffectProcessor } from "@/lib/audio-effects";
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
@@ -102,6 +100,7 @@ interface AudioEngineContextType {
   setTrackDuration: (durationMs: number) => void;
   setPlaying: (playing: boolean) => void;
   setLoading: (loading: boolean) => void;
+  updateMicLevel: (level: number, processedLevel: number) => void;
 }
 
 const AudioEngineContext = createContext<AudioEngineContextType | null>(null);
@@ -140,48 +139,31 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
     const currentState = stateRef.current;
 
     if (currentState.isMicActive) {
-      // Stop mic
-      await micEngine.stop();
+      // Stop mic — the MicPassthrough component will react to isMicActive=false
       dispatch({ type: "SET_MIC_ACTIVE", active: false });
       dispatch({ type: "SET_MIC_LEVEL", level: 0, processedLevel: 0 });
       return;
     }
 
-    // Start mic — the mic engine handles permission requests internally on native
-    const started = await micEngine.start({
-      onLevelUpdate: (rawLevel: number) => {
-        const s = stateRef.current;
-        const sensitivity = s.micSensitivity / 100;
-        const adjustedLevel = rawLevel * sensitivity;
-
-        // Apply effect processing if a track is selected
-        let processedLevel = adjustedLevel;
-        if (s.currentTrack) {
-          const processor = getEffectProcessor(s.currentTrack.id);
-          const result = processor(
-            adjustedLevel,
-            s.currentTrack.bpm,
-            s.effectIntensity / 100,
-            s.playbackTime
-          );
-          processedLevel = result.processedLevel;
+    // Request mic permission first
+    try {
+      if (Platform.OS === "web") {
+        // On web, the MicPassthrough will request getUserMedia directly
+        dispatch({ type: "SET_MIC_ACTIVE", active: true });
+        dispatch({ type: "SET_MIC_PERMISSION", granted: true });
+      } else {
+        // On native, request permission through expo-audio first
+        const ExpoAudio = await import("expo-audio");
+        const status = await ExpoAudio.requestRecordingPermissionsAsync();
+        if (status.granted) {
+          dispatch({ type: "SET_MIC_PERMISSION", granted: true });
+          dispatch({ type: "SET_MIC_ACTIVE", active: true });
+        } else {
+          dispatch({ type: "SET_ERROR", error: "Microphone permission denied" });
         }
-
-        dispatch({
-          type: "SET_MIC_LEVEL",
-          level: adjustedLevel,
-          processedLevel,
-        });
-      },
-      onError: (error: string) => {
-        dispatch({ type: "SET_ERROR", error });
-        dispatch({ type: "SET_MIC_ACTIVE", active: false });
-      },
-    });
-
-    if (started) {
-      dispatch({ type: "SET_MIC_ACTIVE", active: true });
-      dispatch({ type: "SET_MIC_PERMISSION", granted: true });
+      }
+    } catch (e: any) {
+      dispatch({ type: "SET_ERROR", error: e?.message || "Failed to request mic permission" });
     }
   }, []);
 
@@ -214,10 +196,14 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
     dispatch({ type: "SET_LOADING", loading });
   }, []);
 
+  const updateMicLevel = useCallback((level: number, processedLevel: number) => {
+    dispatch({ type: "SET_MIC_LEVEL", level, processedLevel });
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      micEngine.stop();
+      // MicPassthrough component handles its own cleanup
     };
   }, []);
 
@@ -236,6 +222,7 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
         setTrackDuration,
         setPlaying,
         setLoading,
+        updateMicLevel,
       }}
     >
       {children}

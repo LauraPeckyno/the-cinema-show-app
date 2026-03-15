@@ -18,6 +18,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useKeepAwake } from "expo-keep-awake";
 import { ArtDecoDivider, ArtDecoFrame, ArtDecoCorner } from "@/components/art-deco";
 import { reportTrackDuration } from "@/hooks/use-track-durations";
+import { MicPassthrough } from "@/components/mic-passthrough";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -106,6 +107,7 @@ export default function NowPlayingScreen() {
     setTrackDuration,
     setPlaying,
     setLoading,
+    updateMicLevel,
   } = useAudioEngine();
 
   const {
@@ -121,6 +123,16 @@ export default function NowPlayingScreen() {
     trackDuration,
     isLoading,
   } = state;
+
+  // Ref to hold the dispatch for mic level updates from the passthrough component
+  const dispatchMicLevel = useCallback((level: number) => {
+    // The MicPassthrough already applies the DSP effects to the audio output.
+    // Here we just update the visualization level.
+    const sensitivity = micSensitivity / 100;
+    const adjustedLevel = Math.min(1, level * sensitivity * 2);
+    // We dispatch directly through the audio engine's internal method
+    updateMicLevel(adjustedLevel, adjustedLevel);
+  }, [micSensitivity]);
 
   // BPM indicator pulse
   const bpmPulse = useSharedValue(1);
@@ -241,6 +253,17 @@ export default function NowPlayingScreen() {
         onProgress={handleSCProgress}
         onFinish={handleSCFinish}
         onDuration={handleSCDuration}
+      />
+
+      {/* Mic Audio Passthrough — captures mic, applies effects, outputs to speakers */}
+      <MicPassthrough
+        isActive={isMicActive}
+        trackId={currentTrack.id}
+        bpm={currentTrack.bpm}
+        effectIntensity={effectIntensity}
+        micSensitivity={micSensitivity}
+        volume={volume}
+        onLevelUpdate={dispatchMicLevel}
       />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -427,7 +450,7 @@ export default function NowPlayingScreen() {
             </Text>
             {isMicActive && (
               <Text style={[styles.effectActiveText, { color: colors.success }]}>
-                Effect active — ambient audio is being processed
+                Effect active — ambient audio is being mixed with the track
               </Text>
             )}
           </ArtDecoFrame>
