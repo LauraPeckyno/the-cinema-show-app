@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from "react";
+import React, { useRef, useEffect, useCallback, useState } from "react";
 import { View, StyleSheet, Platform } from "react-native";
 
 interface MicPassthroughProps {
@@ -7,7 +7,8 @@ interface MicPassthroughProps {
   bpm: number;
   effectIntensity: number; // 0-100
   micSensitivity: number; // 0-100
-  volume: number; // 0-100 (mic passthrough volume)
+  masterVolume: number; // 0-100 — overall output volume
+  dryWetMix: number; // 0-100 — 0=fully dry (raw ambient), 100=fully wet (effected)
   onLevelUpdate?: (level: number) => void;
   onError?: (error: string) => void;
 }
@@ -15,14 +16,11 @@ interface MicPassthroughProps {
 /**
  * MicPassthroughWebView
  *
- * On native: Runs a hidden WebView that captures the microphone via getUserMedia,
- * applies real-time Web Audio API effects, and outputs the processed audio to
- * the device speakers/headphones. This mixes naturally with the SoundCloud
- * track audio at the OS audio mixer level.
+ * Captures microphone audio, splits into dry (raw) and wet (effected) paths,
+ * blends them according to dryWetMix, and outputs to speakers/headphones.
  *
- * On web: Uses the Web Audio API directly in the main page context.
- *
- * Each track ID maps to a unique DSP chain (reverb, delay, filter, distortion, etc.)
+ * On native: Runs a hidden WebView with Web Audio API
+ * On web: Uses the Web Audio API directly in the main page context
  */
 export function MicPassthrough({
   isActive,
@@ -30,7 +28,8 @@ export function MicPassthrough({
   bpm,
   effectIntensity,
   micSensitivity,
-  volume,
+  masterVolume,
+  dryWetMix,
   onLevelUpdate,
   onError,
 }: MicPassthroughProps) {
@@ -42,7 +41,8 @@ export function MicPassthrough({
         bpm={bpm}
         effectIntensity={effectIntensity}
         micSensitivity={micSensitivity}
-        volume={volume}
+        masterVolume={masterVolume}
+        dryWetMix={dryWetMix}
         onLevelUpdate={onLevelUpdate}
         onError={onError}
       />
@@ -56,7 +56,8 @@ export function MicPassthrough({
       bpm={bpm}
       effectIntensity={effectIntensity}
       micSensitivity={micSensitivity}
-      volume={volume}
+      masterVolume={masterVolume}
+      dryWetMix={dryWetMix}
       onLevelUpdate={onLevelUpdate}
       onError={onError}
     />
@@ -98,7 +99,7 @@ function buildEffectChainJS(): string {
           hp.type = 'highpass'; hp.frequency.value = 800 + intensity * 2000;
           hp.Q.value = 0.5;
           var mix = ctx.createGain(); mix.gain.value = 0.4 + intensity * 0.4;
-          var dry = ctx.createGain(); dry.gain.value = 0.6 - intensity * 0.2;
+          var dry = ctx.createGain(); dry.gain.value = 0.6;
 
           source.connect(gain);
           gain.connect(dry);
@@ -112,246 +113,245 @@ function buildEffectChainJS(): string {
           analyser.connect(output);
           break;
 
-        case 2: // Granular Stutter - rapid gain modulation
-          var lfo = ctx.createOscillator();
-          lfo.type = 'square';
-          lfo.frequency.value = (bpm / 60) * (2 + intensity * 6);
-          var lfoGain = ctx.createGain();
-          lfoGain.gain.value = 0.5 + intensity * 0.5;
-          var bp = ctx.createBiquadFilter();
-          bp.type = 'bandpass'; bp.frequency.value = 1000 + intensity * 3000;
-          bp.Q.value = 1 + intensity * 4;
+        case 2: // Granular Stutter - rhythmic chopping synced to BPM
+          var stutterGain = ctx.createGain();
+          stutterGain.gain.value = 1.0;
+          var stutterLfo = ctx.createOscillator();
+          stutterLfo.type = 'square';
+          stutterLfo.frequency.value = bpm / 60 * 2; // eighth notes
+          var stutterDepth = ctx.createGain();
+          stutterDepth.gain.value = 0.5 + intensity * 0.5;
 
           source.connect(gain);
-          gain.connect(bp);
-          lfo.connect(lfoGain);
-          lfoGain.connect(gain.gain);
-          lfo.start();
-          bp.connect(analyser);
+          gain.connect(stutterGain);
+          stutterLfo.connect(stutterDepth);
+          stutterDepth.connect(stutterGain.gain);
+          stutterLfo.start();
+          stutterGain.connect(analyser);
           analyser.connect(output);
           break;
 
-        case 3: // Bitcrusher Chaos - waveshaper distortion + filter
-          var ws = ctx.createWaveShaper();
-          var curve = new Float32Array(256);
-          for (var i = 0; i < 256; i++) {
-            var x = (i / 128) - 1;
-            var amt = 2 + intensity * 20;
-            curve[i] = ((3 + amt) * x * 20 * (Math.PI / 180)) / ((Math.PI / 180) + amt * Math.abs(x));
-          }
-          ws.curve = curve;
-          ws.oversample = '4x';
-          var lp = ctx.createBiquadFilter();
-          lp.type = 'lowpass'; lp.frequency.value = 2000 + (1 - intensity) * 6000;
-          lp.Q.value = 1 + intensity * 5;
-
-          source.connect(gain);
-          gain.connect(ws);
-          ws.connect(lp);
-          lp.connect(analyser);
-          analyser.connect(output);
-          break;
-
-        case 4: // Reverse Swell - slow attack envelope with tremolo
-          var trem = ctx.createOscillator();
-          trem.type = 'sine';
-          trem.frequency.value = 2 + intensity * 6;
-          var tremGain = ctx.createGain();
-          tremGain.gain.value = 0.3 * intensity;
-          var lpf = ctx.createBiquadFilter();
-          lpf.type = 'lowpass'; lpf.frequency.value = 500 + intensity * 3000;
-          lpf.Q.value = 2 + intensity * 6;
-          var del = ctx.createDelay(1.0);
-          del.delayTime.value = 0.1 + intensity * 0.3;
-          var delFb = ctx.createGain(); delFb.gain.value = 0.3 + intensity * 0.4;
-
-          source.connect(gain);
-          trem.connect(tremGain);
-          tremGain.connect(gain.gain);
-          trem.start();
-          gain.connect(lpf);
-          lpf.connect(del);
-          del.connect(delFb);
-          delFb.connect(del);
-          lpf.connect(analyser);
-          del.connect(analyser);
-          analyser.connect(output);
-          break;
-
-        case 5: // Metallic Resonance - high-Q bandpass with feedback
-          var bp1 = ctx.createBiquadFilter();
-          bp1.type = 'bandpass'; bp1.frequency.value = 800 + intensity * 2000;
-          bp1.Q.value = 5 + intensity * 15;
-          var bp2 = ctx.createBiquadFilter();
-          bp2.type = 'bandpass'; bp2.frequency.value = 1600 + intensity * 3000;
-          bp2.Q.value = 3 + intensity * 10;
-          var metalDel = ctx.createDelay(0.05);
-          metalDel.delayTime.value = 0.005 + intensity * 0.015;
-          var metalFb = ctx.createGain(); metalFb.gain.value = 0.3 + intensity * 0.5;
-
-          source.connect(gain);
-          gain.connect(bp1);
-          gain.connect(bp2);
-          bp1.connect(metalDel);
-          metalDel.connect(metalFb);
-          metalFb.connect(bp1);
-          bp1.connect(analyser);
-          bp2.connect(analyser);
-          analyser.connect(output);
-          break;
-
-        case 6: // Tape Decay - wow/flutter modulation + saturation
-          var wowLfo = ctx.createOscillator();
-          wowLfo.type = 'sine'; wowLfo.frequency.value = 0.5 + intensity * 1.5;
-          var wowGain = ctx.createGain(); wowGain.gain.value = 0.002 + intensity * 0.008;
-          var tapeDel = ctx.createDelay(0.1);
-          tapeDel.delayTime.value = 0.01;
-          var tapeWs = ctx.createWaveShaper();
-          var tapeCurve = new Float32Array(256);
-          for (var j = 0; j < 256; j++) {
-            var xv = (j / 128) - 1;
-            tapeCurve[j] = Math.tanh(xv * (1 + intensity * 3));
-          }
-          tapeWs.curve = tapeCurve;
-          var tapeLp = ctx.createBiquadFilter();
-          tapeLp.type = 'lowpass'; tapeLp.frequency.value = 3000 + (1 - intensity) * 5000;
-
-          source.connect(gain);
-          wowLfo.connect(wowGain);
-          wowGain.connect(tapeDel.delayTime);
-          wowLfo.start();
-          gain.connect(tapeDel);
-          tapeDel.connect(tapeWs);
-          tapeWs.connect(tapeLp);
-          tapeLp.connect(analyser);
-          analyser.connect(output);
-          break;
-
-        case 7: // Phantom Echo - long delays with pitch-shifted feedback
-          var echo1 = ctx.createDelay(2.0);
-          echo1.delayTime.value = 60 / bpm * 0.75;
-          var echo2 = ctx.createDelay(2.0);
-          echo2.delayTime.value = 60 / bpm * 0.5;
-          var echoFb1 = ctx.createGain(); echoFb1.gain.value = 0.3 + intensity * 0.35;
-          var echoFb2 = ctx.createGain(); echoFb2.gain.value = 0.2 + intensity * 0.3;
-          var echoHp = ctx.createBiquadFilter();
-          echoHp.type = 'highpass'; echoHp.frequency.value = 400 + intensity * 1500;
+        case 3: // Dark Echo - long feedback delay with filtering
+          var echoDelay = ctx.createDelay(2.0);
+          echoDelay.delayTime.value = 60 / bpm; // one beat delay
+          var echoFb = ctx.createGain();
+          echoFb.gain.value = 0.3 + intensity * 0.4;
           var echoLp = ctx.createBiquadFilter();
-          echoLp.type = 'lowpass'; echoLp.frequency.value = 2000 + (1 - intensity) * 4000;
-          var dryE = ctx.createGain(); dryE.gain.value = 0.5;
-          var wetE = ctx.createGain(); wetE.gain.value = 0.3 + intensity * 0.5;
+          echoLp.type = 'lowpass';
+          echoLp.frequency.value = 800 + (1 - intensity) * 2000;
+          var echoDry = ctx.createGain(); echoDry.gain.value = 0.6;
+          var echoWet = ctx.createGain(); echoWet.gain.value = 0.3 + intensity * 0.5;
 
           source.connect(gain);
-          gain.connect(dryE);
-          gain.connect(echo1); echo1.connect(echoFb1); echoFb1.connect(echoHp); echoHp.connect(echo1);
-          gain.connect(echo2); echo2.connect(echoFb2); echoFb2.connect(echoLp); echoLp.connect(echo2);
-          echo1.connect(wetE); echo2.connect(wetE);
-          dryE.connect(analyser); wetE.connect(analyser);
+          gain.connect(echoDry);
+          gain.connect(echoDelay);
+          echoDelay.connect(echoLp);
+          echoLp.connect(echoFb);
+          echoFb.connect(echoDelay);
+          echoLp.connect(echoWet);
+          echoDry.connect(analyser); echoWet.connect(analyser);
           analyser.connect(output);
           break;
 
-        case 8: // Rhythmic Gate - tempo-synced tremolo
-          var gateLfo = ctx.createOscillator();
-          gateLfo.type = 'square';
-          gateLfo.frequency.value = bpm / 60 * 4; // sixteenth notes
-          var gateGainNode = ctx.createGain();
-          gateGainNode.gain.value = 0.5 + intensity * 0.5;
+        case 4: // Pitch Warp - detuned doubling with modulation
+          var warpDelay = ctx.createDelay(0.1);
+          warpDelay.delayTime.value = 0.02;
+          var warpLfo = ctx.createOscillator();
+          warpLfo.type = 'sine';
+          warpLfo.frequency.value = 2 + intensity * 6;
+          var warpLfoGain = ctx.createGain();
+          warpLfoGain.gain.value = 0.005 + intensity * 0.015;
+          var warpDry = ctx.createGain(); warpDry.gain.value = 0.5;
+          var warpWet = ctx.createGain(); warpWet.gain.value = 0.3 + intensity * 0.5;
 
           source.connect(gain);
-          gateLfo.connect(gateGainNode);
-          gateGainNode.connect(gain.gain);
-          gateLfo.start();
-          gain.connect(analyser);
+          gain.connect(warpDry);
+          gain.connect(warpDelay);
+          warpLfo.connect(warpLfoGain);
+          warpLfoGain.connect(warpDelay.delayTime);
+          warpLfo.start();
+          warpDelay.connect(warpWet);
+          warpDry.connect(analyser); warpWet.connect(analyser);
           analyser.connect(output);
           break;
 
-        case 9: // Shimmer Delay - bright delays with high-pass
-          var shimDel1 = ctx.createDelay(2.0);
-          shimDel1.delayTime.value = 60 / bpm / 2;
-          var shimDel2 = ctx.createDelay(2.0);
-          shimDel2.delayTime.value = 60 / bpm;
-          var shimFb1 = ctx.createGain(); shimFb1.gain.value = 0.25 + intensity * 0.35;
-          var shimFb2 = ctx.createGain(); shimFb2.gain.value = 0.2 + intensity * 0.3;
-          var shimHp = ctx.createBiquadFilter();
-          shimHp.type = 'highpass'; shimHp.frequency.value = 1500 + intensity * 3000;
-          shimHp.Q.value = 0.7;
-          var shimDry = ctx.createGain(); shimDry.gain.value = 0.5;
-          var shimWet = ctx.createGain(); shimWet.gain.value = 0.3 + intensity * 0.5;
-
-          source.connect(gain);
-          gain.connect(shimDry);
-          gain.connect(shimDel1); shimDel1.connect(shimFb1); shimFb1.connect(shimHp); shimHp.connect(shimDel1);
-          gain.connect(shimDel2); shimDel2.connect(shimFb2); shimFb2.connect(shimDel2);
-          shimDel1.connect(shimWet); shimDel2.connect(shimWet);
-          shimDry.connect(analyser); shimWet.connect(analyser);
-          analyser.connect(output);
-          break;
-
-        case 10: // Harmonic Freeze - sustained resonant filter
+        case 5: // Harmonic Freeze - resonant bandpass with sustain
           var freezeBp = ctx.createBiquadFilter();
-          freezeBp.type = 'bandpass'; freezeBp.frequency.value = 600 + intensity * 2000;
-          freezeBp.Q.value = 8 + intensity * 20;
-          var freezeDel = ctx.createDelay(1.0);
-          freezeDel.delayTime.value = 0.05 + intensity * 0.2;
-          var freezeFb = ctx.createGain(); freezeFb.gain.value = 0.5 + intensity * 0.4;
+          freezeBp.type = 'bandpass';
+          freezeBp.frequency.value = 500 + intensity * 1500;
+          freezeBp.Q.value = 5 + intensity * 15;
+          var freezeDelay = ctx.createDelay(0.5);
+          freezeDelay.delayTime.value = 0.1 + intensity * 0.3;
+          var freezeFb = ctx.createGain();
+          freezeFb.gain.value = 0.5 + intensity * 0.4;
           var freezeDry = ctx.createGain(); freezeDry.gain.value = 0.4;
           var freezeWet = ctx.createGain(); freezeWet.gain.value = 0.4 + intensity * 0.4;
 
           source.connect(gain);
           gain.connect(freezeDry);
           gain.connect(freezeBp);
-          freezeBp.connect(freezeDel);
-          freezeDel.connect(freezeFb);
-          freezeFb.connect(freezeBp);
-          freezeBp.connect(freezeWet);
+          freezeBp.connect(freezeDelay);
+          freezeDelay.connect(freezeFb);
+          freezeFb.connect(freezeDelay);
+          freezeDelay.connect(freezeWet);
           freezeDry.connect(analyser); freezeWet.connect(analyser);
           analyser.connect(output);
           break;
 
-        case 11: // Sidechain Pump - rhythmic ducking
-          var pumpLfo = ctx.createOscillator();
-          pumpLfo.type = 'sawtooth';
-          pumpLfo.frequency.value = bpm / 60;
-          var pumpGainMod = ctx.createGain();
-          pumpGainMod.gain.value = 0.3 + intensity * 0.5;
-          var pumpComp = ctx.createDynamicsCompressor();
-          pumpComp.threshold.value = -20 - intensity * 20;
-          pumpComp.ratio.value = 4 + intensity * 12;
-          pumpComp.attack.value = 0.003;
-          pumpComp.release.value = 0.1 + (1 - intensity) * 0.3;
+        case 6: // Tape Saturation - warm distortion with filtering
+          var satWs = ctx.createWaveShaper();
+          var satCurve = new Float32Array(256);
+          for (var si = 0; si < 256; si++) {
+            var sx = (si / 128) - 1;
+            satCurve[si] = (Math.PI + intensity * 10) * sx / (Math.PI + intensity * 10 * Math.abs(sx));
+          }
+          satWs.curve = satCurve;
+          satWs.oversample = '4x';
+          var satLp = ctx.createBiquadFilter();
+          satLp.type = 'lowpass';
+          satLp.frequency.value = 3000 + (1 - intensity) * 5000;
+          var satDry = ctx.createGain(); satDry.gain.value = 0.5;
+          var satWet = ctx.createGain(); satWet.gain.value = 0.3 + intensity * 0.5;
 
           source.connect(gain);
-          gain.connect(pumpComp);
-          pumpLfo.connect(pumpGainMod);
-          pumpGainMod.connect(gain.gain);
-          pumpLfo.start();
-          pumpComp.connect(analyser);
+          gain.connect(satDry);
+          gain.connect(satWs);
+          satWs.connect(satLp);
+          satLp.connect(satWet);
+          satDry.connect(analyser); satWet.connect(analyser);
           analyser.connect(output);
           break;
 
-        case 12: // Flanger Wash - modulated short delay
-          var flangeDel = ctx.createDelay(0.02);
-          flangeDel.delayTime.value = 0.005;
-          var flangeLfo = ctx.createOscillator();
-          flangeLfo.type = 'sine';
-          flangeLfo.frequency.value = 0.2 + intensity * 0.8;
-          var flangeLfoGain = ctx.createGain();
-          flangeLfoGain.gain.value = 0.002 + intensity * 0.003;
-          var flangeFb = ctx.createGain();
-          flangeFb.gain.value = 0.3 + intensity * 0.5;
-          var flangeDry = ctx.createGain(); flangeDry.gain.value = 0.6;
-          var flangeWet = ctx.createGain(); flangeWet.gain.value = 0.4 + intensity * 0.3;
+        case 7: // Void Filter - sweeping lowpass with resonance
+          var voidLp = ctx.createBiquadFilter();
+          voidLp.type = 'lowpass';
+          voidLp.frequency.value = 200 + intensity * 3000;
+          voidLp.Q.value = 2 + intensity * 10;
+          var voidLfo = ctx.createOscillator();
+          voidLfo.type = 'sine';
+          voidLfo.frequency.value = bpm / 120;
+          var voidLfoGain = ctx.createGain();
+          voidLfoGain.gain.value = 500 + intensity * 2000;
 
           source.connect(gain);
-          gain.connect(flangeDry);
-          gain.connect(flangeDel);
-          flangeLfo.connect(flangeLfoGain);
-          flangeLfoGain.connect(flangeDel.delayTime);
-          flangeLfo.start();
-          flangeDel.connect(flangeFb);
-          flangeFb.connect(flangeDel);
-          flangeDel.connect(flangeWet);
-          flangeDry.connect(analyser); flangeWet.connect(analyser);
+          gain.connect(voidLp);
+          voidLfo.connect(voidLfoGain);
+          voidLfoGain.connect(voidLp.frequency);
+          voidLfo.start();
+          voidLp.connect(analyser);
+          analyser.connect(output);
+          break;
+
+        case 8: // Rhythmic Gate - BPM-synced tremolo
+          var gateGain = ctx.createGain();
+          gateGain.gain.value = 1.0;
+          var gateLfo = ctx.createOscillator();
+          gateLfo.type = 'square';
+          gateLfo.frequency.value = bpm / 60;
+          var gateDepth = ctx.createGain();
+          gateDepth.gain.value = 0.3 + intensity * 0.6;
+
+          source.connect(gain);
+          gain.connect(gateGain);
+          gateLfo.connect(gateDepth);
+          gateDepth.connect(gateGain.gain);
+          gateLfo.start();
+          gateGain.connect(analyser);
+          analyser.connect(output);
+          break;
+
+        case 9: // Crystal Delay - bright multi-tap delay
+          var cd1 = ctx.createDelay(1.0);
+          cd1.delayTime.value = 60 / bpm / 2;
+          var cd2 = ctx.createDelay(1.0);
+          cd2.delayTime.value = 60 / bpm;
+          var cd3 = ctx.createDelay(2.0);
+          cd3.delayTime.value = 60 / bpm * 1.5;
+          var cdHp = ctx.createBiquadFilter();
+          cdHp.type = 'highpass'; cdHp.frequency.value = 2000 + intensity * 3000;
+          var cdFb = ctx.createGain(); cdFb.gain.value = 0.2 + intensity * 0.3;
+          var cdDry = ctx.createGain(); cdDry.gain.value = 0.5;
+          var cdWet = ctx.createGain(); cdWet.gain.value = 0.3 + intensity * 0.5;
+
+          source.connect(gain);
+          gain.connect(cdDry);
+          gain.connect(cd1); gain.connect(cd2); gain.connect(cd3);
+          cd1.connect(cdHp); cd2.connect(cdHp); cd3.connect(cdHp);
+          cdHp.connect(cdFb); cdFb.connect(cd1);
+          cdHp.connect(cdWet);
+          cdDry.connect(analyser); cdWet.connect(analyser);
+          analyser.connect(output);
+          break;
+
+        case 10: // Ambient Wash - long reverb with modulated filtering
+          var awD1 = ctx.createDelay(1.0); awD1.delayTime.value = 0.05;
+          var awD2 = ctx.createDelay(1.0); awD2.delayTime.value = 0.11;
+          var awD3 = ctx.createDelay(1.0); awD3.delayTime.value = 0.17;
+          var awFb1 = ctx.createGain(); awFb1.gain.value = 0.4 + intensity * 0.3;
+          var awFb2 = ctx.createGain(); awFb2.gain.value = 0.35 + intensity * 0.25;
+          var awFb3 = ctx.createGain(); awFb3.gain.value = 0.3 + intensity * 0.2;
+          var awLp = ctx.createBiquadFilter();
+          awLp.type = 'lowpass'; awLp.frequency.value = 1500 + (1 - intensity) * 3000;
+          var awDry = ctx.createGain(); awDry.gain.value = 0.4;
+          var awWet = ctx.createGain(); awWet.gain.value = 0.4 + intensity * 0.4;
+
+          source.connect(gain);
+          gain.connect(awDry);
+          gain.connect(awD1); awD1.connect(awFb1); awFb1.connect(awD1);
+          gain.connect(awD2); awD2.connect(awFb2); awFb2.connect(awD2);
+          gain.connect(awD3); awD3.connect(awFb3); awFb3.connect(awD3);
+          awD1.connect(awLp); awD2.connect(awLp); awD3.connect(awLp);
+          awLp.connect(awWet);
+          awDry.connect(analyser); awWet.connect(analyser);
+          analyser.connect(output);
+          break;
+
+        case 11: // Bit Crusher - lo-fi digital degradation
+          var bcWs = ctx.createWaveShaper();
+          var bcSteps = 4 + Math.floor((1 - intensity) * 28);
+          var bcCurve = new Float32Array(256);
+          for (var bi = 0; bi < 256; bi++) {
+            var bx = (bi / 128) - 1;
+            bcCurve[bi] = Math.round(bx * bcSteps) / bcSteps;
+          }
+          bcWs.curve = bcCurve;
+          var bcLp = ctx.createBiquadFilter();
+          bcLp.type = 'lowpass';
+          bcLp.frequency.value = 2000 + (1 - intensity) * 8000;
+          var bcDry = ctx.createGain(); bcDry.gain.value = 0.4;
+          var bcWet = ctx.createGain(); bcWet.gain.value = 0.4 + intensity * 0.4;
+
+          source.connect(gain);
+          gain.connect(bcDry);
+          gain.connect(bcWs);
+          bcWs.connect(bcLp);
+          bcLp.connect(bcWet);
+          bcDry.connect(analyser); bcWet.connect(analyser);
+          analyser.connect(output);
+          break;
+
+        case 12: // Chorus Ensemble - rich detuned doubling
+          var chDel1 = ctx.createDelay(0.05);
+          chDel1.delayTime.value = 0.015;
+          var chDel2 = ctx.createDelay(0.05);
+          chDel2.delayTime.value = 0.025;
+          var chLfo1 = ctx.createOscillator(); chLfo1.type = 'sine';
+          chLfo1.frequency.value = 0.5 + intensity * 2;
+          var chLfo2 = ctx.createOscillator(); chLfo2.type = 'sine';
+          chLfo2.frequency.value = 0.7 + intensity * 2.5;
+          var chLfoG1 = ctx.createGain(); chLfoG1.gain.value = 0.003 + intensity * 0.005;
+          var chLfoG2 = ctx.createGain(); chLfoG2.gain.value = 0.004 + intensity * 0.006;
+          var chDry = ctx.createGain(); chDry.gain.value = 0.5;
+          var chWet = ctx.createGain(); chWet.gain.value = 0.3 + intensity * 0.4;
+
+          source.connect(gain);
+          gain.connect(chDry);
+          gain.connect(chDel1); gain.connect(chDel2);
+          chLfo1.connect(chLfoG1); chLfoG1.connect(chDel1.delayTime);
+          chLfo2.connect(chLfoG2); chLfoG2.connect(chDel2.delayTime);
+          chLfo1.start(); chLfo2.start();
+          chDel1.connect(chWet); chDel2.connect(chWet);
+          chDry.connect(analyser); chWet.connect(analyser);
           analyser.connect(output);
           break;
 
@@ -428,61 +428,88 @@ function buildEffectChainJS(): string {
           analyser.connect(output);
           break;
 
-        case 16: // Warm Chorus - multi-voice detuned delays
-          var ch1 = ctx.createDelay(0.05);
-          ch1.delayTime.value = 0.015;
-          var ch2 = ctx.createDelay(0.05);
-          ch2.delayTime.value = 0.025;
-          var ch3 = ctx.createDelay(0.05);
-          ch3.delayTime.value = 0.035;
-          var chLfo1 = ctx.createOscillator(); chLfo1.type = 'sine'; chLfo1.frequency.value = 1.2;
-          var chLfo2 = ctx.createOscillator(); chLfo2.type = 'sine'; chLfo2.frequency.value = 1.8;
-          var chLfo3 = ctx.createOscillator(); chLfo3.type = 'sine'; chLfo3.frequency.value = 2.3;
-          var chLfoG1 = ctx.createGain(); chLfoG1.gain.value = 0.001 + intensity * 0.002;
-          var chLfoG2 = ctx.createGain(); chLfoG2.gain.value = 0.001 + intensity * 0.002;
-          var chLfoG3 = ctx.createGain(); chLfoG3.gain.value = 0.001 + intensity * 0.002;
-          var chWs = ctx.createWaveShaper();
-          var chCurve = new Float32Array(256);
-          for (var ci = 0; ci < 256; ci++) {
-            var cx = (ci / 128) - 1;
-            chCurve[ci] = Math.tanh(cx * (1 + intensity * 0.5));
-          }
-          chWs.curve = chCurve;
-          var chDry = ctx.createGain(); chDry.gain.value = 0.5;
-          var chWet = ctx.createGain(); chWet.gain.value = 0.3 + intensity * 0.3;
+        case 16: // Temporal Shift - pitch-shifting delay with feedback
+          var tsDel = ctx.createDelay(1.0);
+          tsDel.delayTime.value = 60 / bpm * 0.75;
+          var tsFb = ctx.createGain();
+          tsFb.gain.value = 0.3 + intensity * 0.35;
+          var tsLfo = ctx.createOscillator();
+          tsLfo.type = 'triangle';
+          tsLfo.frequency.value = 0.1 + intensity * 0.5;
+          var tsLfoG = ctx.createGain();
+          tsLfoG.gain.value = 0.01 + intensity * 0.02;
+          var tsHp = ctx.createBiquadFilter();
+          tsHp.type = 'highpass'; tsHp.frequency.value = 300;
+          var tsLp = ctx.createBiquadFilter();
+          tsLp.type = 'lowpass'; tsLp.frequency.value = 4000 + (1 - intensity) * 4000;
+          var tsDry = ctx.createGain(); tsDry.gain.value = 0.5;
+          var tsWet = ctx.createGain(); tsWet.gain.value = 0.3 + intensity * 0.5;
 
           source.connect(gain);
-          gain.connect(chDry);
-          gain.connect(ch1); gain.connect(ch2); gain.connect(ch3);
-          chLfo1.connect(chLfoG1); chLfoG1.connect(ch1.delayTime);
-          chLfo2.connect(chLfoG2); chLfoG2.connect(ch2.delayTime);
-          chLfo3.connect(chLfoG3); chLfoG3.connect(ch3.delayTime);
-          chLfo1.start(); chLfo2.start(); chLfo3.start();
-          ch1.connect(chWs); ch2.connect(chWs); ch3.connect(chWs);
-          chWs.connect(chWet);
-          chDry.connect(analyser); chWet.connect(analyser);
+          gain.connect(tsDry);
+          gain.connect(tsDel);
+          tsLfo.connect(tsLfoG); tsLfoG.connect(tsDel.delayTime);
+          tsLfo.start();
+          tsDel.connect(tsHp); tsHp.connect(tsLp);
+          tsLp.connect(tsFb); tsFb.connect(tsDel);
+          tsLp.connect(tsWet);
+          tsDry.connect(analyser); tsWet.connect(analyser);
           analyser.connect(output);
           break;
 
-        default: // Passthrough with gentle reverb
-          var defDel = ctx.createDelay(0.5);
-          defDel.delayTime.value = 0.1;
-          var defFb = ctx.createGain(); defFb.gain.value = 0.2;
-          var defDry = ctx.createGain(); defDry.gain.value = 0.7;
-          var defWet = ctx.createGain(); defWet.gain.value = 0.3;
-
+        default: // Fallback - simple gain passthrough
           source.connect(gain);
-          gain.connect(defDry);
-          gain.connect(defDel);
-          defDel.connect(defFb);
-          defFb.connect(defDel);
-          defDel.connect(defWet);
-          defDry.connect(analyser); defWet.connect(analyser);
+          gain.connect(analyser);
           analyser.connect(output);
           break;
       }
 
       return { gain: gain, output: output, analyser: analyser };
+    }
+  `;
+}
+
+// ─── Dry/Wet chain builder JS (wraps the effect chain with dry/wet blending) ──
+function buildDryWetChainJS(): string {
+  return `
+    // Build a dry/wet blended chain around the effect chain
+    function buildDryWetChain(ctx, source, trackId, bpm, intensity, dryWetMix) {
+      // dryWetMix: 0 = fully dry, 1 = fully wet
+      var dryGain = ctx.createGain();
+      dryGain.gain.value = 1.0 - dryWetMix;
+
+      var wetGain = ctx.createGain();
+      wetGain.gain.value = dryWetMix;
+
+      var merger = ctx.createGain();
+      merger.gain.value = 1.0;
+
+      // Analyser for combined level metering
+      var analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.8;
+
+      // Dry path: source -> inputGain -> dryGain -> merger
+      var inputGain = ctx.createGain();
+      inputGain.gain.value = 1.0;
+      source.connect(inputGain);
+      inputGain.connect(dryGain);
+      dryGain.connect(merger);
+
+      // Wet path: source -> effectChain -> wetGain -> merger
+      var effectChain = buildEffectChain(ctx, source, trackId, bpm, intensity);
+      effectChain.output.connect(wetGain);
+      wetGain.connect(merger);
+
+      merger.connect(analyser);
+
+      return {
+        analyser: analyser,
+        output: analyser, // output from analyser
+        dryGain: dryGain,
+        wetGain: wetGain,
+        effectChain: effectChain
+      };
     }
   `;
 }
@@ -495,7 +522,8 @@ function WebMicPassthrough({
   bpm,
   effectIntensity,
   micSensitivity,
-  volume,
+  masterVolume,
+  dryWetMix,
   onLevelUpdate,
   onError,
 }: MicPassthroughProps) {
@@ -503,6 +531,8 @@ function WebMicPassthrough({
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const outputGainRef = useRef<GainNode | null>(null);
+  const dryGainRef = useRef<GainNode | null>(null);
+  const wetGainRef = useRef<GainNode | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animFrameRef = useRef<number | null>(null);
   const chainRef = useRef<any>(null);
@@ -519,12 +549,19 @@ function WebMicPassthrough({
     };
   }, [isActive, trackId]);
 
-  // Update volume
+  // Update master volume
   useEffect(() => {
     if (outputGainRef.current) {
-      outputGainRef.current.gain.value = (volume / 100) * (micSensitivity / 100);
+      outputGainRef.current.gain.value = (masterVolume / 100) * (micSensitivity / 100);
     }
-  }, [volume, micSensitivity]);
+  }, [masterVolume, micSensitivity]);
+
+  // Update dry/wet mix
+  useEffect(() => {
+    const mix = dryWetMix / 100;
+    if (dryGainRef.current) dryGainRef.current.gain.value = 1.0 - mix;
+    if (wetGainRef.current) wetGainRef.current.gain.value = mix;
+  }, [dryWetMix]);
 
   async function startWebPassthrough() {
     try {
@@ -546,14 +583,20 @@ function WebMicPassthrough({
       sourceRef.current = source;
 
       const outputGain = ctx.createGain();
-      outputGain.gain.value = (volume / 100) * (micSensitivity / 100);
+      outputGain.gain.value = (masterVolume / 100) * (micSensitivity / 100);
       outputGainRef.current = outputGain;
 
-      // Build the effect chain using eval of the shared JS
+      // Build dry/wet chain
       const intensity = effectIntensity / 100;
-      const buildFn = new Function("ctx", "source", "trackId", "bpm", "intensity", buildEffectChainJS() + "\nreturn buildEffectChain(ctx, source, trackId, bpm, intensity);");
-      const chain = buildFn(ctx, source, trackId, bpm, intensity);
+      const mix = dryWetMix / 100;
+      const buildFn = new Function(
+        "ctx", "source", "trackId", "bpm", "intensity", "dryWetMix",
+        buildEffectChainJS() + "\n" + buildDryWetChainJS() + "\nreturn buildDryWetChain(ctx, source, trackId, bpm, intensity, dryWetMix);"
+      );
+      const chain = buildFn(ctx, source, trackId, bpm, intensity, mix);
       chainRef.current = chain;
+      dryGainRef.current = chain.dryGain;
+      wetGainRef.current = chain.wetGain;
 
       // Connect chain output -> volume -> speakers
       chain.output.connect(outputGain);
@@ -598,11 +641,13 @@ function WebMicPassthrough({
     }
     sourceRef.current = null;
     outputGainRef.current = null;
+    dryGainRef.current = null;
+    wetGainRef.current = null;
     analyserRef.current = null;
     chainRef.current = null;
   }
 
-  return null; // No visual component needed
+  return null;
 }
 
 // ─── Native Implementation (WebView with Web Audio API) ─────────────────────
@@ -613,7 +658,8 @@ function NativeMicPassthrough({
   bpm,
   effectIntensity,
   micSensitivity,
-  volume,
+  masterVolume,
+  dryWetMix,
   onLevelUpdate,
   onError,
 }: MicPassthroughProps) {
@@ -638,7 +684,8 @@ function NativeMicPassthrough({
   }, []);
 
   const intensity = effectIntensity / 100;
-  const vol = (volume / 100) * (micSensitivity / 100);
+  const vol = (masterVolume / 100) * (micSensitivity / 100);
+  const mix = dryWetMix / 100;
 
   const htmlContent = `
 <!DOCTYPE html>
@@ -650,6 +697,7 @@ function NativeMicPassthrough({
 <body>
 <script>
 ${buildEffectChainJS()}
+${buildDryWetChainJS()}
 
 var audioCtx = null;
 var outputGain = null;
@@ -659,7 +707,7 @@ var chain = null;
 var running = false;
 var meteringInterval = null;
 
-async function startPassthrough(trackId, bpm, intensity, vol) {
+async function startPassthrough(trackId, bpm, intensity, vol, dryWetMix) {
   try {
     stopPassthrough();
 
@@ -677,7 +725,7 @@ async function startPassthrough(trackId, bpm, intensity, vol) {
     outputGain = audioCtx.createGain();
     outputGain.gain.value = vol;
 
-    chain = buildEffectChain(audioCtx, source, trackId, bpm, intensity);
+    chain = buildDryWetChain(audioCtx, source, trackId, bpm, intensity, dryWetMix);
     chain.output.connect(outputGain);
     outputGain.connect(audioCtx.destination);
 
@@ -719,6 +767,13 @@ function setVolume(vol) {
   if (outputGain) outputGain.gain.value = vol;
 }
 
+function setDryWet(mix) {
+  if (chain && chain.dryGain && chain.wetGain) {
+    chain.dryGain.gain.value = 1.0 - mix;
+    chain.wetGain.gain.value = mix;
+  }
+}
+
 // Signal ready
 window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
 </script>
@@ -733,7 +788,6 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
           setIsReady(true);
           break;
         case "started":
-          // Mic passthrough started successfully
           break;
         case "level":
           onLevelUpdate?.(data.level);
@@ -752,18 +806,24 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
     if (!webViewRef.current || !isReady) return;
 
     if (isActive) {
-      const js = `startPassthrough(${trackId}, ${bpm}, ${intensity}, ${vol}); true;`;
+      const js = `startPassthrough(${trackId}, ${bpm}, ${intensity}, ${vol}, ${mix}); true;`;
       webViewRef.current.injectJavaScript(js);
     } else {
       webViewRef.current.injectJavaScript("stopPassthrough(); true;");
     }
-  }, [isActive, isReady, trackId, bpm, intensity, vol]);
+  }, [isActive, isReady, trackId, bpm, intensity, vol, mix]);
 
   // Update volume dynamically
   useEffect(() => {
     if (!webViewRef.current || !isReady || !isActive) return;
     webViewRef.current.injectJavaScript(`setVolume(${vol}); true;`);
   }, [vol, isReady, isActive]);
+
+  // Update dry/wet mix dynamically
+  useEffect(() => {
+    if (!webViewRef.current || !isReady || !isActive) return;
+    webViewRef.current.injectJavaScript(`setDryWet(${mix}); true;`);
+  }, [mix, isReady, isActive]);
 
   if (!WebViewComponent) return null;
 
@@ -786,7 +846,6 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
         setSupportMultipleWindows={false}
         allowFileAccess={true}
         onPermissionRequest={(event: any) => {
-          // Grant microphone permission to the WebView on Android
           if (event?.nativeEvent?.resources) {
             event.nativeEvent.grant(event.nativeEvent.resources);
           }

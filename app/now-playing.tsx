@@ -102,7 +102,9 @@ export default function NowPlayingScreen() {
     toggleMic,
     setMicSensitivity,
     setEffectIntensity,
-    setVolume,
+    setMasterVolume,
+    setMusicVolume,
+    setDryWetMix,
     updatePlaybackProgress,
     setTrackDuration,
     setPlaying,
@@ -117,7 +119,9 @@ export default function NowPlayingScreen() {
     processedMicLevel,
     micSensitivity,
     effectIntensity,
-    volume,
+    masterVolume,
+    musicVolume,
+    dryWetMix,
     playbackProgress,
     playbackTime,
     trackDuration,
@@ -246,7 +250,7 @@ export default function NowPlayingScreen() {
       <SoundCloudPlayer
         track={currentTrack}
         isPlaying={isPlaying}
-        volume={volume}
+        volume={Math.round((masterVolume / 100) * musicVolume)}
         onReady={handleSCReady}
         onPlay={handleSCPlay}
         onPause={handleSCPause}
@@ -262,7 +266,8 @@ export default function NowPlayingScreen() {
         bpm={currentTrack.bpm}
         effectIntensity={effectIntensity}
         micSensitivity={micSensitivity}
-        volume={volume}
+        masterVolume={masterVolume}
+        dryWetMix={dryWetMix}
         onLevelUpdate={dispatchMicLevel}
       />
 
@@ -417,6 +422,27 @@ export default function NowPlayingScreen() {
         {/* Sliders */}
         <View style={styles.slidersArea}>
           <CustomSlider
+            value={masterVolume}
+            onValueChange={setMasterVolume}
+            label="Master Volume"
+            color={colors.primary}
+            icon={"\u{1F50A}"}
+          />
+          <CustomSlider
+            value={musicVolume}
+            onValueChange={setMusicVolume}
+            label="Music Volume"
+            color={effectColor}
+            icon={"\u{1F3B5}"}
+          />
+          <CustomSlider
+            value={dryWetMix}
+            onValueChange={setDryWetMix}
+            label="Dry / Wet Mix"
+            color={"#9B59B6"}
+            icon={"\u{1F4A7}"}
+          />
+          <CustomSlider
             value={micSensitivity}
             onValueChange={setMicSensitivity}
             label="Mic Sensitivity"
@@ -427,15 +453,8 @@ export default function NowPlayingScreen() {
             value={effectIntensity}
             onValueChange={setEffectIntensity}
             label="Effect Intensity"
-            color={effectColor}
+            color={"#E67E22"}
             icon={"\u{2728}"}
-          />
-          <CustomSlider
-            value={volume}
-            onValueChange={setVolume}
-            label="Volume"
-            color={colors.primary}
-            icon={"\u{1F50A}"}
           />
         </View>
 

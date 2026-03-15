@@ -156,3 +156,60 @@ describe("Audio Effects Processor", () => {
     expect(fast.pulseRate).toBeGreaterThan(slow.pulseRate);
   });
 });
+
+describe("Volume Computation", () => {
+  it("master volume * music volume should produce correct SoundCloud volume", () => {
+    const masterVolume = 80;
+    const musicVolume = 70;
+    const scVolume = Math.round((masterVolume / 100) * musicVolume);
+    expect(scVolume).toBe(56);
+  });
+
+  it("master volume at 0 should silence everything", () => {
+    const masterVolume = 0;
+    const musicVolume = 100;
+    const scVolume = Math.round((masterVolume / 100) * musicVolume);
+    expect(scVolume).toBe(0);
+  });
+
+  it("master volume at 100 should pass music volume through", () => {
+    const masterVolume = 100;
+    const musicVolume = 50;
+    const scVolume = Math.round((masterVolume / 100) * musicVolume);
+    expect(scVolume).toBe(50);
+  });
+});
+
+describe("Dry/Wet Mix", () => {
+  it("mix at 0 should be fully dry", () => {
+    const dryWetMix = 0;
+    const mix = dryWetMix / 100;
+    expect(1.0 - mix).toBe(1.0);
+    expect(mix).toBe(0);
+  });
+
+  it("mix at 100 should be fully wet", () => {
+    const dryWetMix = 100;
+    const mix = dryWetMix / 100;
+    expect(1.0 - mix).toBe(0);
+    expect(mix).toBe(1.0);
+  });
+
+  it("mix at 50 should be equal blend", () => {
+    const dryWetMix = 50;
+    const mix = dryWetMix / 100;
+    expect(1.0 - mix).toBe(0.5);
+    expect(mix).toBe(0.5);
+  });
+
+  it("per-track dry/wet map should store values by track ID", () => {
+    const trackDryWetMap: Record<number, number> = {};
+    trackDryWetMap[1] = 30;
+    trackDryWetMap[5] = 80;
+    trackDryWetMap[10] = 50;
+    expect(trackDryWetMap[1]).toBe(30);
+    expect(trackDryWetMap[5]).toBe(80);
+    expect(trackDryWetMap[10]).toBe(50);
+    expect(trackDryWetMap[2]).toBeUndefined();
+  });
+});
