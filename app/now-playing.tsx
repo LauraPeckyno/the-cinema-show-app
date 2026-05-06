@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Text,
   View,
@@ -96,6 +96,7 @@ export default function NowPlayingScreen() {
   useKeepAwake();
   const router = useRouter();
   const colors = useColors();
+  const [micError, setMicError] = useState<string | null>(null);
   const {
     state,
     togglePlayback,
@@ -269,6 +270,7 @@ export default function NowPlayingScreen() {
         masterVolume={masterVolume}
         dryWetMix={dryWetMix}
         onLevelUpdate={dispatchMicLevel}
+        onError={(err) => setMicError(err)}
       />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -347,6 +349,15 @@ export default function NowPlayingScreen() {
           </View>
         )}
 
+        {/* Mic Error Message */}
+        {micError && (
+          <View style={[styles.micErrorArea, { backgroundColor: colors.error + '15', borderColor: colors.error + '40' }]}>
+            <Text style={[styles.micErrorText, { color: colors.error }]}>
+              {"\u26A0\uFE0F"} {micError}
+            </Text>
+          </View>
+        )}
+
         {/* Progress Bar */}
         <View style={styles.progressArea}>
           <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
@@ -371,7 +382,7 @@ export default function NowPlayingScreen() {
         <View style={styles.controlsRow}>
           {/* Mic Toggle */}
           <Pressable
-            onPress={toggleMic}
+            onPress={() => { setMicError(null); toggleMic(); }}
             style={({ pressed }) => [
               styles.controlButton,
               {
@@ -747,5 +758,18 @@ const styles = StyleSheet.create({
   headphonesReminderText: {
     fontSize: 12,
     fontStyle: "italic",
+  },
+  micErrorArea: {
+    marginHorizontal: 20,
+    marginTop: 8,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: "center",
+  },
+  micErrorText: {
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
   },
 });

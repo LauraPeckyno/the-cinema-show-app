@@ -14,7 +14,7 @@ interface MicPassthroughProps {
 }
 
 /**
- * MicPassthroughWebView
+ * MicPassthrough
  *
  * Captures microphone audio, splits into dry (raw) and wet (effected) paths,
  * blends them according to dryWetMix, and outputs to speakers/headphones.
@@ -577,6 +577,7 @@ function WebMicPassthrough({
       streamRef.current = stream;
 
       const ctx = new AudioContext();
+      await ctx.resume(); // Ensure AudioContext is running
       audioCtxRef.current = ctx;
 
       const source = ctx.createMediaStreamSource(stream);
@@ -666,6 +667,7 @@ function NativeMicPassthrough({
   const webViewRef = useRef<any>(null);
   const [WebViewComponent, setWebViewComponent] = useState<any>(null);
   const [isReady, setIsReady] = useState(false);
+  const [permissionGranted, setPermissionGranted] = useState(false);
 
   // Load WebView component
   useEffect(() => {
@@ -683,16 +685,47 @@ function NativeMicPassthrough({
     return () => { mounted = false; };
   }, []);
 
+  // Request native mic permission BEFORE WebView tries getUserMedia
+  // This is critical on Android — the WebView can only access the mic
+  // if the native app already has RECORD_AUDIO permission granted.
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const ExpoAudio = await import("expo-audio");
+        const status = await ExpoAudio.requestRecordingPermissionsAsync();
+        if (mounted) {
+          setPermissionGranted(status.granted);
+          if (!status.granted) {
+            onError?.("Microphone permission denied. Please enable in Settings.");
+          }
+        }
+      } catch (e: any) {
+        if (mounted) {
+          onError?.("Failed to request mic permission: " + (e?.message || "unknown error"));
+        }
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
   const intensity = effectIntensity / 100;
   const vol = (masterVolume / 100) * (micSensitivity / 100);
   const mix = dryWetMix / 100;
 
+  // The HTML content for the WebView that runs Web Audio API
+  // Key fixes for Android:
+  // 1. AudioContext.resume() is called explicitly after creation
+  // 2. getUserMedia is called with proper constraints
+  // 3. Detailed error reporting via postMessage
+  // 4. Retry logic if getUserMedia fails initially
   const htmlContent = `
 <!DOCTYPE html>
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>body { margin: 0; background: #000; }</style>
+  <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; media-src *;">
+  <style>body { margin: 0; background: transparent; }</style>
 </head>
 <body>
 <script>
@@ -706,20 +739,48 @@ var stream = null;
 var chain = null;
 var running = false;
 var meteringInterval = null;
+var retryCount = 0;
+var MAX_RETRIES = 3;
+
+function log(msg) {
+  window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'log', message: msg }));
+}
 
 async function startPassthrough(trackId, bpm, intensity, vol, dryWetMix) {
   try {
     stopPassthrough();
+    log('Starting mic passthrough for track ' + trackId);
 
+    // Check if getUserMedia is available
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('getUserMedia not available in this WebView context');
+    }
+
+    log('Requesting getUserMedia...');
     stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: false,
         noiseSuppression: false,
-        autoGainControl: false
+        autoGainControl: false,
+        channelCount: 1,
+        sampleRate: 44100
       }
     });
+    log('Got media stream with ' + stream.getAudioTracks().length + ' audio tracks');
 
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // Create AudioContext and explicitly resume it (critical for Android WebView)
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)({
+      sampleRate: 44100,
+      latencyHint: 'interactive'
+    });
+    log('AudioContext state: ' + audioCtx.state);
+
+    // Force resume — Android WebView often starts AudioContext in suspended state
+    if (audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+      log('AudioContext resumed, state: ' + audioCtx.state);
+    }
+
     var source = audioCtx.createMediaStreamSource(stream);
 
     outputGain = audioCtx.createGain();
@@ -731,11 +792,18 @@ async function startPassthrough(trackId, bpm, intensity, vol, dryWetMix) {
 
     analyser = chain.analyser;
     running = true;
+    retryCount = 0;
 
     // Send level data to React Native at ~20fps
     var dataArray = new Uint8Array(analyser.frequencyBinCount);
     meteringInterval = setInterval(function() {
       if (!running || !analyser) return;
+
+      // Check if AudioContext got suspended and try to resume
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+
       analyser.getByteFrequencyData(dataArray);
       var sum = 0;
       for (var i = 0; i < dataArray.length; i++) {
@@ -748,8 +816,21 @@ async function startPassthrough(trackId, bpm, intensity, vol, dryWetMix) {
     }, 50);
 
     window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'started' }));
+    log('Mic passthrough started successfully');
   } catch (e) {
-    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: e.message || 'Mic access failed' }));
+    var errMsg = e.message || 'Unknown mic error';
+    log('Error: ' + errMsg);
+
+    // Retry logic for transient failures
+    if (retryCount < MAX_RETRIES && errMsg.indexOf('permission') === -1) {
+      retryCount++;
+      log('Retrying in 500ms (attempt ' + retryCount + '/' + MAX_RETRIES + ')');
+      setTimeout(function() {
+        startPassthrough(trackId, bpm, intensity, vol, dryWetMix);
+      }, 500);
+    } else {
+      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: errMsg }));
+    }
   }
 }
 
@@ -757,20 +838,26 @@ function stopPassthrough() {
   running = false;
   if (meteringInterval) { clearInterval(meteringInterval); meteringInterval = null; }
   if (stream) { stream.getTracks().forEach(function(t) { t.stop(); }); stream = null; }
-  if (audioCtx) { audioCtx.close().catch(function(){}); audioCtx = null; }
+  if (audioCtx) {
+    try { audioCtx.close(); } catch(e) {}
+    audioCtx = null;
+  }
   outputGain = null;
   analyser = null;
   chain = null;
 }
 
 function setVolume(vol) {
-  if (outputGain) outputGain.gain.value = vol;
+  if (outputGain) {
+    outputGain.gain.setValueAtTime(vol, audioCtx ? audioCtx.currentTime : 0);
+  }
 }
 
 function setDryWet(mix) {
   if (chain && chain.dryGain && chain.wetGain) {
-    chain.dryGain.gain.value = 1.0 - mix;
-    chain.wetGain.gain.value = mix;
+    var t = audioCtx ? audioCtx.currentTime : 0;
+    chain.dryGain.gain.setValueAtTime(1.0 - mix, t);
+    chain.wetGain.gain.setValueAtTime(mix, t);
   }
 }
 
@@ -795,15 +882,19 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
         case "error":
           onError?.(data.message);
           break;
+        case "log":
+          // Debug logging — can be removed in production
+          console.log("[MicPassthrough WebView]", data.message);
+          break;
       }
     } catch (e) {
-      // ignore
+      // ignore parse errors
     }
   }, [onLevelUpdate, onError]);
 
-  // Start/stop passthrough
+  // Start/stop passthrough when isActive changes
   useEffect(() => {
-    if (!webViewRef.current || !isReady) return;
+    if (!webViewRef.current || !isReady || !permissionGranted) return;
 
     if (isActive) {
       const js = `startPassthrough(${trackId}, ${bpm}, ${intensity}, ${vol}, ${mix}); true;`;
@@ -811,7 +902,7 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
     } else {
       webViewRef.current.injectJavaScript("stopPassthrough(); true;");
     }
-  }, [isActive, isReady, trackId, bpm, intensity, vol, mix]);
+  }, [isActive, isReady, permissionGranted, trackId, bpm, intensity, vol, mix]);
 
   // Update volume dynamically
   useEffect(() => {
@@ -825,7 +916,8 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
     webViewRef.current.injectJavaScript(`setDryWet(${mix}); true;`);
   }, [mix, isReady, isActive]);
 
-  if (!WebViewComponent) return null;
+  // Don't render WebView until we have permission and the component
+  if (!WebViewComponent || !permissionGranted) return null;
 
   const WV = WebViewComponent;
 
@@ -833,7 +925,7 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
     <View style={styles.nativeContainer}>
       <WV
         ref={webViewRef}
-        source={{ html: htmlContent }}
+        source={{ html: htmlContent, baseUrl: "https://localhost" }}
         onMessage={handleMessage}
         javaScriptEnabled={true}
         domStorageEnabled={true}
@@ -845,9 +937,24 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
         androidLayerType="hardware"
         setSupportMultipleWindows={false}
         allowFileAccess={true}
+        webviewDebuggingEnabled={__DEV__}
         onPermissionRequest={(event: any) => {
+          // Grant all requested permissions (microphone, audio)
           if (event?.nativeEvent?.resources) {
             event.nativeEvent.grant(event.nativeEvent.resources);
+          }
+        }}
+        androidPermissionsRequest={(resources: string[], grant: (resources: string[]) => void) => {
+          // Alternative permission handler for newer react-native-webview versions
+          grant(resources);
+        }}
+        onLoadEnd={() => {
+          // After the WebView loads, if mic is already active, start passthrough
+          if (isActive && isReady && permissionGranted) {
+            const js = `startPassthrough(${trackId}, ${bpm}, ${intensity}, ${vol}, ${mix}); true;`;
+            setTimeout(() => {
+              webViewRef.current?.injectJavaScript(js);
+            }, 300);
           }
         }}
       />
@@ -857,18 +964,20 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
 
 const styles = StyleSheet.create({
   nativeContainer: {
-    width: 1,
-    height: 1,
+    // Use real dimensions (not 1x1) to prevent Android from throttling the WebView
+    // But position off-screen and make transparent so it's invisible to the user
+    width: 100,
+    height: 100,
     overflow: "hidden",
     position: "absolute",
-    top: -9999,
-    left: -9999,
+    top: -200,
+    left: -200,
     opacity: 0.01,
     zIndex: -1,
   },
   webview: {
-    width: 1,
-    height: 1,
+    width: 100,
+    height: 100,
     backgroundColor: "transparent",
   },
 });
