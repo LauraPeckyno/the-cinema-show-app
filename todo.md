@@ -35,3 +35,6 @@
 - [x] Add per-track dry/wet mix slider (controls balance between raw ambient and effected mic signal)
 - [x] Fix microphone not functional on Android: WebView mic capture not working (no audio pickup, no passthrough output)
 - [x] Add headphone detection that auto-pauses mic when headphones are disconnected and shows reconnect prompt
+- [x] Make all 16 audio effects significantly bolder/more dramatic (longer delays, more iterations, deeper reverbs, heavier distortion, pronounced LFOs)
+- [x] Increase mic input gain so even small phone movements are captured and effected
+- [x] Ensure effects only alter microphone audio input, not musical playback
