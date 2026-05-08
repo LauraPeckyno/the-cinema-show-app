@@ -6,7 +6,9 @@ import {
   Pressable,
   Dimensions,
   ScrollView,
+  Modal,
 } from "react-native";
+import { useHeadphoneDetection } from "@/hooks/use-headphone-detection";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { ScreenContainer } from "@/components/screen-container";
@@ -97,6 +99,8 @@ export default function NowPlayingScreen() {
   const router = useRouter();
   const colors = useColors();
   const [micError, setMicError] = useState<string | null>(null);
+  const [showHeadphoneWarning, setShowHeadphoneWarning] = useState(false);
+  const { route: audioRoute, isHeadphonesConnected, wasDisconnected, clearDisconnectedFlag } = useHeadphoneDetection();
   const {
     state,
     togglePlayback,
@@ -138,6 +142,29 @@ export default function NowPlayingScreen() {
     // We dispatch directly through the audio engine's internal method
     updateMicLevel(adjustedLevel, adjustedLevel);
   }, [micSensitivity]);
+
+  // Headphone disconnection detection — auto-pause mic
+  useEffect(() => {
+    if (wasDisconnected && isMicActive) {
+      // Headphones were disconnected while mic was active — pause mic to prevent feedback
+      toggleMic();
+      setShowHeadphoneWarning(true);
+    }
+  }, [wasDisconnected]);
+
+  const handleDismissHeadphoneWarning = useCallback(() => {
+    setShowHeadphoneWarning(false);
+    clearDisconnectedFlag();
+  }, [clearDisconnectedFlag]);
+
+  const handleReconnectAndResume = useCallback(() => {
+    setShowHeadphoneWarning(false);
+    clearDisconnectedFlag();
+    // Re-enable mic if headphones are now connected
+    if (isHeadphonesConnected && !isMicActive) {
+      toggleMic();
+    }
+  }, [clearDisconnectedFlag, isHeadphonesConnected, isMicActive, toggleMic]);
 
   // BPM indicator pulse
   const bpmPulse = useSharedValue(1);
@@ -491,8 +518,60 @@ export default function NowPlayingScreen() {
           <Text style={[styles.headphonesReminderText, { color: colors.muted }]}>
             {"\u{1F3A7}"} Best experienced with headphones
           </Text>
+          {audioRoute !== "unknown" && (
+            <Text style={[styles.audioRouteText, { color: audioRoute === "speaker" ? colors.warning : colors.success }]}>
+              Output: {audioRoute === "wiredHeadset" ? "Wired Headphones" : audioRoute === "bluetooth" ? "Bluetooth" : audioRoute === "speaker" ? "Speaker (connect headphones)" : audioRoute}
+            </Text>
+          )}
         </View>
       </ScrollView>
+
+      {/* Headphone Disconnection Warning Modal */}
+      <Modal
+        visible={showHeadphoneWarning}
+        transparent
+        animationType="fade"
+        onRequestClose={handleDismissHeadphoneWarning}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: "#1A1A2E", borderColor: colors.warning }]}>
+            <Text style={styles.modalIcon}>{"\u{1F3A7}"}</Text>
+            <Text style={[styles.modalTitle, { color: colors.warning }]}>
+              Headphones Disconnected
+            </Text>
+            <Text style={[styles.modalMessage, { color: colors.foreground }]}>
+              Microphone has been paused to prevent audio feedback through the speakers.
+            </Text>
+            <Text style={[styles.modalHint, { color: colors.muted }]}>
+              Reconnect your headphones to resume the ambient audio experience.
+            </Text>
+            <View style={styles.modalButtons}>
+              <Pressable
+                onPress={handleDismissHeadphoneWarning}
+                style={({ pressed }) => [
+                  styles.modalButton,
+                  { borderColor: colors.border },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Text style={[styles.modalButtonText, { color: colors.muted }]}>Dismiss</Text>
+              </Pressable>
+              {isHeadphonesConnected && (
+                <Pressable
+                  onPress={handleReconnectAndResume}
+                  style={({ pressed }) => [
+                    styles.modalButton,
+                    { borderColor: colors.success, backgroundColor: colors.success + "20" },
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <Text style={[styles.modalButtonText, { color: colors.success }]}>Resume Mic</Text>
+                </Pressable>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScreenContainer>
   );
 }
@@ -771,5 +850,61 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     textAlign: "center",
+  },
+  audioRouteText: {
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 32,
+  },
+  modalContent: {
+    width: "100%",
+    maxWidth: 320,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 28,
+    alignItems: "center",
+  },
+  modalIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  modalMessage: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  modalHint: {
+    fontSize: 12,
+    textAlign: "center",
+    fontStyle: "italic",
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  modalButton: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  modalButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

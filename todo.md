@@ -34,3 +34,4 @@
 - [x] Add master volume control (controls overall output level of both music and mic)
 - [x] Add per-track dry/wet mix slider (controls balance between raw ambient and effected mic signal)
 - [x] Fix microphone not functional on Android: WebView mic capture not working (no audio pickup, no passthrough output)
+- [x] Add headphone detection that auto-pauses mic when headphones are disconnected and shows reconnect prompt
