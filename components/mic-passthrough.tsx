@@ -92,39 +92,75 @@ function buildEffectChainJS(): string {
       var t = ctx.currentTime;
 
       switch (trackId) {
-        case 1: { // SPECTRAL REVERB — massive shimmer hall with 8 delay lines and evolving feedback
+        case 1: { // SPECTRAL REVERB — massive shimmer hall with 8 delay lines, DOUBLED times, and 0.9 Hz LFO
           var delays = [];
           var fbs = [];
-          var times = [0.037, 0.079, 0.113, 0.167, 0.233, 0.311, 0.419, 0.541];
+          // DOUBLED delay times (2x the original values)
+          var times = [0.074, 0.158, 0.226, 0.334, 0.466, 0.622, 0.838, 1.082];
           var fbVals = [0.72, 0.68, 0.74, 0.65, 0.71, 0.67, 0.69, 0.73];
-          var merger = ctx.createGain(); merger.gain.value = 0.35;
+          var merger = ctx.createGain(); merger.gain.value = 0.4;
           var shimmerHp = ctx.createBiquadFilter();
           shimmerHp.type = 'highpass'; shimmerHp.frequency.value = 1200 + intensity * 3000;
           shimmerHp.Q.value = 1.5;
+          // Existing slow shimmer sweep LFO
           var shimmerLfo = ctx.createOscillator(); shimmerLfo.type = 'sine';
-          shimmerLfo.frequency.value = 0.05 + intensity * 0.15; // very slow sweep
+          shimmerLfo.frequency.value = 0.05 + intensity * 0.15;
           var shimmerLfoG = ctx.createGain(); shimmerLfoG.gain.value = 2000 * intensity;
           shimmerLfo.connect(shimmerLfoG); shimmerLfoG.connect(shimmerHp.frequency);
           shimmerLfo.start();
 
+          // ── NEW: 0.9 Hz master LFO that modulates the overall reverb character over time ──
+          // This creates a breathing/pulsing variation in the reverb tail
+          var masterLfo = ctx.createOscillator(); masterLfo.type = 'sine';
+          masterLfo.frequency.value = 0.9; // 0.9 Hz — about once per second
+          // Modulate the merger output gain: creates a pulsing swell in the reverb
+          var masterLfoToMerger = ctx.createGain();
+          masterLfoToMerger.gain.value = 0.2 + intensity * 0.15; // ±0.2 to ±0.35 volume swell
+          masterLfo.connect(masterLfoToMerger);
+          masterLfoToMerger.connect(merger.gain);
+          // Modulate the shimmer filter frequency: adds tonal movement at 0.9 Hz
+          var masterLfoToFilter = ctx.createGain();
+          masterLfoToFilter.gain.value = 800 + intensity * 1200; // ±800 to ±2000 Hz sweep
+          masterLfo.connect(masterLfoToFilter);
+          masterLfoToFilter.connect(shimmerHp.frequency);
+          masterLfo.start();
+
+          // Per-delay-line feedback modulation LFOs at 0.9 Hz with phase offsets
+          // Each delay line gets a slightly phase-shifted version of the 0.9 Hz LFO
+          // modulating its feedback, creating a swirling spatial effect
+          var fbLfoGains = [];
           for (var i = 0; i < 8; i++) {
-            var d = ctx.createDelay(2.0);
+            var d = ctx.createDelay(4.0); // DOUBLED max delay buffer (was 2.0)
             d.delayTime.value = times[i] * (1.0 + intensity * 0.5);
             var fb = ctx.createGain();
-            fb.gain.value = fbVals[i] * (0.7 + intensity * 0.28);
-            // Time-varying feedback: slowly modulate
-            fb.gain.setValueAtTime(fb.gain.value, t);
-            fb.gain.linearRampToValueAtTime(fb.gain.value * 0.9, t + 4);
-            fb.gain.linearRampToValueAtTime(fb.gain.value * 1.05, t + 8);
-            fb.gain.linearRampToValueAtTime(fb.gain.value, t + 12);
+            var baseFb = fbVals[i] * (0.7 + intensity * 0.28);
+            fb.gain.value = baseFb;
+            // Time-varying feedback: slowly modulate over long periods
+            fb.gain.setValueAtTime(baseFb, t);
+            fb.gain.linearRampToValueAtTime(baseFb * 0.85, t + 6);
+            fb.gain.linearRampToValueAtTime(baseFb * 1.08, t + 12);
+            fb.gain.linearRampToValueAtTime(baseFb * 0.92, t + 18);
+            fb.gain.linearRampToValueAtTime(baseFb, t + 24);
+            // ── 0.9 Hz LFO modulating each feedback gain with phase offset ──
+            var fbLfoG = ctx.createGain();
+            fbLfoG.gain.value = 0.06 + intensity * 0.08; // ±0.06 to ±0.14 feedback variation
+            masterLfo.connect(fbLfoG);
+            fbLfoG.connect(fb.gain);
+            fbLfoGains.push(fbLfoG);
+            // Also modulate delay time slightly for chorus-like movement
+            var delLfoG = ctx.createGain();
+            delLfoG.gain.value = 0.003 + i * 0.001; // subtle time modulation per line
+            masterLfo.connect(delLfoG);
+            delLfoG.connect(d.delayTime);
+
             inputBoost.connect(d);
             d.connect(fb); fb.connect(d); // feedback loop
             d.connect(shimmerHp);
             delays.push(d); fbs.push(fb);
           }
           shimmerHp.connect(merger);
-          // Also add some dry signal
-          var dryMix = ctx.createGain(); dryMix.gain.value = 0.15;
+          // Dry signal (slightly louder to balance the longer reverb)
+          var dryMix = ctx.createGain(); dryMix.gain.value = 0.18;
           inputBoost.connect(dryMix);
           dryMix.connect(analyser);
           merger.connect(analyser);

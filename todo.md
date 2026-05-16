@@ -38,3 +38,4 @@
 - [x] Make all 16 audio effects significantly bolder/more dramatic (longer delays, more iterations, deeper reverbs, heavier distortion, pronounced LFOs)
 - [x] Increase mic input gain so even small phone movements are captured and effected
 - [x] Ensure effects only alter microphone audio input, not musical playback
+- [x] Update Corpse Parade Spectral Reverb: double reverb times and add 0.9 Hz LFO oscillator for time-varying modulation
