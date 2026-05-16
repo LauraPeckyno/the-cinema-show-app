@@ -41,7 +41,7 @@ export const TRACKS: Track[] = [
     id: 2,
     title: "SleepDeprivation",
     side: "dark",
-    bpm: 90,
+    bpm: 76,
     soundcloudUrl: "https://soundcloud.com/imaginaurium/sleepdeprivation",
     effect: {
       name: "Granular Stutter",

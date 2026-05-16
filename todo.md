@@ -39,3 +39,5 @@
 - [x] Increase mic input gain so even small phone movements are captured and effected
 - [x] Ensure effects only alter microphone audio input, not musical playback
 - [x] Update Corpse Parade Spectral Reverb: double reverb times and add 0.9 Hz LFO oscillator for time-varying modulation
+- [x] Add Ping Pong Delay at 76 BPM and 304 BPM with 50% feedback to Sleep Deprivation effect
+- [x] Change Sleep Deprivation BPM from 130 to 76

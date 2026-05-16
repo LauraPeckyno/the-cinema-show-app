@@ -168,7 +168,7 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 2: { // GRANULAR STUTTER — aggressive rhythmic chopping with pitch randomization
+        case 2: { // GRANULAR STUTTER + PING PONG DELAY — rhythmic chopping with dual ping-pong delays
           var stutterGain = ctx.createGain();
           stutterGain.gain.value = 1.0;
           // Main stutter LFO — synced to 16th notes
@@ -200,9 +200,51 @@ function buildEffectChainJS(): string {
           stutterLfo2.connect(stutterDepth2); stutterDepth2.connect(stutterGain.gain);
           stutterLfo.start(); stutterLfo2.start();
           stutterGain.connect(grainDel);
+
+          // ── PING PONG DELAY at 76 BPM (quarter note = 60/76 = ~0.789s) ──
+          // Left-right alternating delay simulated with two cross-fed delay lines
+          var ppDelay76sec = 60.0 / 76.0; // ~0.789s per beat
+          var ppDelL1 = ctx.createDelay(2.0);
+          ppDelL1.delayTime.value = ppDelay76sec; // left tap at 76 BPM
+          var ppDelR1 = ctx.createDelay(2.0);
+          ppDelR1.delayTime.value = ppDelay76sec * 2; // right tap (2 beats)
+          var ppFbL1 = ctx.createGain(); ppFbL1.gain.value = 0.5; // 50% feedback
+          var ppFbR1 = ctx.createGain(); ppFbR1.gain.value = 0.5; // 50% feedback
+          // Cross-feed: left feeds right, right feeds left (ping-pong pattern)
+          ppDelL1.connect(ppFbL1); ppFbL1.connect(ppDelR1);
+          ppDelR1.connect(ppFbR1); ppFbR1.connect(ppDelL1);
+          var ppMix1 = ctx.createGain(); ppMix1.gain.value = 0.45;
+          ppDelL1.connect(ppMix1);
+          ppDelR1.connect(ppMix1);
+
+          // ── PING PONG DELAY at 304 BPM (quarter note = 60/304 = ~0.197s) ──
+          // Fast rhythmic ping-pong for rapid echoes
+          var ppDelay304sec = 60.0 / 304.0; // ~0.197s per beat
+          var ppDelL2 = ctx.createDelay(1.0);
+          ppDelL2.delayTime.value = ppDelay304sec; // left tap at 304 BPM
+          var ppDelR2 = ctx.createDelay(1.0);
+          ppDelR2.delayTime.value = ppDelay304sec * 2; // right tap (2 beats)
+          var ppFbL2 = ctx.createGain(); ppFbL2.gain.value = 0.5; // 50% feedback
+          var ppFbR2 = ctx.createGain(); ppFbR2.gain.value = 0.5; // 50% feedback
+          // Cross-feed: ping-pong pattern
+          ppDelL2.connect(ppFbL2); ppFbL2.connect(ppDelR2);
+          ppDelR2.connect(ppFbR2); ppFbR2.connect(ppDelL2);
+          var ppMix2 = ctx.createGain(); ppMix2.gain.value = 0.45;
+          ppDelL2.connect(ppMix2);
+          ppDelR2.connect(ppMix2);
+
+          // Route: granular stutter → both ping pong delays (parallel)
+          grainDel.connect(ppDelL1);
+          grainDel.connect(ppDelL2);
+          // Also send direct stuttered signal into the ping pongs
+          stutterGain.connect(ppDelL1);
+          stutterGain.connect(ppDelL2);
+
+          // Mix everything to analyser: granular + both ping pong delays
           grainDel.connect(analyser);
-          // Also direct stuttered signal
           stutterGain.connect(analyser);
+          ppMix1.connect(analyser);
+          ppMix2.connect(analyser);
           analyser.connect(output);
           break;
         }
