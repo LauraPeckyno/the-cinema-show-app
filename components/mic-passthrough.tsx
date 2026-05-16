@@ -76,7 +76,7 @@ function buildEffectChainJS(): string {
     function buildEffectChain(ctx, source, trackId, bpm, intensity) {
       // HIGH INPUT GAIN — capture even the smallest sounds
       var inputBoost = ctx.createGain();
-      inputBoost.gain.value = 3.0 + intensity * 4.0; // 3x to 7x input gain boost
+      inputBoost.gain.value = 15.0 + intensity * 15.0; // 15x to 30x input gain — captures even the slightest scratch or movement
 
       var output = ctx.createGain();
       output.gain.value = 1.0;
@@ -814,7 +814,7 @@ function WebMicPassthrough({
   // Update master volume — includes mic sensitivity as gain multiplier
   useEffect(() => {
     if (outputGainRef.current) {
-      outputGainRef.current.gain.value = (masterVolume / 100) * (micSensitivity / 50); // sensitivity scaled higher
+      outputGainRef.current.gain.value = (masterVolume / 100) * (micSensitivity / 25); // ultra-high sensitivity — 4x at max, captures faintest sounds
     }
   }, [masterVolume, micSensitivity]);
 
@@ -970,7 +970,7 @@ function NativeMicPassthrough({
   }, []);
 
   const intensity = effectIntensity / 100;
-  const vol = (masterVolume / 100) * (micSensitivity / 50); // boosted sensitivity
+  const vol = (masterVolume / 100) * (micSensitivity / 25); // ultra-high sensitivity — 4x at max, captures faintest sounds
   const mix = dryWetMix / 100;
 
   const htmlContent = `
@@ -1061,7 +1061,7 @@ async function startPassthrough(trackId, bpm, intensity, vol, dryWetMix) {
         sum += n * n;
       }
       var rms = Math.sqrt(sum / dataArray.length);
-      var level = Math.min(1, rms * 3.0); // boosted level for sensitivity
+      var level = Math.min(1, rms * 8.0); // ultra-boosted level metering — shows even the tiniest vibrations
       window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'level', level: level }));
     }, 50);
 
