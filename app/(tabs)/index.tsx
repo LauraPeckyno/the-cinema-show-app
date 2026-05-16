@@ -1,10 +1,118 @@
-import { ScrollView, Text, View, Pressable, StyleSheet, Dimensions } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { ScrollView, Text, View, Pressable, StyleSheet, Dimensions, Platform, Image } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
-import { ArtDecoDivider, ArtDecoFrame, ArtDecoSunburst, ArtDecoHeader, ArtDecoCorner } from "@/components/art-deco";
+import { ArtDecoDivider, ArtDecoSunburst, ArtDecoHeader } from "@/components/art-deco";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+// SoundCloud embed URL for "Four Better or Worse" — plays as a soft background loop
+const BG_MUSIC_SC_URL = "https://soundcloud.com/imaginaurium/four-better-or-worse";
+
+// ─── Web Background Music (iframe-based) ────────────────────────────────────
+function WebBgMusic({ volume }: { volume: number }) {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const widgetRef = useRef<any>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const script = document.createElement("script");
+    script.src = "https://w.soundcloud.com/player/api.js";
+    script.onload = () => setLoaded(true);
+    document.head.appendChild(script);
+    return () => { document.head.removeChild(script); };
+  }, []);
+
+  useEffect(() => {
+    if (!loaded || !iframeRef.current || Platform.OS !== "web") return;
+    const SC = (window as any).SC;
+    if (!SC?.Widget) return;
+    const w = SC.Widget(iframeRef.current);
+    widgetRef.current = w;
+    w.bind(SC.Widget.Events.READY, () => {
+      w.setVolume(volume);
+      w.play();
+    });
+    w.bind(SC.Widget.Events.FINISH, () => { w.seekTo(0); w.play(); });
+  }, [loaded]);
+
+  useEffect(() => {
+    widgetRef.current?.setVolume?.(volume);
+  }, [volume]);
+
+  if (Platform.OS !== "web") return null;
+
+  const src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(BG_MUSIC_SC_URL)}&auto_play=true&show_artwork=false&visual=false&buying=false&sharing=false&download=false&show_playcount=false&show_user=false&color=%23C9A84C`;
+
+  return (
+    <View style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}>
+      {/* @ts-ignore — web-only iframe */}
+      <iframe
+        ref={iframeRef as any}
+        src={src}
+        width="1"
+        height="1"
+        allow="autoplay"
+        style={{ border: "none" }}
+      />
+    </View>
+  );
+}
+
+// ─── Native Background Music (WebView-based) ────────────────────────────────
+let NativeBgMusic: React.ComponentType<{ volume: number }> = () => null;
+if (Platform.OS !== "web") {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { WebView } = require("react-native-webview");
+
+  NativeBgMusic = ({ volume }: { volume: number }) => {
+    const webViewRef = useRef<any>(null);
+
+    useEffect(() => {
+      webViewRef.current?.injectJavaScript?.(`
+        if (window.__widget) { window.__widget.setVolume(${volume}); }
+        true;
+      `);
+    }, [volume]);
+
+    const html = `<!DOCTYPE html><html><head>
+      <script src="https://w.soundcloud.com/player/api.js"></script>
+    </head><body>
+      <iframe id="sc" width="100%" height="100" src="https://w.soundcloud.com/player/?url=${encodeURIComponent(BG_MUSIC_SC_URL)}&auto_play=true&show_artwork=false&visual=false&buying=false&sharing=false&download=false&show_playcount=false&show_user=false&color=%23C9A84C" allow="autoplay"></iframe>
+      <script>
+        var iframe = document.getElementById('sc');
+        var widget = SC.Widget(iframe);
+        window.__widget = widget;
+        widget.bind(SC.Widget.Events.READY, function() {
+          widget.setVolume(${volume});
+          widget.play();
+        });
+        widget.bind(SC.Widget.Events.FINISH, function() {
+          widget.seekTo(0);
+          widget.play();
+        });
+      </script>
+    </body></html>`;
+
+    return (
+      <View style={{ position: "absolute", width: 50, height: 50, opacity: 0, top: -100 }}>
+        <WebView
+          ref={webViewRef}
+          source={{ html, baseUrl: "https://soundcloud.com" }}
+          javaScriptEnabled
+          mediaPlaybackRequiresUserAction={false}
+          allowsInlineMediaPlayback
+          style={{ width: 50, height: 50 }}
+        />
+      </View>
+    );
+  };
+}
+
+// ─── Album Cover Image ──────────────────────────────────────────────────────
+const albumCover = require("@/assets/images/cinemashow.png");
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -12,6 +120,9 @@ export default function HomeScreen() {
 
   return (
     <ScreenContainer containerClassName="bg-background">
+      {/* Background music — soft loop */}
+      {Platform.OS === "web" ? <WebBgMusic volume={25} /> : <NativeBgMusic volume={25} />}
+
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
@@ -37,20 +148,31 @@ export default function HomeScreen() {
 
           <ArtDecoDivider width={SCREEN_WIDTH * 0.75} color={colors.primary} />
 
-          {/* ─── Headphones Required Notice ─── */}
-          <ArtDecoFrame color={colors.primary} style={styles.headphonesFrame}>
-            <View style={styles.headphonesContent}>
-              <Text style={styles.headphonesIcon}>{"\u{1F3A7}"}</Text>
-              <Text style={[styles.headphonesTitle, { color: colors.primary }]}>
-                HEADPHONES REQUIRED
-              </Text>
-              <Text style={[styles.headphonesText, { color: colors.muted }]}>
-                This experience uses your device microphone to sample ambient sounds
-                and blend them with the music. To avoid audio feedback, please connect
-                headphones or earbuds before starting.
-              </Text>
+          {/* ─── Album Cover ─── */}
+          <View style={styles.albumCoverContainer}>
+            <View style={[styles.albumCoverBorder, { borderColor: colors.primary + "80" }]}>
+              <Image
+                source={albumCover}
+                style={styles.albumCoverImage}
+                resizeMode="cover"
+              />
             </View>
-          </ArtDecoFrame>
+            <View style={[styles.albumCoverGlow, { backgroundColor: colors.primary + "15" }]} />
+          </View>
+
+          {/* ─── Headphones Required Notice (text only, no icon) ─── */}
+          <View style={[styles.headphonesNotice, { borderColor: colors.primary + "40" }]}>
+            <Text style={[styles.headphonesTitle, { color: colors.primary }]}>
+              HEADPHONES REQUIRED
+            </Text>
+            <Text style={[styles.headphonesText, { color: colors.muted }]}>
+              This experience uses your device microphone to sample ambient sounds
+              and blend them with the music. To avoid audio feedback, please connect
+              headphones or earbuds before starting.
+            </Text>
+          </View>
+
+          <ArtDecoDivider width={SCREEN_WIDTH * 0.5} color={colors.primary} />
 
           {/* ─── Description ─── */}
           <ArtDecoHeader title="THE EXPERIENCE" color={colors.primary} textColor={colors.foreground} />
@@ -62,25 +184,6 @@ export default function HomeScreen() {
               weaves them into an instrumental soundtrack — creating a unique,
               one-of-a-kind listening experience that is different every time.
             </Text>
-          </View>
-
-          {/* ─── How It Works ─── */}
-          <ArtDecoHeader title="HOW IT WORKS" color={colors.primary} textColor={colors.foreground} />
-
-          <View style={styles.stepsContainer}>
-            {[
-              { num: "I", text: "Choose a track from the Dark or Light side of the album" },
-              { num: "II", text: "Enable your microphone to capture ambient sounds" },
-              { num: "III", text: "Each track applies a unique effect to your environment" },
-              { num: "IV", text: "The result is a one-of-a-kind immersive soundscape" },
-            ].map((step, i) => (
-              <View key={i} style={styles.stepRow}>
-                <View style={[styles.stepNumContainer, { borderColor: colors.primary + "60" }]}>
-                  <Text style={[styles.stepNum, { color: colors.primary }]}>{step.num}</Text>
-                </View>
-                <Text style={[styles.stepText, { color: colors.foreground }]}>{step.text}</Text>
-              </View>
-            ))}
           </View>
 
           <ArtDecoDivider width={SCREEN_WIDTH * 0.6} color={colors.primary} />
@@ -144,28 +247,53 @@ const styles = StyleSheet.create({
     marginTop: 8,
     letterSpacing: 1,
   },
-  headphonesFrame: {
-    marginHorizontal: 12,
-    marginVertical: 12,
+  albumCoverContainer: {
+    alignItems: "center",
+    marginVertical: 16,
+    position: "relative",
+  },
+  albumCoverBorder: {
+    borderWidth: 2,
+    borderRadius: 8,
+    overflow: "hidden",
+    elevation: 8,
+    shadowColor: "#C9A84C",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+  },
+  albumCoverImage: {
+    width: SCREEN_WIDTH - 80,
+    height: SCREEN_WIDTH - 80,
+    borderRadius: 6,
+  },
+  albumCoverGlow: {
+    position: "absolute",
+    top: -10,
+    left: -10,
+    right: -10,
+    bottom: -10,
+    borderRadius: 16,
+    zIndex: -1,
+  },
+  headphonesNotice: {
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    marginVertical: 8,
+    borderWidth: 1,
+    borderRadius: 6,
     width: SCREEN_WIDTH - 56,
   },
-  headphonesContent: {
-    alignItems: "center",
-    paddingVertical: 4,
-  },
-  headphonesIcon: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
   headphonesTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "800",
     letterSpacing: 2,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   headphonesText: {
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: 12,
+    lineHeight: 18,
     textAlign: "center",
   },
   descriptionSection: {
@@ -176,35 +304,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
     textAlign: "center",
-  },
-  stepsContainer: {
-    width: "100%",
-    paddingHorizontal: 8,
-    marginBottom: 16,
-    gap: 12,
-  },
-  stepRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  stepNumContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 4,
-    borderWidth: 1.5,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepNum: {
-    fontSize: 14,
-    fontWeight: "800",
-    letterSpacing: 1,
-  },
-  stepText: {
-    flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
   },
   ctaButton: {
     paddingHorizontal: 32,

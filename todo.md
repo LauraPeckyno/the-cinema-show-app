@@ -42,3 +42,7 @@
 - [x] Add Ping Pong Delay at 76 BPM and 304 BPM with 50% feedback to Sleep Deprivation effect
 - [x] Change Sleep Deprivation BPM from 130 to 76
 - [x] Dramatically increase mic input gain so even slight movements/scratches on the phone are detected and processed
+- [x] Add album cover image to home screen
+- [x] Add soft background music loop (Four Better or Worse from SoundCloud) on home screen
+- [x] Remove "How it Works" section from home screen
+- [x] Remove headphones icon from home screen
