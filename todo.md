@@ -62,3 +62,11 @@
 - [x] Tapping a film strip cell navigates to the Now Playing screen for that track
 - [x] Add long-press overlay showing song title on film strip cells
 - [x] Swap Light Side order: Brothers before Much Ado
+- [x] Now Playing: Add back button navigation to return to track listing
+- [x] Now Playing: Show corresponding track artwork image
+- [x] Now Playing: Add centered track title
+- [x] Now Playing: Remove BPM display, effect type, and mic status box
+- [x] Now Playing: Keep track progress bar with times
+- [x] Now Playing: Add buttons for Mic, Play, and Volume
+- [x] Now Playing: Add volume adjustment bars
+- [x] Now Playing: Remove bottom box with effect name and description

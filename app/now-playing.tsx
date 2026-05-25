@@ -10,25 +10,17 @@ import {
 } from "react-native";
 import { useHeadphoneDetection } from "@/hooks/use-headphone-detection";
 import { useRouter } from "expo-router";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useAudioEngine } from "@/lib/audio-engine";
-import { AudioVisualizer } from "@/components/audio-visualizer";
 import { SoundCloudPlayer } from "@/components/soundcloud-player";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useKeepAwake } from "expo-keep-awake";
-import { ArtDecoDivider, ArtDecoFrame, ArtDecoCorner } from "@/components/art-deco";
 import { reportTrackDuration } from "@/hooks/use-track-durations";
 import { MicPassthrough } from "@/components/mic-passthrough";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withRepeat,
-  withSequence,
-  Easing,
-} from "react-native-reanimated";
+import { TRACK_ARTWORK } from "@/constants/track-artwork";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -46,7 +38,6 @@ function CustomSlider({
   icon: string;
 }) {
   const colors = useColors();
-  const trackRef = useRef<View>(null);
 
   const handlePress = (e: any) => {
     const nativeEvent = e.nativeEvent;
@@ -64,7 +55,6 @@ function CustomSlider({
         <Text style={[styles.sliderValue, { color }]}>{Math.round(value)}%</Text>
       </View>
       <Pressable
-        ref={trackRef}
         onPress={handlePress}
         style={[styles.sliderTrack, { backgroundColor: colors.border }]}
       >
@@ -133,20 +123,15 @@ export default function NowPlayingScreen() {
     isLoading,
   } = state;
 
-  // Ref to hold the dispatch for mic level updates from the passthrough component
   const dispatchMicLevel = useCallback((level: number) => {
-    // The MicPassthrough already applies the DSP effects to the audio output.
-    // Here we just update the visualization level.
     const sensitivity = micSensitivity / 100;
     const adjustedLevel = Math.min(1, level * sensitivity * 2);
-    // We dispatch directly through the audio engine's internal method
     updateMicLevel(adjustedLevel, adjustedLevel);
   }, [micSensitivity]);
 
   // Headphone disconnection detection — auto-pause mic
   useEffect(() => {
     if (wasDisconnected && isMicActive) {
-      // Headphones were disconnected while mic was active — pause mic to prevent feedback
       toggleMic();
       setShowHeadphoneWarning(true);
     }
@@ -160,43 +145,10 @@ export default function NowPlayingScreen() {
   const handleReconnectAndResume = useCallback(() => {
     setShowHeadphoneWarning(false);
     clearDisconnectedFlag();
-    // Re-enable mic if headphones are now connected
     if (isHeadphonesConnected && !isMicActive) {
       toggleMic();
     }
   }, [clearDisconnectedFlag, isHeadphonesConnected, isMicActive, toggleMic]);
-
-  // BPM indicator pulse
-  const bpmPulse = useSharedValue(1);
-  useEffect(() => {
-    if (currentTrack && isPlaying) {
-      const beatMs = (60 / currentTrack.bpm) * 1000;
-      bpmPulse.value = withRepeat(
-        withSequence(
-          withTiming(1.15, { duration: beatMs * 0.15, easing: Easing.out(Easing.ease) }),
-          withTiming(1, { duration: beatMs * 0.85, easing: Easing.inOut(Easing.ease) })
-        ),
-        -1,
-        false
-      );
-    } else {
-      bpmPulse.value = withTiming(1, { duration: 200 });
-    }
-  }, [isPlaying, currentTrack]);
-
-  const bpmStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: bpmPulse.value }],
-  }));
-
-  // Mic level indicator animation
-  const micBarWidth = useSharedValue(0);
-  useEffect(() => {
-    micBarWidth.value = withTiming(processedMicLevel * 100, { duration: 80 });
-  }, [processedMicLevel]);
-
-  const micBarStyle = useAnimatedStyle(() => ({
-    width: `${micBarWidth.value}%`,
-  }));
 
   const handleSCReady = useCallback(() => {
     setLoading(false);
@@ -205,7 +157,6 @@ export default function NowPlayingScreen() {
   const handleSCDuration = useCallback(
     (durationMs: number) => {
       setTrackDuration(durationMs);
-      // Also report to the global duration cache so the track list can display it
       if (currentTrack) {
         reportTrackDuration(currentTrack.id, durationMs);
       }
@@ -259,13 +210,12 @@ export default function NowPlayingScreen() {
 
   const effectColor = currentTrack.effect.color;
   const isDark = currentTrack.side === "dark";
-  // Use actual SoundCloud duration if available, then durationMs from track data, then estimate
   const displayDuration = trackDuration > 0
     ? trackDuration
     : currentTrack.durationMs > 0
       ? currentTrack.durationMs / 1000
       : currentTrack.durationEstimate;
-  const visualizerLevel = isMicActive ? processedMicLevel : 0;
+  const artworkUrl = TRACK_ARTWORK[currentTrack.id];
 
   return (
     <ScreenContainer edges={["top", "bottom", "left", "right"]} containerClassName="bg-background">
@@ -287,7 +237,7 @@ export default function NowPlayingScreen() {
         onDuration={handleSCDuration}
       />
 
-      {/* Mic Audio Passthrough — captures mic, applies effects, outputs to speakers */}
+      {/* Mic Audio Passthrough */}
       <MicPassthrough
         isActive={isMicActive}
         trackId={currentTrack.id}
@@ -301,7 +251,7 @@ export default function NowPlayingScreen() {
       />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Header */}
+        {/* Back Button */}
         <View style={styles.header}>
           <Pressable
             onPress={() => router.back()}
@@ -311,81 +261,30 @@ export default function NowPlayingScreen() {
             ]}
           >
             <IconSymbol name="chevron.left" size={24} color={colors.foreground} />
+            <Text style={[styles.backText, { color: colors.foreground }]}>Tracks</Text>
           </Pressable>
-          <View style={styles.headerCenter}>
-            <Text style={[styles.sideLabel, { color: effectColor }]}>
-              {isDark ? "\u{1F311} DARK SIDE" : "\u{2600}\u{FE0F} LIGHT SIDE"}
-            </Text>
-            <Text style={[styles.trackName, { color: colors.foreground }]} numberOfLines={1}>
-              {currentTrack.title}
-            </Text>
-          </View>
-          <View style={styles.headerRight} />
         </View>
 
-        {/* Art Deco Divider */}
-        <ArtDecoDivider width={SCREEN_WIDTH * 0.5} color={effectColor} />
-
-        {/* Visualizer */}
-        <View style={styles.visualizerArea}>
-          <AudioVisualizer
-            isPlaying={isPlaying}
-            micLevel={visualizerLevel}
-            bpm={currentTrack.bpm}
-            effectColor={effectColor}
-            effectIntensity={effectIntensity}
-            micSensitivity={micSensitivity}
-          />
-        </View>
-
-        {/* Status Row */}
-        <View style={styles.statusRow}>
-          <Animated.View style={[styles.bpmBadge, bpmStyle, { borderColor: effectColor }]}>
-            <Text style={[styles.bpmText, { color: effectColor }]}>{currentTrack.bpm}</Text>
-            <Text style={[styles.bpmLabel, { color: colors.muted }]}>BPM</Text>
-          </Animated.View>
-
-          <View style={[styles.effectBadge, { backgroundColor: effectColor + "20", borderColor: effectColor + "40" }]}>
-            <Text style={styles.effectIcon}>{currentTrack.effect.icon}</Text>
-            <Text style={[styles.effectNameSmall, { color: effectColor }]}>
-              {currentTrack.effect.name}
-            </Text>
-          </View>
-
-          <View style={[styles.micBadge, { borderColor: isMicActive ? colors.success : colors.border }]}>
-            <View style={[styles.micDot, { backgroundColor: isMicActive ? colors.success : colors.muted }]} />
-            <Text style={[styles.micStatusText, { color: isMicActive ? colors.success : colors.muted }]}>
-              {isMicActive ? "MIC ON" : "MIC OFF"}
-            </Text>
+        {/* Track Artwork */}
+        <View style={styles.artworkArea}>
+          <View style={[styles.artworkFrame, { borderColor: effectColor + "60" }]}>
+            <Image
+              source={{ uri: artworkUrl }}
+              style={styles.artworkImage}
+              contentFit="cover"
+              transition={300}
+            />
           </View>
         </View>
 
-        {/* Mic Level Meter */}
-        {isMicActive && (
-          <View style={styles.micMeterArea}>
-            <Text style={[styles.micMeterLabel, { color: colors.muted }]}>AMBIENT LEVEL</Text>
-            <View style={[styles.micMeterTrack, { backgroundColor: colors.border }]}>
-              <Animated.View
-                style={[
-                  styles.micMeterFill,
-                  micBarStyle,
-                  { backgroundColor: effectColor },
-                ]}
-              />
-            </View>
-          </View>
-        )}
+        {/* Track Title (centered) */}
+        <View style={styles.titleArea}>
+          <Text style={[styles.trackTitle, { color: colors.foreground }]} numberOfLines={2}>
+            {currentTrack.title}
+          </Text>
+        </View>
 
-        {/* Mic Error Message */}
-        {micError && (
-          <View style={[styles.micErrorArea, { backgroundColor: colors.error + '15', borderColor: colors.error + '40' }]}>
-            <Text style={[styles.micErrorText, { color: colors.error }]}>
-              {"\u26A0\uFE0F"} {micError}
-            </Text>
-          </View>
-        )}
-
-        {/* Progress Bar */}
+        {/* Progress Bar with Times */}
         <View style={styles.progressArea}>
           <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
             <View
@@ -400,12 +299,12 @@ export default function NowPlayingScreen() {
               {formatTime(playbackTime)}
             </Text>
             <Text style={[styles.timeText, { color: colors.muted }]}>
-              {trackDuration > 0 ? formatTime(displayDuration - playbackTime) : formatTime(displayDuration)}
+              {trackDuration > 0 ? `-${formatTime(displayDuration - playbackTime)}` : formatTime(displayDuration)}
             </Text>
           </View>
         </View>
 
-        {/* Main Controls */}
+        {/* Control Buttons: Mic, Play, Volume */}
         <View style={styles.controlsRow}>
           {/* Mic Toggle */}
           <Pressable
@@ -457,7 +356,16 @@ export default function NowPlayingScreen() {
           </View>
         </View>
 
-        {/* Sliders */}
+        {/* Mic Error Message */}
+        {micError && (
+          <View style={[styles.micErrorArea, { backgroundColor: colors.error + '15', borderColor: colors.error + '40' }]}>
+            <Text style={[styles.micErrorText, { color: colors.error }]}>
+              {"\u26A0\uFE0F"} {micError}
+            </Text>
+          </View>
+        )}
+
+        {/* Volume Adjustment Bars */}
         <View style={styles.slidersArea}>
           <CustomSlider
             value={masterVolume}
@@ -494,35 +402,6 @@ export default function NowPlayingScreen() {
             color={"#E67E22"}
             icon={"\u{2728}"}
           />
-        </View>
-
-        {/* Effect Description with Art Deco Frame */}
-        <View style={styles.effectDescWrapper}>
-          <ArtDecoFrame color={effectColor} cornerSize={28}>
-            <Text style={[styles.effectDescTitle, { color: effectColor }]}>
-              {currentTrack.effect.icon} {currentTrack.effect.name}
-            </Text>
-            <Text style={[styles.effectDescText, { color: colors.muted }]}>
-              {currentTrack.effect.description}
-            </Text>
-            {isMicActive && (
-              <Text style={[styles.effectActiveText, { color: colors.success }]}>
-                Effect active — ambient audio is being mixed with the track
-              </Text>
-            )}
-          </ArtDecoFrame>
-        </View>
-
-        {/* Headphones reminder */}
-        <View style={styles.headphonesReminder}>
-          <Text style={[styles.headphonesReminderText, { color: colors.muted }]}>
-            {"\u{1F3A7}"} Best experienced with headphones
-          </Text>
-          {audioRoute !== "unknown" && (
-            <Text style={[styles.audioRouteText, { color: audioRoute === "speaker" ? colors.warning : colors.success }]}>
-              Output: {audioRoute === "wiredHeadset" ? "Wired Headphones" : audioRoute === "bluetooth" ? "Bluetooth" : audioRoute === "speaker" ? "Speaker (connect headphones)" : audioRoute}
-            </Text>
-          )}
         </View>
       </ScrollView>
 
@@ -607,113 +486,50 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   backButton: {
+    flexDirection: "row",
+    alignItems: "center",
     padding: 8,
+    gap: 4,
   },
-  headerCenter: {
-    flex: 1,
-    alignItems: "center",
-  },
-  sideLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 2,
-  },
-  trackName: {
-    fontSize: 18,
-    fontWeight: "700",
-    marginTop: 2,
-  },
-  headerRight: {
-    width: 40,
-  },
-  visualizerArea: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-  },
-  statusRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    flexWrap: "wrap",
-  },
-  bpmBadge: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    alignItems: "center",
-  },
-  bpmText: {
-    fontSize: 18,
-    fontWeight: "800",
-  },
-  bpmLabel: {
-    fontSize: 9,
-    fontWeight: "600",
-    letterSpacing: 1,
-  },
-  effectBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    gap: 6,
-  },
-  effectIcon: {
+  backText: {
     fontSize: 16,
+    fontWeight: "500",
   },
-  effectNameSmall: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  micBadge: {
-    flexDirection: "row",
+  artworkArea: {
     alignItems: "center",
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    gap: 6,
+    paddingTop: 16,
+    paddingBottom: 20,
   },
-  micDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  micStatusText: {
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 1,
-  },
-  micMeterArea: {
-    paddingHorizontal: 24,
-    marginBottom: 16,
-  },
-  micMeterLabel: {
-    fontSize: 10,
-    fontWeight: "600",
-    letterSpacing: 1.5,
-    marginBottom: 6,
-    textAlign: "center",
-  },
-  micMeterTrack: {
-    height: 6,
-    borderRadius: 3,
+  artworkFrame: {
+    width: SCREEN_WIDTH * 0.7,
+    height: SCREEN_WIDTH * 0.7,
+    borderRadius: 12,
+    borderWidth: 2,
     overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 10,
   },
-  micMeterFill: {
+  artworkImage: {
+    width: "100%",
     height: "100%",
-    borderRadius: 3,
+  },
+  titleArea: {
+    alignItems: "center",
+    paddingHorizontal: 24,
+    marginBottom: 24,
+  },
+  trackTitle: {
+    fontSize: 24,
+    fontWeight: "800",
+    textAlign: "center",
+    letterSpacing: 0.5,
   },
   progressArea: {
     paddingHorizontal: 24,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   progressTrack: {
     height: 4,
@@ -737,8 +553,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    gap: 24,
-    marginBottom: 28,
+    gap: 28,
+    marginBottom: 32,
   },
   controlButton: {
     width: 52,
@@ -764,6 +580,19 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "700",
     color: "#0A0A14",
+  },
+  micErrorArea: {
+    marginHorizontal: 24,
+    marginBottom: 16,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: "center",
+  },
+  micErrorText: {
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
   },
   slidersArea: {
     paddingHorizontal: 24,
@@ -811,50 +640,6 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     marginLeft: -8,
-  },
-  effectDescWrapper: {
-    marginHorizontal: 24,
-    marginBottom: 16,
-  },
-  effectDescTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    marginBottom: 6,
-  },
-  effectDescText: {
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  effectActiveText: {
-    fontSize: 12,
-    fontStyle: "italic",
-    marginTop: 8,
-  },
-  headphonesReminder: {
-    alignItems: "center",
-    paddingVertical: 8,
-  },
-  headphonesReminderText: {
-    fontSize: 12,
-    fontStyle: "italic",
-  },
-  micErrorArea: {
-    marginHorizontal: 20,
-    marginTop: 8,
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignItems: "center",
-  },
-  micErrorText: {
-    fontSize: 12,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  audioRouteText: {
-    fontSize: 11,
-    fontWeight: "600",
-    marginTop: 4,
   },
   modalOverlay: {
     flex: 1,
