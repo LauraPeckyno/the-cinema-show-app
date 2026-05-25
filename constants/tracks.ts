@@ -54,13 +54,13 @@ export const TRACKS: Track[] = [
   },
   {
     id: 3,
-    title: "MutationandMadness",
+    title: "Mutation and Madness",
     side: "dark",
-    bpm: 100,
+    bpm: 120,
     soundcloudUrl: "https://soundcloud.com/imaginaurium/mutationandmadness",
     effect: {
-      name: "Bitcrusher Chaos",
-      description: "Lo-fi bitcrushing with distortion and ring modulation",
+      name: "Mutation Chaos",
+      description: "Bitcrusher at 60 BPM, Chorus at 40 BPM (10% width), Mono Delay at 30 BPM, Gate at 60 BPM",
       color: "#B71C1C",
       icon: "\u{26A1}",
     },
@@ -74,8 +74,8 @@ export const TRACKS: Track[] = [
     bpm: 75,
     soundcloudUrl: "https://soundcloud.com/imaginaurium/krampuswishes",
     effect: {
-      name: "Reverse Swell",
-      description: "Reversed audio swells with dark tremolo and sub-bass boost",
+      name: "Krampus' Helpers",
+      description: "Completely reversed waveform with rotary modulator at 480 BPM and 240 BPM",
       color: "#4A148C",
       icon: "\u{1F504}",
     },

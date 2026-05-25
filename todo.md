@@ -46,3 +46,6 @@
 - [x] Add soft background music loop (Four Better or Worse from SoundCloud) on home screen
 - [x] Remove "How it Works" section from home screen
 - [x] Remove headphones icon from home screen
+- [x] Add music on/off mute button on home screen for background music
+- [x] Song 3 (MutationandMadness): Fix display name to "Mutation and Madness", set BPM to 120, rename effect to "Mutation Chaos", set Bitcrusher at 60 BPM, add Chorus at 40 BPM (10% width), add Mono Delay at 30 BPM, add Gate at 60 BPM
+- [x] Song 4 (Krampus Wishes): Replace current effect with reversed waveform playback + rotary modulator at 480 BPM and 240 BPM, rename effect to "Krampus' Helpers"

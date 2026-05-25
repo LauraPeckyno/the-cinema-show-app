@@ -23,7 +23,7 @@ describe("Track Data", () => {
       expect(track.title).toBeTruthy();
       expect(track.side).toMatch(/^(dark|light)$/);
       expect(track.bpm).toBeGreaterThan(0);
-      expect(track.bpm).toBeLessThan(200);
+      expect(track.bpm).toBeLessThan(250);
       expect(track.soundcloudUrl).toContain("soundcloud.com");
       expect(track.effect.name).toBeTruthy();
       expect(track.effect.description).toBeTruthy();

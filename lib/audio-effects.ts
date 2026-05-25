@@ -43,30 +43,42 @@ function granularStutter(micLevel: number, bpm: number, intensity: number, time:
   };
 }
 
-/** 3. Bitcrusher Chaos - Quantized, distorted levels */
-function bitcrusherChaos(micLevel: number, bpm: number, intensity: number, time: number) {
+/** 3. Mutation Chaos - Bitcrusher + Chorus + Mono Delay + Gate */
+function mutationChaos(micLevel: number, bpm: number, intensity: number, time: number) {
+  // Bitcrusher at 60 BPM
   const bits = Math.max(2, Math.floor(8 - intensity * 6));
   const steps = Math.pow(2, bits);
   const crushed = Math.floor(micLevel * steps) / steps;
-  const distortion = crushed * (1 + intensity * 0.8);
-  const ring = Math.sin(time * 20 * intensity) * 0.15 * intensity;
+  // Gate at 60 BPM (1 Hz square)
+  const gatePhase = (time % 1.0) / 1.0;
+  const gate = gatePhase < 0.5 ? 1 : 0.15;
+  // Chorus at 40 BPM (0.667 Hz) with 10% width
+  const chorusMod = Math.sin(time * (40 / 60) * Math.PI * 2) * 0.1 * intensity;
+  // Mono delay at 30 BPM (2s) — simulated echo
+  const delayEcho = crushed * 0.4 * Math.sin(time * (30 / 60) * Math.PI);
+  const combined = crushed * gate * (1 + chorusMod) + delayEcho * intensity;
   return {
-    processedLevel: Math.min(1, Math.abs(distortion + ring)),
-    visualizerModifier: 1 + intensity * 0.7,
-    pulseRate: bpm * (1 + intensity * 0.2),
+    processedLevel: Math.min(1, Math.max(0, combined)),
+    visualizerModifier: 1 + intensity * 0.7 * gate,
+    pulseRate: 60, // Gate BPM drives the pulse
   };
 }
 
-/** 4. Reverse Swell - Inverted envelope with slow build */
-function reverseSwell(micLevel: number, bpm: number, intensity: number, time: number) {
+/** 4. Krampus' Helpers - Reversed waveform with rotary modulator at 480/240 BPM */
+function krampusHelpers(micLevel: number, bpm: number, intensity: number, time: number) {
+  // Reversed waveform simulation: inverted envelope
   const beatInterval = 60 / bpm;
   const beatPhase = (time % beatInterval) / beatInterval;
-  const reversedEnvelope = Math.pow(beatPhase, 2 - intensity);
-  const tremolo = 1 + Math.sin(time * 4) * 0.3 * intensity;
+  const reversed = Math.pow(1 - beatPhase, 1.5 + intensity);
+  // Rotary modulator at 480 BPM (8 Hz) — amplitude modulation
+  const rotary480 = 1 + Math.sin(time * 8 * Math.PI * 2) * (0.4 + intensity * 0.3);
+  // Rotary modulator at 240 BPM (4 Hz) — slower bass rotor
+  const rotary240 = 1 + Math.sin(time * 4 * Math.PI * 2) * (0.35 + intensity * 0.25);
+  const combined = micLevel * reversed * rotary480 * 0.5 + micLevel * reversed * rotary240 * 0.5;
   return {
-    processedLevel: micLevel * reversedEnvelope * tremolo,
-    visualizerModifier: 1 + intensity * 0.4 * reversedEnvelope,
-    pulseRate: bpm * 0.5,
+    processedLevel: Math.min(1, Math.max(0, combined)),
+    visualizerModifier: 1 + intensity * 0.5 * Math.abs(Math.sin(time * 8)),
+    pulseRate: 480, // Fast rotary drives the pulse
   };
 }
 
@@ -245,8 +257,8 @@ function warmChorus(micLevel: number, bpm: number, intensity: number, time: numb
 const EFFECT_PROCESSORS: Record<number, EffectProcessor> = {
   1: spectralReverb,
   2: granularStutter,
-  3: bitcrusherChaos,
-  4: reverseSwell,
+  3: mutationChaos,
+  4: krampusHelpers,
   5: metallicResonance,
   6: tapeDecay,
   7: phantomEcho,

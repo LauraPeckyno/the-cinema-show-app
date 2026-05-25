@@ -249,64 +249,163 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 3: { // DARK ECHO — cavernous multi-tap delay with extreme feedback and darkening
-          var echoTaps = [beatSec * 0.5, beatSec, beatSec * 1.5, beatSec * 2.0, beatSec * 3.0];
-          var echoMerger = ctx.createGain(); echoMerger.gain.value = 0.5;
-          var echoLp = ctx.createBiquadFilter();
-          echoLp.type = 'lowpass';
-          echoLp.frequency.value = 400 + (1 - intensity) * 600; // very dark
-          echoLp.Q.value = 2 + intensity * 4;
-          // Sweeping filter on feedback
-          var echoLfo = ctx.createOscillator(); echoLfo.type = 'triangle';
-          echoLfo.frequency.value = 0.03; // very slow sweep
-          var echoLfoG = ctx.createGain(); echoLfoG.gain.value = 200 * intensity;
-          echoLfo.connect(echoLfoG); echoLfoG.connect(echoLp.frequency);
-          echoLfo.start();
+        case 3: { // MUTATION CHAOS — Bitcrusher at 60 BPM, Chorus at 40 BPM (10% width), Mono Delay at 30 BPM, Gate at 60 BPM
+          // All effects synced to their respective BPMs (track BPM is 120)
+          var beat60 = 60.0 / 60.0; // 1.0s per beat at 60 BPM
+          var beat40 = 60.0 / 40.0; // 1.5s per beat at 40 BPM
+          var beat30 = 60.0 / 30.0; // 2.0s per beat at 30 BPM
 
-          for (var ei = 0; ei < echoTaps.length; ei++) {
-            var ed = ctx.createDelay(5.0);
-            ed.delayTime.value = echoTaps[ei];
-            var efb = ctx.createGain();
-            efb.gain.value = 0.6 + intensity * 0.25 - ei * 0.03; // high feedback, decreasing per tap
-            inputBoost.connect(ed);
-            ed.connect(echoLp);
-            echoLp.connect(efb); efb.connect(ed); // feedback through filter (darkens each repeat)
-            ed.connect(echoMerger);
+          // ── BITCRUSHER at 60 BPM ──
+          // Simulated bitcrushing via waveshaper + sample-rate reduction effect
+          var crushWs = ctx.createWaveShaper();
+          var crushCurve = new Float32Array(256);
+          var crushBits = 4 + Math.floor((1 - intensity) * 8); // 4-12 bits depending on intensity
+          var crushSteps = Math.pow(2, crushBits);
+          for (var ci = 0; ci < 256; ci++) {
+            var cx = (ci / 128) - 1;
+            crushCurve[ci] = Math.round(cx * crushSteps) / crushSteps;
           }
-          // Dry signal very quiet
-          var echoDry = ctx.createGain(); echoDry.gain.value = 0.1;
-          inputBoost.connect(echoDry); echoDry.connect(analyser);
-          echoMerger.connect(analyser);
+          crushWs.curve = crushCurve;
+          crushWs.oversample = 'none';
+          // Rhythmic bitcrush modulation at 60 BPM — LFO gates the crush intensity
+          var crushLfo = ctx.createOscillator(); crushLfo.type = 'square';
+          crushLfo.frequency.value = 60.0 / 60.0; // 1 Hz = 60 BPM
+          var crushLfoGain = ctx.createGain(); crushLfoGain.gain.value = 0.5;
+          crushLfo.connect(crushLfoGain);
+          crushLfo.start();
+          // Pre-crush gain
+          var crushPreGain = ctx.createGain(); crushPreGain.gain.value = 1.5 + intensity * 2.0;
+
+          // ── CHORUS at 40 BPM (10% width) ──
+          // Chorus uses modulated delay lines; 10% width = 0.1 * beat40 = 0.15s max modulation
+          var chorusDelay = ctx.createDelay(0.5);
+          chorusDelay.delayTime.value = 0.02; // base delay
+          var chorusLfo = ctx.createOscillator(); chorusLfo.type = 'sine';
+          chorusLfo.frequency.value = 40.0 / 60.0; // 0.667 Hz = 40 BPM
+          var chorusWidth = beat40 * 0.10; // 10% width = 0.15s
+          var chorusLfoGain = ctx.createGain();
+          chorusLfoGain.gain.value = chorusWidth * 0.5; // modulation depth
+          chorusLfo.connect(chorusLfoGain);
+          chorusLfoGain.connect(chorusDelay.delayTime);
+          chorusLfo.start();
+          var chorusMix = ctx.createGain(); chorusMix.gain.value = 0.5 + intensity * 0.3;
+
+          // ── MONO DELAY at 30 BPM ──
+          // Single delay line with feedback, synced to 30 BPM (2s per beat)
+          var monoDelay = ctx.createDelay(4.0);
+          monoDelay.delayTime.value = beat30; // 2.0s delay time
+          var monoFb = ctx.createGain();
+          monoFb.gain.value = 0.45 + intensity * 0.25; // moderate-to-high feedback
+          monoDelay.connect(monoFb);
+          monoFb.connect(monoDelay); // feedback loop
+          var monoDelayMix = ctx.createGain(); monoDelayMix.gain.value = 0.5;
+
+          // ── GATE at 60 BPM ──
+          // Hard rhythmic gate that chops the signal at 60 BPM
+          var gateNode = ctx.createGain(); gateNode.gain.value = 1.0;
+          var gateLfo = ctx.createOscillator(); gateLfo.type = 'square';
+          gateLfo.frequency.value = 60.0 / 60.0; // 1 Hz = 60 BPM
+          var gateDepth = ctx.createGain(); gateDepth.gain.value = 0.9 + intensity * 0.1;
+          gateLfo.connect(gateDepth);
+          gateDepth.connect(gateNode.gain);
+          gateLfo.start();
+
+          // ── Signal chain: input → bitcrusher → chorus → mono delay → gate → output ──
+          inputBoost.connect(crushPreGain);
+          crushPreGain.connect(crushWs);
+          // Bitcrushed signal splits to chorus (wet) and direct (dry)
+          crushWs.connect(chorusDelay); // wet chorus path
+          chorusDelay.connect(chorusMix);
+          crushWs.connect(gateNode); // direct path through gate
+          chorusMix.connect(gateNode); // chorus also through gate
+          // Gate output feeds mono delay and direct to analyser
+          gateNode.connect(monoDelay);
+          gateNode.connect(analyser);
+          monoDelay.connect(monoDelayMix);
+          monoDelayMix.connect(analyser);
           analyser.connect(output);
           break;
         }
 
-        case 4: { // PITCH WARP — extreme detuned chorus with multiple voices and slow drift
-          var warpVoices = 4;
-          var warpMerger = ctx.createGain(); warpMerger.gain.value = 0.6;
-          var warpRates = [0.1, 0.23, 0.37, 0.53]; // different LFO rates for each voice
-          var warpDepths = [0.015, 0.02, 0.012, 0.025]; // deep modulation
-          var warpDelays = [0.03, 0.045, 0.06, 0.08];
+        case 4: { // KRAMPUS' HELPERS — Completely reversed waveform + rotary modulator at 480 BPM and 240 BPM
+          // ── WAVEFORM REVERSAL ──
+          // Uses a ScriptProcessor/AudioWorklet pattern: captures audio into a buffer,
+          // then plays it back in reverse. We use a pair of alternating delay buffers
+          // to create a continuous reverse effect.
+          var revBufSize = 4096; // buffer size for reverse chunks
+          var reverseNode = ctx.createScriptProcessor(revBufSize, 1, 1);
+          var revBuffer = new Float32Array(revBufSize);
+          var revWritePos = 0;
+          var revReadReady = false;
+          reverseNode.onaudioprocess = function(e) {
+            var inp = e.inputBuffer.getChannelData(0);
+            var out = e.outputBuffer.getChannelData(0);
+            // Write input to buffer
+            for (var ri = 0; ri < revBufSize; ri++) {
+              revBuffer[ri] = inp[ri];
+            }
+            // Output the buffer in reverse order
+            for (var ro = 0; ro < revBufSize; ro++) {
+              out[ro] = revBuffer[revBufSize - 1 - ro];
+            }
+          };
 
-          for (var wi = 0; wi < warpVoices; wi++) {
-            var wd = ctx.createDelay(0.2);
-            wd.delayTime.value = warpDelays[wi];
-            var wLfo = ctx.createOscillator(); wLfo.type = 'sine';
-            wLfo.frequency.value = warpRates[wi] + intensity * 0.5;
-            var wLfoG = ctx.createGain();
-            wLfoG.gain.value = warpDepths[wi] * (1 + intensity * 2);
-            wLfo.connect(wLfoG); wLfoG.connect(wd.delayTime);
-            wLfo.start();
-            // Feedback for each voice
-            var wFb = ctx.createGain(); wFb.gain.value = 0.4 + intensity * 0.3;
-            wd.connect(wFb); wFb.connect(wd);
-            inputBoost.connect(wd);
-            wd.connect(warpMerger);
-          }
-          // Dry signal
-          var warpDry = ctx.createGain(); warpDry.gain.value = 0.2;
-          inputBoost.connect(warpDry); warpDry.connect(analyser);
-          warpMerger.connect(analyser);
+          // ── ROTARY MODULATOR at 480 BPM (8 Hz) ──
+          // Simulates a Leslie-style rotary speaker with amplitude + frequency modulation
+          var rotary480Hz = 480.0 / 60.0; // 8 Hz
+          var rotary480Lfo = ctx.createOscillator(); rotary480Lfo.type = 'sine';
+          rotary480Lfo.frequency.value = rotary480Hz;
+          // Amplitude modulation (tremolo) at 480 BPM
+          var rotary480Amp = ctx.createGain(); rotary480Amp.gain.value = 1.0;
+          var rotary480AmpDepth = ctx.createGain();
+          rotary480AmpDepth.gain.value = 0.4 + intensity * 0.3; // deep AM
+          rotary480Lfo.connect(rotary480AmpDepth);
+          rotary480AmpDepth.connect(rotary480Amp.gain);
+          // Frequency modulation (doppler/pitch wobble) at 480 BPM via modulated delay
+          var rotary480Del = ctx.createDelay(0.05);
+          rotary480Del.delayTime.value = 0.003;
+          var rotary480DelMod = ctx.createGain();
+          rotary480DelMod.gain.value = 0.002 + intensity * 0.002; // subtle pitch modulation
+          rotary480Lfo.connect(rotary480DelMod);
+          rotary480DelMod.connect(rotary480Del.delayTime);
+          rotary480Lfo.start();
+
+          // ── ROTARY MODULATOR at 240 BPM (4 Hz) ──
+          // Second rotary at half speed for bass rotor simulation
+          var rotary240Hz = 240.0 / 60.0; // 4 Hz
+          var rotary240Lfo = ctx.createOscillator(); rotary240Lfo.type = 'sine';
+          rotary240Lfo.frequency.value = rotary240Hz;
+          // Amplitude modulation at 240 BPM
+          var rotary240Amp = ctx.createGain(); rotary240Amp.gain.value = 1.0;
+          var rotary240AmpDepth = ctx.createGain();
+          rotary240AmpDepth.gain.value = 0.35 + intensity * 0.25;
+          rotary240Lfo.connect(rotary240AmpDepth);
+          rotary240AmpDepth.connect(rotary240Amp.gain);
+          // Frequency modulation at 240 BPM
+          var rotary240Del = ctx.createDelay(0.05);
+          rotary240Del.delayTime.value = 0.005;
+          var rotary240DelMod = ctx.createGain();
+          rotary240DelMod.gain.value = 0.003 + intensity * 0.003;
+          rotary240Lfo.connect(rotary240DelMod);
+          rotary240DelMod.connect(rotary240Del.delayTime);
+          rotary240Lfo.start();
+
+          // ── Signal chain: input → reverse → rotary480 → rotary240 → output ──
+          inputBoost.connect(reverseNode);
+          // Reversed signal splits into two rotary paths that merge
+          reverseNode.connect(rotary480Del);
+          rotary480Del.connect(rotary480Amp);
+          reverseNode.connect(rotary240Del);
+          rotary240Del.connect(rotary240Amp);
+          // Mix both rotary outputs
+          var rotaryMerge = ctx.createGain(); rotaryMerge.gain.value = 0.6;
+          rotary480Amp.connect(rotaryMerge);
+          rotary240Amp.connect(rotaryMerge);
+          rotaryMerge.connect(analyser);
+          // Small dry reversed signal for presence
+          var revDry = ctx.createGain(); revDry.gain.value = 0.15;
+          reverseNode.connect(revDry);
+          revDry.connect(analyser);
           analyser.connect(output);
           break;
         }

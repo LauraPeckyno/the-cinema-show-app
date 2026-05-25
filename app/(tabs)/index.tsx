@@ -9,9 +9,10 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 // SoundCloud embed URL for "Four Better or Worse" — plays as a soft background loop
 const BG_MUSIC_SC_URL = "https://soundcloud.com/imaginaurium/four-better-or-worse";
+const BG_MUSIC_VOLUME = 25;
 
 // ─── Web Background Music (iframe-based) ────────────────────────────────────
-function WebBgMusic({ volume }: { volume: number }) {
+function WebBgMusic({ volume, muted }: { volume: number; muted: boolean }) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const widgetRef = useRef<any>(null);
   const [loaded, setLoaded] = useState(false);
@@ -32,15 +33,15 @@ function WebBgMusic({ volume }: { volume: number }) {
     const w = SC.Widget(iframeRef.current);
     widgetRef.current = w;
     w.bind(SC.Widget.Events.READY, () => {
-      w.setVolume(volume);
+      w.setVolume(muted ? 0 : volume);
       w.play();
     });
     w.bind(SC.Widget.Events.FINISH, () => { w.seekTo(0); w.play(); });
   }, [loaded]);
 
   useEffect(() => {
-    widgetRef.current?.setVolume?.(volume);
-  }, [volume]);
+    widgetRef.current?.setVolume?.(muted ? 0 : volume);
+  }, [volume, muted]);
 
   if (Platform.OS !== "web") return null;
 
@@ -62,20 +63,21 @@ function WebBgMusic({ volume }: { volume: number }) {
 }
 
 // ─── Native Background Music (WebView-based) ────────────────────────────────
-let NativeBgMusic: React.ComponentType<{ volume: number }> = () => null;
+let NativeBgMusic: React.ComponentType<{ volume: number; muted: boolean }> = () => null;
 if (Platform.OS !== "web") {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { WebView } = require("react-native-webview");
 
-  NativeBgMusic = ({ volume }: { volume: number }) => {
+  NativeBgMusic = ({ volume, muted }: { volume: number; muted: boolean }) => {
     const webViewRef = useRef<any>(null);
 
     useEffect(() => {
+      const v = muted ? 0 : volume;
       webViewRef.current?.injectJavaScript?.(`
-        if (window.__widget) { window.__widget.setVolume(${volume}); }
+        if (window.__widget) { window.__widget.setVolume(${v}); }
         true;
       `);
-    }, [volume]);
+    }, [volume, muted]);
 
     const html = `<!DOCTYPE html><html><head>
       <script src="https://w.soundcloud.com/player/api.js"></script>
@@ -117,11 +119,16 @@ const albumCover = require("@/assets/images/cinemashow.png");
 export default function HomeScreen() {
   const router = useRouter();
   const colors = useColors();
+  const [isMuted, setIsMuted] = useState(false);
 
   return (
     <ScreenContainer containerClassName="bg-background">
       {/* Background music — soft loop */}
-      {Platform.OS === "web" ? <WebBgMusic volume={25} /> : <NativeBgMusic volume={25} />}
+      {Platform.OS === "web" ? (
+        <WebBgMusic volume={BG_MUSIC_VOLUME} muted={isMuted} />
+      ) : (
+        <NativeBgMusic volume={BG_MUSIC_VOLUME} muted={isMuted} />
+      )}
 
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
@@ -145,6 +152,27 @@ export default function HomeScreen() {
               by Robert Peckyno
             </Text>
           </View>
+
+          {/* ─── Music Mute/Unmute Button ─── */}
+          <Pressable
+            onPress={() => setIsMuted((prev) => !prev)}
+            style={({ pressed }) => [
+              styles.muteButton,
+              {
+                borderColor: isMuted ? colors.muted + "60" : colors.primary + "80",
+                backgroundColor: isMuted ? colors.muted + "15" : colors.primary + "15",
+                opacity: pressed ? 0.7 : 1,
+                transform: [{ scale: pressed ? 0.95 : 1 }],
+              },
+            ]}
+          >
+            <Text style={[styles.muteIcon, { color: isMuted ? colors.muted : colors.primary }]}>
+              {isMuted ? "\u{1F507}" : "\u{1F50A}"}
+            </Text>
+            <Text style={[styles.muteLabel, { color: isMuted ? colors.muted : colors.primary }]}>
+              {isMuted ? "MUSIC OFF" : "MUSIC ON"}
+            </Text>
+          </Pressable>
 
           <ArtDecoDivider width={SCREEN_WIDTH * 0.75} color={colors.primary} />
 
@@ -226,7 +254,7 @@ const styles = StyleSheet.create({
   },
   titleSection: {
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 11,
@@ -246,6 +274,24 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginTop: 8,
     letterSpacing: 1,
+  },
+  muteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    marginVertical: 8,
+    gap: 8,
+  },
+  muteIcon: {
+    fontSize: 18,
+  },
+  muteLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 2,
   },
   albumCoverContainer: {
     alignItems: "center",
