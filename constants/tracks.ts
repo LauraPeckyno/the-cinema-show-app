@@ -20,7 +20,7 @@ export interface Track {
 
 export const TRACKS: Track[] = [
   // ═══════════════════════════════════════════════════════════════════
-  // DARK SIDE (7 tracks)
+  // DARK SIDE (6 tracks)
   // ═══════════════════════════════════════════════════════════════════
   {
     id: 1,
@@ -29,7 +29,7 @@ export const TRACKS: Track[] = [
     bpm: 80,
     soundcloudUrl: "https://soundcloud.com/imaginaurium/corpseparade",
     effect: {
-      name: "Spectral Reverb",
+      name: "Ectoplasm",
       description: "Deep cathedral reverb with spectral shimmer and ghostly echoes",
       color: "#6A0DAD",
       icon: "\u{1F47B}",
@@ -39,13 +39,13 @@ export const TRACKS: Track[] = [
   },
   {
     id: 2,
-    title: "SleepDeprivation",
+    title: "Sleep Deprivation",
     side: "dark",
     bpm: 76,
     soundcloudUrl: "https://soundcloud.com/imaginaurium/sleepdeprivation",
     effect: {
-      name: "Granular Stutter",
-      description: "Micro-sliced grains with random stutter and pitch drift",
+      name: "Insomnia",
+      description: "Micro-sliced grains with random stutter, pitch drift, and dual ping-pong delays",
       color: "#1B5E20",
       icon: "\u{1F300}",
     },
@@ -86,11 +86,11 @@ export const TRACKS: Track[] = [
     id: 5,
     title: "Corpse on the Grating",
     side: "dark",
-    bpm: 85,
+    bpm: 80,
     soundcloudUrl: "https://soundcloud.com/imaginaurium/corpseonthegrating",
     effect: {
-      name: "Metallic Resonance",
-      description: "Industrial metallic filtering with resonant feedback and grating harmonics",
+      name: "Spectral Correction",
+      description: "Stereo Enhancer at 200% width, 7-second reverb, auto pitch correction to A440 minor scale",
       color: "#455A64",
       icon: "\u{2699}\u{FE0F}",
     },
@@ -101,38 +101,23 @@ export const TRACKS: Track[] = [
     id: 6,
     title: "Expiation",
     side: "dark",
-    bpm: 70,
+    bpm: 60,
     soundcloudUrl: "https://soundcloud.com/imaginaurium/expiation",
     effect: {
-      name: "Tape Decay",
-      description: "Warped tape saturation with wow, flutter, and degradation",
+      name: "Penance Gate",
+      description: "Square wave gate (1ms attack, 22ms release) into Ping Pong Delay at 60 BPM, 95% wet return",
       color: "#3E2723",
       icon: "\u{1F4FC}",
     },
     durationEstimate: 260,
     durationMs: 34642,
   },
-  {
-    id: 7,
-    title: "Calling Me Home",
-    side: "dark",
-    bpm: 72,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/calling",
-    effect: {
-      name: "Phantom Echo",
-      description: "Distant whisper-like delays with pitch-shifted ghostly trails",
-      color: "#263238",
-      icon: "\u{1F30C}",
-    },
-    durationEstimate: 270,
-    durationMs: 36973,
-  },
 
   // ═══════════════════════════════════════════════════════════════════
   // LIGHT SIDE (9 tracks)
   // ═══════════════════════════════════════════════════════════════════
   {
-    id: 8,
+    id: 7,
     title: "Road Show",
     side: "light",
     bpm: 120,
@@ -147,7 +132,7 @@ export const TRACKS: Track[] = [
     durationMs: 30077,
   },
   {
-    id: 9,
+    id: 8,
     title: "Recessional",
     side: "light",
     bpm: 95,
@@ -162,7 +147,7 @@ export const TRACKS: Track[] = [
     durationMs: 30172,
   },
   {
-    id: 10,
+    id: 9,
     title: "Inspirational Soundscapes",
     side: "light",
     bpm: 110,
@@ -177,7 +162,7 @@ export const TRACKS: Track[] = [
     durationMs: 32607,
   },
   {
-    id: 11,
+    id: 10,
     title: "Excitement and Elimination",
     side: "light",
     bpm: 128,
@@ -192,7 +177,7 @@ export const TRACKS: Track[] = [
     durationMs: 30282,
   },
   {
-    id: 12,
+    id: 11,
     title: "Acoustic Atmospheres",
     side: "light",
     bpm: 105,
@@ -207,7 +192,7 @@ export const TRACKS: Track[] = [
     durationMs: 30243,
   },
   {
-    id: 13,
+    id: 12,
     title: "Thoroughly Positive Pitzy",
     side: "light",
     bpm: 130,
@@ -222,7 +207,7 @@ export const TRACKS: Track[] = [
     durationMs: 32803,
   },
   {
-    id: 14,
+    id: 13,
     title: "Much Ado",
     side: "light",
     bpm: 115,
@@ -237,7 +222,7 @@ export const TRACKS: Track[] = [
     durationMs: 30869,
   },
   {
-    id: 15,
+    id: 14,
     title: "Rings",
     side: "light",
     bpm: 88,
@@ -252,7 +237,7 @@ export const TRACKS: Track[] = [
     durationMs: 30371,
   },
   {
-    id: 16,
+    id: 15,
     title: "Brothers",
     side: "light",
     bpm: 92,

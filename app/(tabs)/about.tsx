@@ -55,7 +55,7 @@ export default function AboutScreen() {
             with cinematic music.
           </Text>
           <Text style={[styles.bodyText, { color: colors.muted, marginTop: 12 }]}>
-            Each of the 16 tracks applies a different filter and effect to your ambient
+            Each of the 15 tracks applies a different filter and effect to your ambient
             audio — from spectral reverb and granular stutter to vocoder pulses and
             harmonic freeze. No two listening sessions are ever the same.
           </Text>
@@ -72,7 +72,7 @@ export default function AboutScreen() {
               <Text style={[styles.linkText, { color: "#E57373" }]}>
                 {"\u{1F311}"}  The Cinema Show [Dark]
               </Text>
-              <Text style={[styles.linkDesc, { color: colors.muted }]}>7 tracks — atmospheric and haunting</Text>
+              <Text style={[styles.linkDesc, { color: colors.muted }]}>6 tracks — atmospheric and haunting</Text>
             </Pressable>
           </ArtDecoFrame>
           <ArtDecoFrame color={colors.primary} style={styles.linkFrame}>

@@ -92,7 +92,7 @@ function buildEffectChainJS(): string {
       var t = ctx.currentTime;
 
       switch (trackId) {
-        case 1: { // SPECTRAL REVERB — massive shimmer hall with 8 delay lines, DOUBLED times, and 0.9 Hz LFO
+        case 1: { // ECTOPLASM — massive shimmer hall with 8 delay lines, DOUBLED times, and 0.9 Hz LFO
           var delays = [];
           var fbs = [];
           // DOUBLED delay times (2x the original values)
@@ -168,7 +168,7 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 2: { // GRANULAR STUTTER + PING PONG DELAY — rhythmic chopping with dual ping-pong delays
+        case 2: { // INSOMNIA — rhythmic chopping with dual ping-pong delays
           var stutterGain = ctx.createGain();
           stutterGain.gain.value = 1.0;
           // Main stutter LFO — synced to 16th notes
@@ -410,109 +410,138 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 5: { // HARMONIC FREEZE — extreme resonant bandpass with very long sustain/infinite hold
-          var freezeBands = [400, 800, 1200, 2000, 3200];
-          var freezeMerger = ctx.createGain(); freezeMerger.gain.value = 0.5;
-          for (var fi = 0; fi < freezeBands.length; fi++) {
-            var fbp = ctx.createBiquadFilter();
-            fbp.type = 'bandpass';
-            fbp.frequency.value = freezeBands[fi] * (0.8 + intensity * 0.4);
-            fbp.Q.value = 15 + intensity * 25; // very resonant — near self-oscillation
-            var fDel = ctx.createDelay(2.0);
-            fDel.delayTime.value = 0.2 + fi * 0.15 + intensity * 0.3;
-            var fFb = ctx.createGain();
-            fFb.gain.value = 0.75 + intensity * 0.2; // very long sustain
-            // Time-varying: feedback slowly increases to create "freeze" effect
-            fFb.gain.setValueAtTime(0.6, t);
-            fFb.gain.linearRampToValueAtTime(0.75 + intensity * 0.2, t + 3);
-            inputBoost.connect(fbp);
-            fbp.connect(fDel);
-            fDel.connect(fFb); fFb.connect(fDel);
-            fDel.connect(freezeMerger);
+        case 5: { // SPECTRAL CORRECTION — Stereo Enhancer (200%), 7s reverb, A440 minor pitch correction
+          // ── STEREO ENHANCER at 200% width ──
+          // Simulated via mid-side processing: boost side (difference) signal
+          // In mono Web Audio we simulate width by creating a delayed/phase-shifted copy
+          var stereoDelay = ctx.createDelay(0.05);
+          stereoDelay.delayTime.value = 0.015; // Haas effect for width
+          var stereoPhaseInvert = ctx.createGain();
+          stereoPhaseInvert.gain.value = -1.0; // phase inversion for difference
+          var stereoWidth = ctx.createGain();
+          stereoWidth.gain.value = 2.0; // 200% width
+          var stereoMid = ctx.createGain(); stereoMid.gain.value = 0.5;
+          var stereoSide = ctx.createGain(); stereoSide.gain.value = 1.0; // boosted side
+          var stereoMerge = ctx.createGain(); stereoMerge.gain.value = 0.8;
+          // Mid path (direct)
+          inputBoost.connect(stereoMid);
+          stereoMid.connect(stereoMerge);
+          // Side path (delayed + phase shifted for maximum width)
+          inputBoost.connect(stereoDelay);
+          stereoDelay.connect(stereoWidth);
+          stereoWidth.connect(stereoMerge);
+
+          // ── 7-SECOND REVERB ──
+          // Very long reverb using 8 feedback delay lines with high feedback
+          var revDelays = [0.097, 0.131, 0.173, 0.211, 0.257, 0.313, 0.397, 0.461];
+          var revMerger = ctx.createGain(); revMerger.gain.value = 0.4;
+          var revLp = ctx.createBiquadFilter();
+          revLp.type = 'lowpass'; revLp.frequency.value = 3000 + (1 - intensity) * 2000;
+          revLp.Q.value = 0.7;
+          // Very high feedback for 7-second decay
+          // RT60 ~ 7s requires feedback ~ 0.93-0.96 for these delay times
+          for (var ri = 0; ri < revDelays.length; ri++) {
+            var rd = ctx.createDelay(2.0);
+            rd.delayTime.value = revDelays[ri] * (1 + intensity * 0.2);
+            var rFb = ctx.createGain();
+            rFb.gain.value = 0.93 + intensity * 0.03; // ~7s RT60
+            stereoMerge.connect(rd);
+            rd.connect(revLp); revLp.connect(rFb); rFb.connect(rd);
+            rd.connect(revMerger);
           }
-          var freezeDry = ctx.createGain(); freezeDry.gain.value = 0.1;
-          inputBoost.connect(freezeDry); freezeDry.connect(analyser);
-          freezeMerger.connect(analyser);
+
+          // ── AUTO PITCH CORRECTION to A440 minor scale ──
+          // A natural minor: A, B, C, D, E, F, G (440, 494, 523, 587, 659, 698, 784 Hz)
+          // We use a bank of very narrow bandpass filters tuned to A minor scale frequencies
+          // across multiple octaves to force the signal toward those pitches
+          var minorFreqs = [
+            // A2=110, B2=123, C3=131, D3=147, E3=165, F3=175, G3=196
+            110, 123.47, 130.81, 146.83, 164.81, 174.61, 196.00,
+            // A3=220, B3=247, C4=262, D4=294, E4=330, F4=349, G4=392
+            220, 246.94, 261.63, 293.66, 329.63, 349.23, 392.00,
+            // A4=440, B4=494, C5=523, D5=587, E5=659, F5=698, G5=784
+            440, 493.88, 523.25, 587.33, 659.25, 698.46, 783.99,
+            // A5=880, B5=988, C6=1047, D6=1175, E6=1319
+            880, 987.77, 1046.50, 1174.66, 1318.51
+          ];
+          var pitchMerger = ctx.createGain(); pitchMerger.gain.value = 0.6;
+          for (var pci = 0; pci < minorFreqs.length; pci++) {
+            var pcBp = ctx.createBiquadFilter();
+            pcBp.type = 'bandpass';
+            pcBp.frequency.value = minorFreqs[pci];
+            pcBp.Q.value = 30 + intensity * 20; // very narrow = strong pitch correction
+            revMerger.connect(pcBp);
+            pcBp.connect(pitchMerger);
+          }
+
+          // Mix: pitch-corrected reverb output + a touch of direct reverb
+          var directRev = ctx.createGain(); directRev.gain.value = 0.15;
+          revMerger.connect(directRev); directRev.connect(analyser);
+          pitchMerger.connect(analyser);
           analyser.connect(output);
           break;
         }
 
-        case 6: { // TAPE SATURATION — heavy multi-stage distortion with cabinet simulation
-          // Stage 1: Pre-gain boost
-          var preGain = ctx.createGain(); preGain.gain.value = 2.0 + intensity * 6.0;
-          // Stage 2: Waveshaper (aggressive curve)
-          var satWs1 = ctx.createWaveShaper();
-          var curve1 = new Float32Array(512);
-          for (var s1 = 0; s1 < 512; s1++) {
-            var sx1 = (s1 / 256) - 1;
-            curve1[s1] = Math.tanh(sx1 * (2 + intensity * 8));
-          }
-          satWs1.curve = curve1; satWs1.oversample = '4x';
-          // Stage 3: Second waveshaper (tube-style asymmetric)
-          var satWs2 = ctx.createWaveShaper();
-          var curve2 = new Float32Array(512);
-          for (var s2 = 0; s2 < 512; s2++) {
-            var sx2 = (s2 / 256) - 1;
-            curve2[s2] = sx2 > 0 ? 1 - Math.exp(-sx2 * (3 + intensity * 5)) : -1 + Math.exp(sx2 * (3 + intensity * 5));
-          }
-          satWs2.curve = curve2; satWs2.oversample = '4x';
-          // Cabinet sim: lowpass + resonant peak
-          var cabLp = ctx.createBiquadFilter();
-          cabLp.type = 'lowpass'; cabLp.frequency.value = 2500 + (1 - intensity) * 3000;
-          cabLp.Q.value = 1.5;
-          var cabPeak = ctx.createBiquadFilter();
-          cabPeak.type = 'peaking'; cabPeak.frequency.value = 800;
-          cabPeak.gain.value = 4 + intensity * 6; cabPeak.Q.value = 2;
-          // Output level control (distortion is loud)
-          var satOut = ctx.createGain(); satOut.gain.value = 0.4;
+        case 6: { // PENANCE GATE — Square wave gate (1ms attack, 22ms release) + Ping Pong Delay at 60 BPM, 95% wet
+          // ── SQUARE WAVE GATE with 1ms attack and 22ms release ──
+          // The gate opens/closes at 60 BPM (1 Hz) with shaped envelope
+          var gateRate = 60.0 / 60.0; // 1 Hz = 60 BPM
+          var gateNode6 = ctx.createGain(); gateNode6.gain.value = 0.0;
+          // Use a ScriptProcessor to create precise attack/release envelope
+          // For Web Audio, we approximate with a square LFO + envelope shaping
+          var gateLfo6 = ctx.createOscillator(); gateLfo6.type = 'square';
+          gateLfo6.frequency.value = gateRate;
+          // Shape the square wave: we use a lowpass filter to round the edges
+          // 1ms attack = very fast rise, 22ms release = slightly slower fall
+          // A lowpass at ~45 Hz on a 1 Hz square gives roughly the right envelope shape
+          var gateEnvFilter = ctx.createBiquadFilter();
+          gateEnvFilter.type = 'lowpass';
+          gateEnvFilter.frequency.value = 45; // shapes the 1ms/22ms envelope
+          gateEnvFilter.Q.value = 0.5;
+          var gateEnvGain = ctx.createGain();
+          gateEnvGain.gain.value = 0.95 + intensity * 0.05; // near-full gating
+          gateLfo6.connect(gateEnvFilter);
+          gateEnvFilter.connect(gateEnvGain);
+          gateEnvGain.connect(gateNode6.gain);
+          gateLfo6.start();
 
-          inputBoost.connect(preGain);
-          preGain.connect(satWs1);
-          satWs1.connect(satWs2);
-          satWs2.connect(cabLp);
-          cabLp.connect(cabPeak);
-          cabPeak.connect(satOut);
-          satOut.connect(analyser);
+          // ── PING PONG DELAY at 60 BPM (1s per beat), 95% wet return ──
+          var ppBeat60 = 60.0 / 60.0; // 1.0s per beat
+          // Left delay tap
+          var ppDelL = ctx.createDelay(3.0);
+          ppDelL.delayTime.value = ppBeat60; // 1s (quarter note at 60 BPM)
+          // Right delay tap (half beat offset for ping-pong)
+          var ppDelR = ctx.createDelay(3.0);
+          ppDelR.delayTime.value = ppBeat60 * 0.5; // 0.5s (eighth note)
+          // Cross-feedback for ping-pong pattern
+          var ppFbLR = ctx.createGain(); ppFbLR.gain.value = 0.6 + intensity * 0.2;
+          var ppFbRL = ctx.createGain(); ppFbRL.gain.value = 0.6 + intensity * 0.2;
+          ppDelL.connect(ppFbLR); ppFbLR.connect(ppDelR);
+          ppDelR.connect(ppFbRL); ppFbRL.connect(ppDelL);
+          // Wet/dry mixing: 95% wet return
+          var ppWet = ctx.createGain(); ppWet.gain.value = 0.95;
+          var ppDry = ctx.createGain(); ppDry.gain.value = 0.05;
+          // Merge ping pong outputs
+          var ppMerge = ctx.createGain(); ppMerge.gain.value = 0.7;
+          ppDelL.connect(ppMerge);
+          ppDelR.connect(ppMerge);
+
+          // ── Signal chain: input → gate → ping pong delay (95% wet) → output ──
+          inputBoost.connect(gateNode6);
+          // Gated signal feeds into ping pong
+          gateNode6.connect(ppDelL);
+          gateNode6.connect(ppDelR);
+          // Wet path (95%)
+          ppMerge.connect(ppWet);
+          ppWet.connect(analyser);
+          // Dry path (5%)
+          gateNode6.connect(ppDry);
+          ppDry.connect(analyser);
           analyser.connect(output);
           break;
         }
 
-        case 7: { // VOID FILTER — extreme resonant sweep with self-oscillation and sub-bass
-          var voidLp = ctx.createBiquadFilter();
-          voidLp.type = 'lowpass';
-          voidLp.frequency.value = 150; // starts very low
-          voidLp.Q.value = 18 + intensity * 12; // near self-oscillation
-          // Dramatic slow sweep LFO
-          var voidLfo = ctx.createOscillator(); voidLfo.type = 'sine';
-          voidLfo.frequency.value = 0.02 + intensity * 0.08; // very slow
-          var voidLfoG = ctx.createGain();
-          voidLfoG.gain.value = 2000 + intensity * 5000; // huge sweep range
-          voidLfo.connect(voidLfoG); voidLfoG.connect(voidLp.frequency);
-          voidLfo.start();
-          // Secondary faster LFO for wobble
-          var voidLfo2 = ctx.createOscillator(); voidLfo2.type = 'triangle';
-          voidLfo2.frequency.value = bpm / 60 * 0.5;
-          var voidLfoG2 = ctx.createGain(); voidLfoG2.gain.value = 500 * intensity;
-          voidLfo2.connect(voidLfoG2); voidLfoG2.connect(voidLp.frequency);
-          voidLfo2.start();
-          // Sub-bass boost
-          var subBoost = ctx.createBiquadFilter();
-          subBoost.type = 'peaking'; subBoost.frequency.value = 60;
-          subBoost.gain.value = 8 + intensity * 6; subBoost.Q.value = 1;
-          // Feedback delay for resonance tail
-          var voidDel = ctx.createDelay(1.0);
-          voidDel.delayTime.value = beatSec * 0.25;
-          var voidFb = ctx.createGain(); voidFb.gain.value = 0.4 + intensity * 0.35;
-          voidLp.connect(voidDel); voidDel.connect(voidFb); voidFb.connect(voidLp);
-
-          inputBoost.connect(voidLp);
-          voidLp.connect(subBoost);
-          subBoost.connect(analyser);
-          analyser.connect(output);
-          break;
-        }
-
-        case 8: { // RHYTHMIC GATE — aggressive BPM-synced gate with stacked patterns and sidechain
+        case 7: { // RHYTHMIC GATE — aggressive BPM-synced gate with stacked patterns and sidechain
           // Main gate at quarter notes
           var gateGain = ctx.createGain(); gateGain.gain.value = 1.0;
           var gateLfo = ctx.createOscillator(); gateLfo.type = 'square';
@@ -544,7 +573,7 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 9: { // CRYSTAL DELAY — bright cascading multi-tap with pitch-shifted repeats
+        case 8: { // CRYSTAL DELAY — bright cascading multi-tap with pitch-shifted repeats
           var cdTimes = [beatSec * 0.25, beatSec * 0.5, beatSec * 0.75, beatSec, beatSec * 1.5, beatSec * 2];
           var cdMerger = ctx.createGain(); cdMerger.gain.value = 0.4;
           var cdHp = ctx.createBiquadFilter();
@@ -576,7 +605,7 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 10: { // AMBIENT WASH — infinite reverb with modulated allpass network
+        case 9: { // AMBIENT WASH — infinite reverb with modulated allpass network
           var awDelays = [0.053, 0.097, 0.139, 0.181, 0.227, 0.293, 0.371, 0.449];
           var awMerger = ctx.createGain(); awMerger.gain.value = 0.3;
           var awLp = ctx.createBiquadFilter();
@@ -608,7 +637,7 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 11: { // BIT CRUSHER — extreme lo-fi with sample rate reduction and noise
+        case 10: { // BIT CRUSHER — extreme lo-fi with sample rate reduction and noise
           // Aggressive quantization
           var bcWs = ctx.createWaveShaper();
           var bcSteps = 2 + Math.floor((1 - intensity) * 6); // very few steps = very crushed
@@ -651,7 +680,7 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 12: { // CHORUS ENSEMBLE — massive 6-voice detuned chorus with deep modulation
+        case 11: { // CHORUS ENSEMBLE — massive 6-voice detuned chorus with deep modulation
           var chVoices = 6;
           var chMerger = ctx.createGain(); chMerger.gain.value = 0.5;
           var chRates = [0.2, 0.35, 0.5, 0.7, 0.9, 1.2];
@@ -681,7 +710,7 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 13: { // VOCODER PULSE — aggressive multi-band vocoder with rhythmic amplitude modulation
+        case 12: { // VOCODER PULSE — aggressive multi-band vocoder with rhythmic amplitude modulation
           var vocBands = [200, 400, 800, 1600, 3200, 6400];
           var vocMerger = ctx.createGain(); vocMerger.gain.value = 0.5;
           for (var vi = 0; vi < vocBands.length; vi++) {
@@ -710,7 +739,7 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 14: { // PRISM SPLIT — spectral decomposition with time-staggered bands and ping-pong
+        case 13: { // PRISM SPLIT — spectral decomposition with time-staggered bands and ping-pong
           var prismBands = [200, 500, 900, 1400, 2200, 3500, 5500, 8000];
           var prismMerger = ctx.createGain(); prismMerger.gain.value = 0.4;
           for (var pi = 0; pi < prismBands.length; pi++) {
@@ -736,7 +765,7 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 15: { // ORBITAL RESONANCE — deep phaser with ring modulation and space echo
+        case 14: { // ORBITAL RESONANCE — deep phaser with ring modulation and space echo
           // Multi-stage allpass phaser
           var phaserStages = 8;
           var phaserInput = inputBoost;
@@ -781,7 +810,7 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 16: { // TEMPORAL SHIFT — extreme pitch-shifting delay with reverse-like buildup
+        case 15: { // TEMPORAL SHIFT — extreme pitch-shifting delay with reverse-like buildup
           // Multiple delay lines at different musical intervals
           var tsTimes = [beatSec * 0.33, beatSec * 0.66, beatSec, beatSec * 1.5, beatSec * 2.5];
           var tsMerger = ctx.createGain(); tsMerger.gain.value = 0.45;

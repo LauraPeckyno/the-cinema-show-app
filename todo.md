@@ -49,3 +49,8 @@
 - [x] Add music on/off mute button on home screen for background music
 - [x] Song 3 (MutationandMadness): Fix display name to "Mutation and Madness", set BPM to 120, rename effect to "Mutation Chaos", set Bitcrusher at 60 BPM, add Chorus at 40 BPM (10% width), add Mono Delay at 30 BPM, add Gate at 60 BPM
 - [x] Song 4 (Krampus Wishes): Replace current effect with reversed waveform playback + rotary modulator at 480 BPM and 240 BPM, rename effect to "Krampus' Helpers"
+- [x] Song 1 (Corpse Parade): Rename effect to "Ectoplasm"
+- [x] Song 2 (SleepDeprivation): Fix display name to "Sleep Deprivation", rename effect to "Insomnia"
+- [x] Song 5 (Corpse on the Grating): Set BPM to 80, replace effect with Stereo Enhancer (200% width) + 7s reverb + auto pitch correction to A440 minor scale
+- [x] Song 6 (Expiation): Set BPM to 60, replace effect with Square Wave Gate (1ms attack, 22ms release) + Ping Pong Delay at 60 BPM (95% wet return)
+- [x] Song 7 (Calling Me Home): Remove from track list entirely

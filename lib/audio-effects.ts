@@ -1,7 +1,7 @@
 /**
  * Audio Effects Processor
  *
- * Each of the 16 tracks has a unique audio effect that modifies how the ambient
+ * Each of the 15 tracks has a unique audio effect that modifies how the ambient
  * microphone input is processed and visualized. The effects transform the mic
  * level data to create unique visual and audio patterns for each track.
  */
@@ -17,8 +17,8 @@ export type EffectProcessor = (
   pulseRate: number; // modified pulse rate
 };
 
-/** 1. Spectral Reverb - Smooth, sustained levels with long decay */
-function spectralReverb(micLevel: number, bpm: number, intensity: number, time: number) {
+/** 1. Ectoplasm - Smooth, sustained levels with long decay and ghostly shimmer */
+function ectoplasm(micLevel: number, bpm: number, intensity: number, time: number) {
   const reverbed = micLevel * (1 + intensity * 0.5);
   const shimmer = Math.sin(time * 3) * 0.1 * intensity;
   return {
@@ -28,8 +28,8 @@ function spectralReverb(micLevel: number, bpm: number, intensity: number, time: 
   };
 }
 
-/** 2. Granular Stutter - Choppy, glitchy level changes */
-function granularStutter(micLevel: number, bpm: number, intensity: number, time: number) {
+/** 2. Insomnia - Choppy, glitchy level changes with ping-pong delay */
+function insomnia(micLevel: number, bpm: number, intensity: number, time: number) {
   const beatInterval = 60 / bpm;
   const subBeat = (time % beatInterval) / beatInterval;
   const stutterCount = Math.floor(4 + intensity * 8);
@@ -82,48 +82,44 @@ function krampusHelpers(micLevel: number, bpm: number, intensity: number, time: 
   };
 }
 
-/** 5. Metallic Resonance - Industrial metallic filtering */
-function metallicResonance(micLevel: number, bpm: number, intensity: number, time: number) {
-  const resonantFreq = 5 + intensity * 15;
-  const resonance = Math.sin(time * resonantFreq) * 0.3 * intensity;
-  const metallic = micLevel * (1 + resonance);
-  const feedback = Math.sin(time * resonantFreq * 2.01) * 0.1 * intensity;
-  const grating = Math.abs(Math.sin(time * 30 * intensity)) * 0.15 * intensity;
+/** 5. Spectral Correction - Stereo enhancer + 7s reverb + A440 minor pitch correction */
+function spectralCorrection(micLevel: number, bpm: number, intensity: number, time: number) {
+  // Long reverb decay simulation
+  const reverbDecay = 0.8 + intensity * 0.15;
+  const reverbed = micLevel * reverbDecay;
+  // Pitch correction resonance — emphasizes A minor scale harmonics
+  const a440 = Math.sin(time * 440 * 0.01) * 0.05 * intensity;
+  const harmonicE = Math.sin(time * 330 * 0.01) * 0.03 * intensity;
+  // Stereo width creates slow spatial movement
+  const widthMod = Math.sin(time * 0.5) * 0.08 * intensity;
+  const combined = reverbed + a440 + harmonicE + widthMod;
   return {
-    processedLevel: Math.min(1, Math.max(0, metallic + feedback + grating)),
-    visualizerModifier: 1 + intensity * 0.6 + Math.abs(resonance),
-    pulseRate: bpm * (1 + intensity * 0.3),
+    processedLevel: Math.min(1, Math.max(0, combined)),
+    visualizerModifier: 1 + intensity * 0.4,
+    pulseRate: bpm * 0.5, // Slow, spacious pulse
   };
 }
 
-/** 6. Tape Decay - Warped, degraded signal with wow/flutter */
-function tapeDecay(micLevel: number, bpm: number, intensity: number, time: number) {
-  const wow = Math.sin(time * 0.5) * 0.15 * intensity;
-  const flutter = Math.sin(time * 12) * 0.05 * intensity;
-  const saturation = Math.tanh(micLevel * (1 + intensity * 2));
-  const degradation = saturation * (1 - intensity * 0.2) + wow + flutter;
+/** 6. Penance Gate - Square wave gate + Ping Pong Delay at 60 BPM, 95% wet */
+function penanceGate(micLevel: number, bpm: number, intensity: number, time: number) {
+  // Square wave gate at 60 BPM (1 Hz)
+  const gatePhase = (time % 1.0) / 1.0;
+  const gate = gatePhase < 0.5 ? 1 : 0.05; // hard gate
+  // Ping pong delay at 60 BPM — alternating echoes
+  const ppEchoL = micLevel * 0.6 * Math.sin((time / 1.0) * Math.PI * 0.5);
+  const ppEchoR = micLevel * 0.5 * Math.sin(((time + 0.5) / 1.0) * Math.PI * 0.5);
+  // 95% wet return
+  const wet = (ppEchoL + ppEchoR) * intensity * 0.95;
+  const dry = micLevel * gate * 0.05;
+  const combined = wet + dry;
   return {
-    processedLevel: Math.max(0, Math.min(1, degradation)),
-    visualizerModifier: 1 + intensity * 0.2,
-    pulseRate: bpm * (1 + wow * 0.1),
+    processedLevel: Math.min(1, Math.max(0, combined)),
+    visualizerModifier: 1 + intensity * 0.6 * gate,
+    pulseRate: 60, // Gate BPM
   };
 }
 
-/** 7. Phantom Echo - Distant whisper-like delays */
-function phantomEcho(micLevel: number, bpm: number, intensity: number, time: number) {
-  const delayTime = 60 / bpm;
-  const echo1 = micLevel * 0.6 * Math.sin((time / delayTime) * Math.PI * 0.5);
-  const echo2 = micLevel * 0.3 * Math.sin(((time + delayTime * 0.7) / delayTime) * Math.PI * 0.5);
-  const pitchShift = Math.sin(time * 1.5) * 0.08 * intensity;
-  const whisper = micLevel * 0.4 + echo1 * intensity + echo2 * intensity * 0.5 + pitchShift;
-  return {
-    processedLevel: Math.min(1, Math.max(0, whisper)),
-    visualizerModifier: 1 + intensity * 0.35,
-    pulseRate: bpm * 0.75,
-  };
-}
-
-/** 8. Rhythmic Gate - Tempo-synced on/off chopping */
+/** 7. Rhythmic Gate - Tempo-synced on/off chopping */
 function rhythmicGate(micLevel: number, bpm: number, intensity: number, time: number) {
   const beatInterval = 60 / bpm;
   const sixteenthNote = beatInterval / 4;
@@ -137,7 +133,7 @@ function rhythmicGate(micLevel: number, bpm: number, intensity: number, time: nu
   };
 }
 
-/** 9. Shimmer Delay - Ascending pitch-shifted echoes */
+/** 8. Shimmer Delay - Ascending pitch-shifted echoes */
 function shimmerDelay(micLevel: number, bpm: number, intensity: number, time: number) {
   const delayTime = 60 / bpm / 2;
   const echo1 = micLevel * 0.7 * Math.sin((time / delayTime) * Math.PI);
@@ -151,7 +147,7 @@ function shimmerDelay(micLevel: number, bpm: number, intensity: number, time: nu
   };
 }
 
-/** 10. Harmonic Freeze - Sustained, frozen harmonics */
+/** 9. Harmonic Freeze - Sustained, frozen harmonics */
 function harmonicFreeze(micLevel: number, bpm: number, intensity: number, time: number) {
   const sustainFactor = 0.8 + intensity * 0.18;
   const frozen = Math.max(micLevel, micLevel * sustainFactor);
@@ -163,7 +159,7 @@ function harmonicFreeze(micLevel: number, bpm: number, intensity: number, time: 
   };
 }
 
-/** 11. Sidechain Pump - Rhythmic ducking/pumping effect */
+/** 10. Sidechain Pump - Rhythmic ducking/pumping effect */
 function sidechainPump(micLevel: number, bpm: number, intensity: number, time: number) {
   const beatInterval = 60 / bpm;
   const beatPhase = (time % beatInterval) / beatInterval;
@@ -179,7 +175,7 @@ function sidechainPump(micLevel: number, bpm: number, intensity: number, time: n
   };
 }
 
-/** 12. Flanger Wash - Sweeping comb filter effect */
+/** 11. Flanger Wash - Sweeping comb filter effect */
 function flangerWash(micLevel: number, bpm: number, intensity: number, time: number) {
   const sweepRate = 0.2 + intensity * 0.8;
   const sweep = Math.sin(time * sweepRate * Math.PI * 2);
@@ -192,7 +188,7 @@ function flangerWash(micLevel: number, bpm: number, intensity: number, time: num
   };
 }
 
-/** 13. Vocoder Pulse - Rhythmic vocoder-style processing */
+/** 12. Vocoder Pulse - Rhythmic vocoder-style processing */
 function vocoderPulse(micLevel: number, bpm: number, intensity: number, time: number) {
   const beatInterval = 60 / bpm;
   const eighthNote = beatInterval / 2;
@@ -207,7 +203,7 @@ function vocoderPulse(micLevel: number, bpm: number, intensity: number, time: nu
   };
 }
 
-/** 14. Prism Split - Spectral band splitting with rainbow delays */
+/** 13. Prism Split - Spectral band splitting with rainbow delays */
 function prismSplit(micLevel: number, bpm: number, intensity: number, time: number) {
   const numBands = 5;
   let combined = 0;
@@ -224,7 +220,7 @@ function prismSplit(micLevel: number, bpm: number, intensity: number, time: numb
   };
 }
 
-/** 15. Orbital Resonance - Circular panning with ring modulation */
+/** 14. Orbital Resonance - Circular panning with ring modulation */
 function orbitalResonance(micLevel: number, bpm: number, intensity: number, time: number) {
   const orbitRate = 0.3 + intensity * 0.7;
   const orbit = Math.sin(time * orbitRate * Math.PI * 2);
@@ -238,7 +234,7 @@ function orbitalResonance(micLevel: number, bpm: number, intensity: number, time
   };
 }
 
-/** 16. Warm Chorus - Rich chorus doubling with warm saturation */
+/** 15. Warm Chorus - Rich chorus doubling with warm saturation */
 function warmChorus(micLevel: number, bpm: number, intensity: number, time: number) {
   const voice1 = Math.sin(time * 1.2) * 0.03 * intensity;
   const voice2 = Math.sin(time * 1.8 + 0.5) * 0.03 * intensity;
@@ -255,24 +251,23 @@ function warmChorus(micLevel: number, bpm: number, intensity: number, time: numb
 
 // Map track IDs to their effect processors
 const EFFECT_PROCESSORS: Record<number, EffectProcessor> = {
-  1: spectralReverb,
-  2: granularStutter,
+  1: ectoplasm,
+  2: insomnia,
   3: mutationChaos,
   4: krampusHelpers,
-  5: metallicResonance,
-  6: tapeDecay,
-  7: phantomEcho,
-  8: rhythmicGate,
-  9: shimmerDelay,
-  10: harmonicFreeze,
-  11: sidechainPump,
-  12: flangerWash,
-  13: vocoderPulse,
-  14: prismSplit,
-  15: orbitalResonance,
-  16: warmChorus,
+  5: spectralCorrection,
+  6: penanceGate,
+  7: rhythmicGate,
+  8: shimmerDelay,
+  9: harmonicFreeze,
+  10: sidechainPump,
+  11: flangerWash,
+  12: vocoderPulse,
+  13: prismSplit,
+  14: orbitalResonance,
+  15: warmChorus,
 };
 
 export function getEffectProcessor(trackId: number): EffectProcessor {
-  return EFFECT_PROCESSORS[trackId] || spectralReverb;
+  return EFFECT_PROCESSORS[trackId] || ectoplasm;
 }
