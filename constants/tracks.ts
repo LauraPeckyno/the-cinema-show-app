@@ -178,21 +178,6 @@ export const TRACKS: Track[] = [
   },
   {
     id: 11,
-    title: "Much Ado",
-    side: "light",
-    bpm: 115,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/much-ado",
-    effect: {
-      name: "Prism Split",
-      description: "Splits audio into spectral bands with rainbow-shifted delays",
-      color: "#AD1457",
-      icon: "\u{1F308}",
-    },
-    durationEstimate: 210,
-    durationMs: 30869,
-  },
-  {
-    id: 12,
     title: "Brothers",
     side: "light",
     bpm: 92,
@@ -205,6 +190,21 @@ export const TRACKS: Track[] = [
     },
     durationEstimate: 235,
     durationMs: 30217,
+  },
+  {
+    id: 12,
+    title: "Much Ado",
+    side: "light",
+    bpm: 115,
+    soundcloudUrl: "https://soundcloud.com/imaginaurium/much-ado",
+    effect: {
+      name: "Prism Split",
+      description: "Splits audio into spectral bands with rainbow-shifted delays",
+      color: "#AD1457",
+      icon: "\u{1F308}",
+    },
+    durationEstimate: 210,
+    durationMs: 30869,
   },
 ];
 

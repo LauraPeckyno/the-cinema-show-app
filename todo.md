@@ -60,3 +60,5 @@
 - [x] Redesign Tracks screen as two side-by-side film strips (Dark/Light) with 6 cells each showing generated song art
 - [x] Generate artwork images for all 12 remaining tracks
 - [x] Tapping a film strip cell navigates to the Now Playing screen for that track
+- [x] Add long-press overlay showing song title on film strip cells
+- [x] Swap Light Side order: Brothers before Much Ado

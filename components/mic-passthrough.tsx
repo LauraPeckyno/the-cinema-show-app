@@ -641,30 +641,7 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 11: { // PRISM SPLIT — Much Ado
-          var prismBands2 = [200, 500, 900, 1400, 2200, 3500, 5500, 8000];
-          var prismMerger2 = ctx.createGain(); prismMerger2.gain.value = 0.4;
-          for (var pi2 = 0; pi2 < prismBands2.length; pi2++) {
-            var pBp2 = ctx.createBiquadFilter();
-            pBp2.type = 'bandpass'; pBp2.frequency.value = prismBands2[pi2];
-            pBp2.Q.value = 4 + intensity * 6;
-            var pDel2 = ctx.createDelay(2.0);
-            pDel2.delayTime.value = pi2 * 0.08 * (1 + intensity);
-            var pFb2 = ctx.createGain(); pFb2.gain.value = 0.45 + intensity * 0.3;
-            pDel2.connect(pFb2); pFb2.connect(pDel2);
-            var pGain2 = ctx.createGain();
-            pGain2.gain.value = 0.5 + (pi2 % 2 === 0 ? 0.2 : -0.1);
-            inputBoost.connect(pBp2);
-            pBp2.connect(pDel2);
-            pDel2.connect(pGain2);
-            pGain2.connect(prismMerger2);
-          }
-          prismMerger2.connect(analyser);
-          analyser.connect(output);
-          break;
-        }
-
-        case 12: { // WARM CHORUS — Brothers
+        case 11: { // WARM CHORUS — Brothers
           var wcVoices = 6;
           var wcMerger = ctx.createGain(); wcMerger.gain.value = 0.5;
           var wcRates = [0.2, 0.35, 0.5, 0.7, 0.9, 1.2];
@@ -687,6 +664,29 @@ function buildEffectChainJS(): string {
           var wcDry = ctx.createGain(); wcDry.gain.value = 0.2;
           inputBoost.connect(wcDry); wcDry.connect(analyser);
           wcMerger.connect(analyser);
+          analyser.connect(output);
+          break;
+        }
+
+        case 12: { // PRISM SPLIT — Much Ado
+          var prismBands2 = [200, 500, 900, 1400, 2200, 3500, 5500, 8000];
+          var prismMerger2 = ctx.createGain(); prismMerger2.gain.value = 0.4;
+          for (var pi2 = 0; pi2 < prismBands2.length; pi2++) {
+            var pBp2 = ctx.createBiquadFilter();
+            pBp2.type = 'bandpass'; pBp2.frequency.value = prismBands2[pi2];
+            pBp2.Q.value = 4 + intensity * 6;
+            var pDel2 = ctx.createDelay(2.0);
+            pDel2.delayTime.value = pi2 * 0.08 * (1 + intensity);
+            var pFb2 = ctx.createGain(); pFb2.gain.value = 0.45 + intensity * 0.3;
+            pDel2.connect(pFb2); pFb2.connect(pDel2);
+            var pGain2 = ctx.createGain();
+            pGain2.gain.value = 0.5 + (pi2 % 2 === 0 ? 0.2 : -0.1);
+            inputBoost.connect(pBp2);
+            pBp2.connect(pDel2);
+            pDel2.connect(pGain2);
+            pGain2.connect(prismMerger2);
+          }
+          prismMerger2.connect(analyser);
           analyser.connect(output);
           break;
         }

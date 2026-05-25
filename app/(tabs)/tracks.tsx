@@ -1,7 +1,9 @@
+import { useState, useCallback } from "react";
 import { Text, View, StyleSheet, ScrollView, Pressable, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useAudioEngine } from "@/lib/audio-engine";
@@ -9,20 +11,37 @@ import { DARK_TRACKS, LIGHT_TRACKS, Track } from "@/constants/tracks";
 import { TRACK_ARTWORK } from "@/constants/track-artwork";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const STRIP_WIDTH = (SCREEN_WIDTH - 48) / 2; // Two strips side by side with padding
-const CELL_HEIGHT = STRIP_WIDTH * 1.2; // Slightly taller than wide for film frame feel
 const SPROCKET_SIZE = 8;
 
-/** A single film frame cell with artwork */
+/** A single film frame cell with artwork and long-press title overlay */
 function FilmCell({ track, onPress }: { track: Track; onPress: () => void }) {
   const artworkUrl = TRACK_ARTWORK[track.id];
+  const [showTitle, setShowTitle] = useState(false);
+  const overlayOpacity = useSharedValue(0);
+
+  const animatedOverlayStyle = useAnimatedStyle(() => ({
+    opacity: overlayOpacity.value,
+  }));
+
+  const handleLongPress = useCallback(() => {
+    setShowTitle(true);
+    overlayOpacity.value = withTiming(1, { duration: 200 });
+  }, [overlayOpacity]);
+
+  const handlePressOut = useCallback(() => {
+    overlayOpacity.value = withTiming(0, { duration: 300 });
+    setTimeout(() => setShowTitle(false), 300);
+  }, [overlayOpacity]);
 
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={handleLongPress}
+      onPressOut={handlePressOut}
+      delayLongPress={300}
       style={({ pressed }) => [
         styles.filmCell,
-        pressed && { transform: [{ scale: 0.95 }], opacity: 0.8 },
+        pressed && !showTitle && { transform: [{ scale: 0.95 }], opacity: 0.8 },
       ]}
     >
       <Image
@@ -36,6 +55,21 @@ function FilmCell({ track, onPress }: { track: Track; onPress: () => void }) {
         colors={["transparent", "rgba(0,0,0,0.6)"]}
         style={styles.cellOverlay}
       />
+      {/* Title overlay on long-press */}
+      {showTitle && (
+        <Animated.View style={[styles.titleOverlay, animatedOverlayStyle]}>
+          <LinearGradient
+            colors={["rgba(0,0,0,0.85)", "rgba(0,0,0,0.7)", "rgba(0,0,0,0.85)"]}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <Text style={styles.titleOverlayText} numberOfLines={2}>
+            {track.title}
+          </Text>
+          <Text style={styles.titleOverlayEffect}>
+            {track.effect.name}
+          </Text>
+        </Animated.View>
+      )}
     </Pressable>
   );
 }
@@ -57,7 +91,7 @@ function FilmStrip({ tracks, side, onTrackPress }: { tracks: Track[]; side: "dar
   const isDark = side === "dark";
   const stripColor = isDark ? "#1A0A0A" : "#0A1A2A";
   const borderColor = isDark ? "#8B0000" : colors.primary;
-  const sprocketCount = tracks.length * 4; // 4 sprocket holes per cell
+  const sprocketCount = tracks.length * 4;
 
   return (
     <View style={[styles.filmStrip, { backgroundColor: stripColor, borderColor }]}>
@@ -111,7 +145,7 @@ export default function TracksScreen() {
         {/* Instruction text */}
         <View style={styles.instructionArea}>
           <Text style={[styles.instructionText, { color: colors.muted }]}>
-            Tap a frame to begin the experience
+            Hold a frame to reveal its title
           </Text>
         </View>
 
@@ -212,5 +246,37 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: "30%",
+  },
+  titleOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 8,
+  },
+  titleOverlayText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "800",
+    textAlign: "center",
+    letterSpacing: 0.5,
+    textShadowColor: "rgba(0,0,0,0.8)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  titleOverlayEffect: {
+    color: "#D4AF37",
+    fontSize: 10,
+    fontWeight: "600",
+    textAlign: "center",
+    letterSpacing: 1,
+    marginTop: 4,
+    textTransform: "uppercase",
+    textShadowColor: "rgba(0,0,0,0.8)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
 });

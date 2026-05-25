@@ -13,6 +13,6 @@ export const TRACK_ARTWORK: Record<number, string> = {
   8: "https://d2xsxph8kpxj0f.cloudfront.net/310519663370669968/37PMRWSJK3Cabs7JyhEAG5/track-08-recessional-Mms4FZt4FqFAbwwVRpbfsQ.webp",
   9: "https://d2xsxph8kpxj0f.cloudfront.net/310519663370669968/37PMRWSJK3Cabs7JyhEAG5/track-09-excitement-elimination-VAQLi2HKWHVL2KfN3Tjgyo.webp",
   10: "https://d2xsxph8kpxj0f.cloudfront.net/310519663370669968/37PMRWSJK3Cabs7JyhEAG5/track-10-piano-fandango-PNqPvStQRSgWhEMmyEYw4t.webp",
-  11: "https://d2xsxph8kpxj0f.cloudfront.net/310519663370669968/37PMRWSJK3Cabs7JyhEAG5/track-11-much-ado-R74887cpAX24UouYjmNn2n.webp",
-  12: "https://d2xsxph8kpxj0f.cloudfront.net/310519663370669968/37PMRWSJK3Cabs7JyhEAG5/track-12-brothers-dwCTt3VK5jQs7tud33J59j.webp",
+  11: "https://d2xsxph8kpxj0f.cloudfront.net/310519663370669968/37PMRWSJK3Cabs7JyhEAG5/track-12-brothers-dwCTt3VK5jQs7tud33J59j.webp",
+  12: "https://d2xsxph8kpxj0f.cloudfront.net/310519663370669968/37PMRWSJK3Cabs7JyhEAG5/track-11-much-ado-R74887cpAX24UouYjmNn2n.webp",
 };

@@ -262,8 +262,8 @@ const EFFECT_PROCESSORS: Record<number, EffectProcessor> = {
   8: shimmerDelay,       // Recessional
   9: sidechainPump,      // Excitement and Elimination
   10: flangerWash,       // Piano Fandango
-  11: prismSplit,        // Much Ado
-  12: warmChorus,        // Brothers
+  11: warmChorus,        // Brothers
+  12: prismSplit,        // Much Ado
 };
 
 export function getEffectProcessor(trackId: number): EffectProcessor {
