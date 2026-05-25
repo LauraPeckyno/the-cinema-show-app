@@ -3,18 +3,18 @@ import { getEffectProcessor } from "../lib/audio-effects";
 import { TRACKS, DARK_TRACKS, LIGHT_TRACKS } from "../constants/tracks";
 
 describe("Track Data", () => {
-  it("should have exactly 15 tracks total", () => {
-    expect(TRACKS.length).toBe(15);
+  it("should have exactly 12 tracks total", () => {
+    expect(TRACKS.length).toBe(12);
   });
 
-  it("should have 6 dark tracks and 9 light tracks", () => {
+  it("should have 6 dark tracks and 6 light tracks", () => {
     expect(DARK_TRACKS.length).toBe(6);
-    expect(LIGHT_TRACKS.length).toBe(9);
+    expect(LIGHT_TRACKS.length).toBe(6);
   });
 
-  it("should have unique IDs from 1 to 15", () => {
+  it("should have unique IDs from 1 to 12", () => {
     const ids = TRACKS.map((t) => t.id).sort((a, b) => a - b);
-    expect(ids).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+    expect(ids).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   });
 
   it("each track should have required fields", () => {
@@ -34,7 +34,7 @@ describe("Track Data", () => {
 
   it("should have unique effect names for each track", () => {
     const names = TRACKS.map((t) => t.effect.name);
-    expect(new Set(names).size).toBe(15);
+    expect(new Set(names).size).toBe(12);
   });
 
   it("should have valid SoundCloud URLs for all tracks", () => {
@@ -65,8 +65,8 @@ describe("Track Data", () => {
 });
 
 describe("Audio Effects Processor", () => {
-  it("should return a valid processor for all 15 track IDs", () => {
-    for (let id = 1; id <= 15; id++) {
+  it("should return a valid processor for all 12 track IDs", () => {
+    for (let id = 1; id <= 12; id++) {
       const processor = getEffectProcessor(id);
       expect(typeof processor).toBe("function");
     }
@@ -82,7 +82,7 @@ describe("Audio Effects Processor", () => {
   });
 
   it("should return processedLevel in 0-1 range for all effects", () => {
-    for (let id = 1; id <= 15; id++) {
+    for (let id = 1; id <= 12; id++) {
       const processor = getEffectProcessor(id);
       for (const micLevel of [0, 0.25, 0.5, 0.75, 1.0]) {
         for (const time of [0, 0.5, 1.0, 2.5, 5.0, 10.0]) {
@@ -95,7 +95,7 @@ describe("Audio Effects Processor", () => {
   });
 
   it("should return positive visualizerModifier for all effects", () => {
-    for (let id = 1; id <= 15; id++) {
+    for (let id = 1; id <= 12; id++) {
       const processor = getEffectProcessor(id);
       for (const time of [0, 1.0, 3.0, 7.5]) {
         const result = processor(0.5, TRACKS[id - 1].bpm, 0.5, time);
@@ -105,7 +105,7 @@ describe("Audio Effects Processor", () => {
   });
 
   it("should return positive pulseRate for all effects", () => {
-    for (let id = 1; id <= 15; id++) {
+    for (let id = 1; id <= 12; id++) {
       const processor = getEffectProcessor(id);
       const result = processor(0.5, TRACKS[id - 1].bpm, 0.5, 1.0);
       expect(result.pulseRate).toBeGreaterThan(0);
@@ -113,7 +113,7 @@ describe("Audio Effects Processor", () => {
   });
 
   it("should handle zero mic level gracefully", () => {
-    for (let id = 1; id <= 15; id++) {
+    for (let id = 1; id <= 12; id++) {
       const processor = getEffectProcessor(id);
       const result = processor(0, TRACKS[id - 1].bpm, 0.5, 1.0);
       expect(result.processedLevel).toBeGreaterThanOrEqual(0);
@@ -122,7 +122,7 @@ describe("Audio Effects Processor", () => {
   });
 
   it("effect intensity should affect output", () => {
-    for (let id = 1; id <= 15; id++) {
+    for (let id = 1; id <= 12; id++) {
       const processor = getEffectProcessor(id);
       const lowIntensity = processor(0.5, 100, 0.1, 2.0);
       const highIntensity = processor(0.5, 100, 0.9, 2.0);
@@ -136,7 +136,7 @@ describe("Audio Effects Processor", () => {
 
   it("each effect should produce unique behavior signatures", () => {
     const results: string[] = [];
-    for (let id = 1; id <= 15; id++) {
+    for (let id = 1; id <= 12; id++) {
       const processor = getEffectProcessor(id);
       const samples = [0.5, 1.0, 2.0, 3.0].map((t) => {
         const r = processor(0.5, 100, 0.5, t);
@@ -145,7 +145,7 @@ describe("Audio Effects Processor", () => {
       results.push(samples.join("|"));
     }
     const uniqueResults = new Set(results);
-    expect(uniqueResults.size).toBe(15);
+    expect(uniqueResults.size).toBe(12);
   });
 
   it("BPM should affect pulse rate for rhythmic effects", () => {

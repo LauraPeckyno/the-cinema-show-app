@@ -605,246 +605,93 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 9: { // AMBIENT WASH — infinite reverb with modulated allpass network
-          var awDelays = [0.053, 0.097, 0.139, 0.181, 0.227, 0.293, 0.371, 0.449];
-          var awMerger = ctx.createGain(); awMerger.gain.value = 0.3;
-          var awLp = ctx.createBiquadFilter();
-          awLp.type = 'lowpass'; awLp.frequency.value = 800 + (1 - intensity) * 1500;
-          awLp.Q.value = 0.7;
-          // Modulate the filter slowly
-          var awLfo = ctx.createOscillator(); awLfo.type = 'sine';
-          awLfo.frequency.value = 0.015; // ultra slow
-          var awLfoG = ctx.createGain(); awLfoG.gain.value = 400 * intensity;
-          awLfo.connect(awLfoG); awLfoG.connect(awLp.frequency);
-          awLfo.start();
-
-          for (var ai = 0; ai < awDelays.length; ai++) {
-            var ad = ctx.createDelay(2.0);
-            ad.delayTime.value = awDelays[ai] * (1 + intensity * 0.3);
-            var aFb = ctx.createGain();
-            aFb.gain.value = 0.78 + intensity * 0.15; // very high feedback = near-infinite
-            // Time-varying: slowly increase feedback for "wash" buildup
-            aFb.gain.setValueAtTime(0.65, t);
-            aFb.gain.linearRampToValueAtTime(0.78 + intensity * 0.15, t + 5);
-            inputBoost.connect(ad);
-            ad.connect(awLp); awLp.connect(aFb); aFb.connect(ad);
-            ad.connect(awMerger);
-          }
-          var awDry = ctx.createGain(); awDry.gain.value = 0.05; // almost no dry
-          inputBoost.connect(awDry); awDry.connect(analyser);
-          awMerger.connect(analyser);
+        case 9: { // SIDECHAIN PUMP — Excitement and Elimination
+          var scDel = ctx.createDelay(2.0);
+          scDel.delayTime.value = beatSec;
+          var scLfo = ctx.createOscillator(); scLfo.type = 'sine';
+          scLfo.frequency.value = bpm / 60;
+          var scGain = ctx.createGain(); scGain.gain.value = 1.0;
+          var scLfoG = ctx.createGain(); scLfoG.gain.value = 0.8 + intensity * 0.2;
+          scLfo.connect(scLfoG); scLfoG.connect(scGain.gain);
+          scLfo.start();
+          var scFb = ctx.createGain(); scFb.gain.value = 0.4 + intensity * 0.3;
+          inputBoost.connect(scGain);
+          scGain.connect(scDel); scDel.connect(scFb); scFb.connect(scDel);
+          scGain.connect(analyser);
+          scDel.connect(analyser);
           analyser.connect(output);
           break;
         }
 
-        case 10: { // BIT CRUSHER — extreme lo-fi with sample rate reduction and noise
-          // Aggressive quantization
-          var bcWs = ctx.createWaveShaper();
-          var bcSteps = 2 + Math.floor((1 - intensity) * 6); // very few steps = very crushed
-          var bcCurve = new Float32Array(512);
-          for (var bi = 0; bi < 512; bi++) {
-            var bx = (bi / 256) - 1;
-            bcCurve[bi] = Math.round(bx * bcSteps) / bcSteps;
-          }
-          bcWs.curve = bcCurve;
-          // Sample rate reduction via very short delay with square LFO
-          var srDel = ctx.createDelay(0.01);
-          srDel.delayTime.value = 0.001;
-          var srLfo = ctx.createOscillator(); srLfo.type = 'sawtooth';
-          srLfo.frequency.value = 4000 + (1 - intensity) * 8000; // lower = more crushed
-          var srLfoG = ctx.createGain(); srLfoG.gain.value = 0.001;
-          srLfo.connect(srLfoG); srLfoG.connect(srDel.delayTime);
-          srLfo.start();
-          // Aggressive lowpass to simulate aliasing
-          var bcLp = ctx.createBiquadFilter();
-          bcLp.type = 'lowpass'; bcLp.frequency.value = 1000 + (1 - intensity) * 4000;
-          bcLp.Q.value = 3 + intensity * 5;
-          // Ring mod for digital artifacts
-          var ringOsc = ctx.createOscillator(); ringOsc.type = 'square';
-          ringOsc.frequency.value = 100 + intensity * 400;
-          var ringGain = ctx.createGain(); ringGain.gain.value = 0.15 * intensity;
-          ringOsc.connect(ringGain);
-          ringOsc.start();
-          // Feedback delay for stacking
-          var bcDel = ctx.createDelay(1.0);
-          bcDel.delayTime.value = beatSec * 0.5;
-          var bcFb = ctx.createGain(); bcFb.gain.value = 0.4 + intensity * 0.3;
-
-          inputBoost.connect(bcWs);
-          bcWs.connect(srDel);
-          srDel.connect(bcLp);
-          ringGain.connect(bcLp.frequency); // modulate filter with ring
-          bcLp.connect(bcDel); bcDel.connect(bcFb); bcFb.connect(bcWs); // feedback loop
-          bcLp.connect(analyser);
+        case 10: { // FLANGER WASH — Piano Fandango
+          var fwLfo = ctx.createOscillator(); fwLfo.type = 'sine';
+          fwLfo.frequency.value = 0.2 + intensity * 0.8;
+          var fwDel = ctx.createDelay(0.02);
+          fwDel.delayTime.value = 0.005;
+          var fwLfoG = ctx.createGain(); fwLfoG.gain.value = 0.004 * (1 + intensity * 3);
+          fwLfo.connect(fwLfoG); fwLfoG.connect(fwDel.delayTime);
+          fwLfo.start();
+          var fwFb = ctx.createGain(); fwFb.gain.value = 0.6 + intensity * 0.3;
+          fwDel.connect(fwFb); fwFb.connect(fwDel);
+          var fwDry = ctx.createGain(); fwDry.gain.value = 0.4;
+          inputBoost.connect(fwDel);
+          inputBoost.connect(fwDry); fwDry.connect(analyser);
+          fwDel.connect(analyser);
           analyser.connect(output);
           break;
         }
 
-        case 11: { // CHORUS ENSEMBLE — massive 6-voice detuned chorus with deep modulation
-          var chVoices = 6;
-          var chMerger = ctx.createGain(); chMerger.gain.value = 0.5;
-          var chRates = [0.2, 0.35, 0.5, 0.7, 0.9, 1.2];
-          var chDepths = [0.012, 0.015, 0.018, 0.02, 0.014, 0.022];
-          var chDelays = [0.02, 0.03, 0.04, 0.025, 0.035, 0.045];
-
-          for (var chi = 0; chi < chVoices; chi++) {
-            var chd = ctx.createDelay(0.1);
-            chd.delayTime.value = chDelays[chi];
-            var chLfo = ctx.createOscillator(); chLfo.type = 'sine';
-            chLfo.frequency.value = chRates[chi] * (1 + intensity);
-            var chLfoG = ctx.createGain();
-            chLfoG.gain.value = chDepths[chi] * (1 + intensity * 3); // deep modulation
-            chLfo.connect(chLfoG); chLfoG.connect(chd.delayTime);
-            chLfo.start();
-            // Feedback per voice for richness
-            var chFb = ctx.createGain(); chFb.gain.value = 0.3 + intensity * 0.35;
-            chd.connect(chFb); chFb.connect(chd);
-            inputBoost.connect(chd);
-            chd.connect(chMerger);
+        case 11: { // PRISM SPLIT — Much Ado
+          var prismBands2 = [200, 500, 900, 1400, 2200, 3500, 5500, 8000];
+          var prismMerger2 = ctx.createGain(); prismMerger2.gain.value = 0.4;
+          for (var pi2 = 0; pi2 < prismBands2.length; pi2++) {
+            var pBp2 = ctx.createBiquadFilter();
+            pBp2.type = 'bandpass'; pBp2.frequency.value = prismBands2[pi2];
+            pBp2.Q.value = 4 + intensity * 6;
+            var pDel2 = ctx.createDelay(2.0);
+            pDel2.delayTime.value = pi2 * 0.08 * (1 + intensity);
+            var pFb2 = ctx.createGain(); pFb2.gain.value = 0.45 + intensity * 0.3;
+            pDel2.connect(pFb2); pFb2.connect(pDel2);
+            var pGain2 = ctx.createGain();
+            pGain2.gain.value = 0.5 + (pi2 % 2 === 0 ? 0.2 : -0.1);
+            inputBoost.connect(pBp2);
+            pBp2.connect(pDel2);
+            pDel2.connect(pGain2);
+            pGain2.connect(prismMerger2);
           }
-          // Slight dry signal
-          var chDry = ctx.createGain(); chDry.gain.value = 0.2;
-          inputBoost.connect(chDry); chDry.connect(analyser);
-          chMerger.connect(analyser);
+          prismMerger2.connect(analyser);
           analyser.connect(output);
           break;
         }
 
-        case 12: { // VOCODER PULSE — aggressive multi-band vocoder with rhythmic amplitude modulation
-          var vocBands = [200, 400, 800, 1600, 3200, 6400];
-          var vocMerger = ctx.createGain(); vocMerger.gain.value = 0.5;
-          for (var vi = 0; vi < vocBands.length; vi++) {
-            var vBp = ctx.createBiquadFilter();
-            vBp.type = 'bandpass'; vBp.frequency.value = vocBands[vi];
-            vBp.Q.value = 8 + intensity * 12; // very narrow bands
-            // Each band gets its own rhythmic modulation at different subdivisions
-            var vLfo = ctx.createOscillator(); vLfo.type = 'sine';
-            vLfo.frequency.value = bpm / 60 * (vi + 1) * 0.5; // different rates per band
-            var vGain = ctx.createGain(); vGain.gain.value = 1.0;
-            var vLfoG = ctx.createGain(); vLfoG.gain.value = 0.7 + intensity * 0.3;
-            vLfo.connect(vLfoG); vLfoG.connect(vGain.gain);
-            vLfo.start();
-            inputBoost.connect(vBp);
-            vBp.connect(vGain);
-            vGain.connect(vocMerger);
+        case 12: { // WARM CHORUS — Brothers
+          var wcVoices = 6;
+          var wcMerger = ctx.createGain(); wcMerger.gain.value = 0.5;
+          var wcRates = [0.2, 0.35, 0.5, 0.7, 0.9, 1.2];
+          var wcDepths = [0.012, 0.015, 0.018, 0.02, 0.014, 0.022];
+          var wcDelays = [0.02, 0.03, 0.04, 0.025, 0.035, 0.045];
+          for (var wci = 0; wci < wcVoices; wci++) {
+            var wcd = ctx.createDelay(0.1);
+            wcd.delayTime.value = wcDelays[wci];
+            var wcLfo = ctx.createOscillator(); wcLfo.type = 'sine';
+            wcLfo.frequency.value = wcRates[wci] * (1 + intensity);
+            var wcLfoG = ctx.createGain();
+            wcLfoG.gain.value = wcDepths[wci] * (1 + intensity * 3);
+            wcLfo.connect(wcLfoG); wcLfoG.connect(wcd.delayTime);
+            wcLfo.start();
+            var wcFb = ctx.createGain(); wcFb.gain.value = 0.3 + intensity * 0.35;
+            wcd.connect(wcFb); wcFb.connect(wcd);
+            inputBoost.connect(wcd);
+            wcd.connect(wcMerger);
           }
-          // Add delay tail for spaciousness
-          var vocDel = ctx.createDelay(2.0);
-          vocDel.delayTime.value = beatSec * 0.75;
-          var vocFb = ctx.createGain(); vocFb.gain.value = 0.5 + intensity * 0.25;
-          vocMerger.connect(vocDel); vocDel.connect(vocFb); vocFb.connect(vocDel);
-          vocMerger.connect(analyser);
-          vocDel.connect(analyser);
+          var wcDry = ctx.createGain(); wcDry.gain.value = 0.2;
+          inputBoost.connect(wcDry); wcDry.connect(analyser);
+          wcMerger.connect(analyser);
           analyser.connect(output);
           break;
         }
 
-        case 13: { // PRISM SPLIT — spectral decomposition with time-staggered bands and ping-pong
-          var prismBands = [200, 500, 900, 1400, 2200, 3500, 5500, 8000];
-          var prismMerger = ctx.createGain(); prismMerger.gain.value = 0.4;
-          for (var pi = 0; pi < prismBands.length; pi++) {
-            var pBp = ctx.createBiquadFilter();
-            pBp.type = 'bandpass'; pBp.frequency.value = prismBands[pi];
-            pBp.Q.value = 4 + intensity * 6;
-            // Each band delayed by increasing amount — creates "prism" spread
-            var pDel = ctx.createDelay(2.0);
-            pDel.delayTime.value = pi * 0.08 * (1 + intensity);
-            // Feedback per band
-            var pFb = ctx.createGain(); pFb.gain.value = 0.45 + intensity * 0.3;
-            pDel.connect(pFb); pFb.connect(pDel);
-            // Pan simulation via gain alternation
-            var pGain = ctx.createGain();
-            pGain.gain.value = 0.5 + (pi % 2 === 0 ? 0.2 : -0.1);
-            inputBoost.connect(pBp);
-            pBp.connect(pDel);
-            pDel.connect(pGain);
-            pGain.connect(prismMerger);
-          }
-          prismMerger.connect(analyser);
-          analyser.connect(output);
-          break;
-        }
 
-        case 14: { // ORBITAL RESONANCE — deep phaser with ring modulation and space echo
-          // Multi-stage allpass phaser
-          var phaserStages = 8;
-          var phaserInput = inputBoost;
-          var phaserLfo = ctx.createOscillator(); phaserLfo.type = 'sine';
-          phaserLfo.frequency.value = 0.1 + intensity * 0.4; // slow sweep
-          phaserLfo.start();
-          var lastNode = inputBoost;
-          for (var phi = 0; phi < phaserStages; phi++) {
-            var ap = ctx.createBiquadFilter();
-            ap.type = 'allpass';
-            ap.frequency.value = 200 + phi * 400;
-            ap.Q.value = 0.5;
-            var apLfoG = ctx.createGain();
-            apLfoG.gain.value = 300 + intensity * 600;
-            phaserLfo.connect(apLfoG); apLfoG.connect(ap.frequency);
-            lastNode.connect(ap);
-            lastNode = ap;
-          }
-          // Ring modulator
-          var ringMod = ctx.createOscillator(); ringMod.type = 'sine';
-          ringMod.frequency.value = 80 + intensity * 300;
-          var ringModG = ctx.createGain(); ringModG.gain.value = 0.3 + intensity * 0.5;
-          ringMod.connect(ringModG);
-          ringMod.start();
-          var ringTarget = ctx.createGain(); ringTarget.gain.value = 1.0;
-          ringModG.connect(ringTarget.gain);
-          lastNode.connect(ringTarget);
-          // Space echo on the result
-          var orbDel = ctx.createDelay(3.0);
-          orbDel.delayTime.value = beatSec * 1.5;
-          var orbFb = ctx.createGain(); orbFb.gain.value = 0.55 + intensity * 0.25;
-          var orbLp = ctx.createBiquadFilter();
-          orbLp.type = 'lowpass'; orbLp.frequency.value = 3000;
-          ringTarget.connect(orbDel);
-          orbDel.connect(orbLp); orbLp.connect(orbFb); orbFb.connect(orbDel);
-          // Mix
-          var orbDry = ctx.createGain(); orbDry.gain.value = 0.15;
-          inputBoost.connect(orbDry); orbDry.connect(analyser);
-          ringTarget.connect(analyser);
-          orbDel.connect(analyser);
-          analyser.connect(output);
-          break;
-        }
-
-        case 15: { // TEMPORAL SHIFT — extreme pitch-shifting delay with reverse-like buildup
-          // Multiple delay lines at different musical intervals
-          var tsTimes = [beatSec * 0.33, beatSec * 0.66, beatSec, beatSec * 1.5, beatSec * 2.5];
-          var tsMerger = ctx.createGain(); tsMerger.gain.value = 0.45;
-          // Pitch modulation on all delays
-          var tsLfo = ctx.createOscillator(); tsLfo.type = 'triangle';
-          tsLfo.frequency.value = 0.05 + intensity * 0.2; // very slow pitch drift
-          tsLfo.start();
-
-          for (var ti = 0; ti < tsTimes.length; ti++) {
-            var td = ctx.createDelay(5.0);
-            td.delayTime.value = tsTimes[ti];
-            var tLfoG = ctx.createGain();
-            tLfoG.gain.value = 0.02 + intensity * 0.04; // pitch shift amount
-            tsLfo.connect(tLfoG); tLfoG.connect(td.delayTime);
-            var tFb = ctx.createGain();
-            tFb.gain.value = 0.6 + intensity * 0.2 - ti * 0.02;
-            // Time-varying feedback: builds up over time like reverse reverb
-            tFb.gain.setValueAtTime(0.4, t);
-            tFb.gain.linearRampToValueAtTime(0.6 + intensity * 0.2, t + 4);
-            tFb.gain.linearRampToValueAtTime(0.7 + intensity * 0.15, t + 8);
-            td.connect(tFb); tFb.connect(td);
-            inputBoost.connect(td);
-            td.connect(tsMerger);
-          }
-          // Highpass to keep it ethereal
-          var tsHp = ctx.createBiquadFilter();
-          tsHp.type = 'highpass'; tsHp.frequency.value = 200 + intensity * 400;
-          tsMerger.connect(tsHp);
-          var tsDry = ctx.createGain(); tsDry.gain.value = 0.1;
-          inputBoost.connect(tsDry); tsDry.connect(analyser);
-          tsHp.connect(analyser);
-          analyser.connect(output);
-          break;
-        }
 
         default: // Fallback - boosted passthrough
           inputBoost.connect(analyser);

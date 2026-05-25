@@ -54,3 +54,9 @@
 - [x] Song 5 (Corpse on the Grating): Set BPM to 80, replace effect with Stereo Enhancer (200% width) + 7s reverb + auto pitch correction to A440 minor scale
 - [x] Song 6 (Expiation): Set BPM to 60, replace effect with Square Wave Gate (1ms attack, 22ms release) + Ping Pong Delay at 60 BPM (95% wet return)
 - [x] Song 7 (Calling Me Home): Remove from track list entirely
+- [x] Remove Light Side track #3 "Inspirational Soundscapes" from track list
+- [x] Remove Light Side track #6 "Thoroughly Positive Pitzy" from track list
+- [x] Remove Light Side track #8 "Rings" from track list
+- [x] Redesign Tracks screen as two side-by-side film strips (Dark/Light) with 6 cells each showing generated song art
+- [x] Generate artwork images for all 12 remaining tracks
+- [x] Tapping a film strip cell navigates to the Now Playing screen for that track

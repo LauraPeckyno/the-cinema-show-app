@@ -114,7 +114,7 @@ export const TRACKS: Track[] = [
   },
 
   // ═══════════════════════════════════════════════════════════════════
-  // LIGHT SIDE (9 tracks)
+  // LIGHT SIDE (6 tracks)
   // ═══════════════════════════════════════════════════════════════════
   {
     id: 7,
@@ -148,21 +148,6 @@ export const TRACKS: Track[] = [
   },
   {
     id: 9,
-    title: "Inspirational Soundscapes",
-    side: "light",
-    bpm: 110,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/drive2succeed",
-    effect: {
-      name: "Harmonic Freeze",
-      description: "Spectral freeze that sustains harmonic content as pads",
-      color: "#00897B",
-      icon: "\u{2744}\u{FE0F}",
-    },
-    durationEstimate: 215,
-    durationMs: 32607,
-  },
-  {
-    id: 10,
     title: "Excitement and Elimination",
     side: "light",
     bpm: 128,
@@ -177,8 +162,8 @@ export const TRACKS: Track[] = [
     durationMs: 30282,
   },
   {
-    id: 11,
-    title: "Acoustic Atmospheres",
+    id: 10,
+    title: "Piano Fandango",
     side: "light",
     bpm: 105,
     soundcloudUrl: "https://soundcloud.com/imaginaurium/acoustic-atmospheres-gypsy-fandango",
@@ -192,22 +177,7 @@ export const TRACKS: Track[] = [
     durationMs: 30243,
   },
   {
-    id: 12,
-    title: "Thoroughly Positive Pitzy",
-    side: "light",
-    bpm: 130,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/thoroughly-positive-pitzy-2",
-    effect: {
-      name: "Vocoder Pulse",
-      description: "Vocoder-style processing synced to rhythmic pulses",
-      color: "#F9A825",
-      icon: "\u{1F916}",
-    },
-    durationEstimate: 195,
-    durationMs: 32803,
-  },
-  {
-    id: 13,
+    id: 11,
     title: "Much Ado",
     side: "light",
     bpm: 115,
@@ -222,22 +192,7 @@ export const TRACKS: Track[] = [
     durationMs: 30869,
   },
   {
-    id: 14,
-    title: "Rings",
-    side: "light",
-    bpm: 88,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/rings",
-    effect: {
-      name: "Orbital Resonance",
-      description: "Circular panning with resonant ring modulation and slow phase sweep",
-      color: "#1565C0",
-      icon: "\u{1F4AB}",
-    },
-    durationEstimate: 240,
-    durationMs: 30371,
-  },
-  {
-    id: 15,
+    id: 12,
     title: "Brothers",
     side: "light",
     bpm: 92,

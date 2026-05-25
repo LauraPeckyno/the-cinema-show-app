@@ -1,80 +1,90 @@
-import { Text, View, StyleSheet, FlatList, Pressable, Dimensions } from "react-native";
+import { Text, View, StyleSheet, ScrollView, Pressable, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useAudioEngine } from "@/lib/audio-engine";
 import { DARK_TRACKS, LIGHT_TRACKS, Track } from "@/constants/tracks";
-import { ArtDecoHeader, ArtDecoDivider, ArtDecoCorner } from "@/components/art-deco";
-import { useTrackDurations } from "@/hooks/use-track-durations";
-
-/** Format milliseconds to m:ss */
-function formatMs(ms: number): string {
-  if (!ms || ms <= 0) return "";
-  const totalSec = Math.floor(ms / 1000);
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
+import { TRACK_ARTWORK } from "@/constants/track-artwork";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const STRIP_WIDTH = (SCREEN_WIDTH - 48) / 2; // Two strips side by side with padding
+const CELL_HEIGHT = STRIP_WIDTH * 1.2; // Slightly taller than wide for film frame feel
+const SPROCKET_SIZE = 8;
 
-function TrackCard({ track, onPress, durationLabel }: { track: Track; onPress: () => void; durationLabel: string }) {
-  const colors = useColors();
-  const isDark = track.side === "dark";
+/** A single film frame cell with artwork */
+function FilmCell({ track, onPress }: { track: Track; onPress: () => void }) {
+  const artworkUrl = TRACK_ARTWORK[track.id];
 
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
-        styles.card,
-        {
-          backgroundColor: colors.surface,
-          borderColor: isDark ? "#8B000030" : colors.primary + "30",
-        },
-        pressed && { transform: [{ scale: 0.98 }], opacity: 0.85 },
+        styles.filmCell,
+        pressed && { transform: [{ scale: 0.95 }], opacity: 0.8 },
       ]}
     >
-      {/* Art Deco corner ornaments */}
-      <ArtDecoCorner position="top-left" size={18} color={isDark ? "#8B0000" : colors.primary} />
-      <ArtDecoCorner position="top-right" size={18} color={isDark ? "#8B0000" : colors.primary} />
+      <Image
+        source={{ uri: artworkUrl }}
+        style={styles.cellImage}
+        contentFit="cover"
+        transition={300}
+      />
+      {/* Subtle gradient overlay at bottom for depth */}
+      <LinearGradient
+        colors={["transparent", "rgba(0,0,0,0.6)"]}
+        style={styles.cellOverlay}
+      />
+    </Pressable>
+  );
+}
 
-      {/* Effect color accent bar */}
-      <View style={[styles.accentBar, { backgroundColor: track.effect.color }]} />
+/** Film strip sprocket holes along the edge */
+function SprocketHoles({ count }: { count: number }) {
+  return (
+    <View style={styles.sprocketColumn}>
+      {Array.from({ length: count }).map((_, i) => (
+        <View key={i} style={styles.sprocketHole} />
+      ))}
+    </View>
+  );
+}
 
-      <View style={styles.cardContent}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.trackEmoji}>{track.effect.icon}</Text>
-          <View style={styles.cardTitleArea}>
-            <Text style={[styles.trackTitle, { color: colors.foreground }]} numberOfLines={1}>
-              {track.title}
-            </Text>
-            <View style={styles.trackMeta}>
-              <Text style={[styles.trackBpm, { color: colors.primary }]}>
-                {track.bpm} BPM
-              </Text>
-              {durationLabel ? (
-                <Text style={[styles.trackDuration, { color: colors.muted }]}>
-                  {durationLabel}
-                </Text>
-              ) : null}
-            </View>
-          </View>
-          <View style={[styles.trackNumber, { backgroundColor: track.effect.color + "30", borderColor: track.effect.color + "50" }]}>
-            <Text style={[styles.trackNumberText, { color: track.effect.color }]}>
-              {String(track.id).padStart(2, "0")}
-            </Text>
-          </View>
+/** A complete film strip (one side of the album) */
+function FilmStrip({ tracks, side, onTrackPress }: { tracks: Track[]; side: "dark" | "light"; onTrackPress: (track: Track) => void }) {
+  const colors = useColors();
+  const isDark = side === "dark";
+  const stripColor = isDark ? "#1A0A0A" : "#0A1A2A";
+  const borderColor = isDark ? "#8B0000" : colors.primary;
+  const sprocketCount = tracks.length * 4; // 4 sprocket holes per cell
+
+  return (
+    <View style={[styles.filmStrip, { backgroundColor: stripColor, borderColor }]}>
+      {/* Left sprocket holes */}
+      <SprocketHoles count={sprocketCount} />
+
+      {/* Film frames */}
+      <View style={styles.framesColumn}>
+        {/* Side label */}
+        <View style={[styles.sideLabel, { borderBottomColor: borderColor }]}>
+          <Text style={[styles.sideLabelText, { color: isDark ? "#E57373" : colors.primary }]}>
+            {isDark ? "DARK" : "LIGHT"}
+          </Text>
         </View>
 
-        <Text style={[styles.effectName, { color: track.effect.color }]}>
-          {track.effect.name}
-        </Text>
-        <Text style={[styles.effectDesc, { color: colors.muted }]} numberOfLines={2}>
-          {track.effect.description}
-        </Text>
+        {tracks.map((track) => (
+          <FilmCell
+            key={track.id}
+            track={track}
+            onPress={() => onTrackPress(track)}
+          />
+        ))}
       </View>
-    </Pressable>
+
+      {/* Right sprocket holes */}
+      <SprocketHoles count={sprocketCount} />
+    </View>
   );
 }
 
@@ -82,19 +92,11 @@ export default function TracksScreen() {
   const router = useRouter();
   const colors = useColors();
   const { selectTrack } = useAudioEngine();
-  const { getDuration } = useTrackDurations();
 
   const handleTrackPress = (track: Track) => {
     selectTrack(track);
     router.push("/now-playing" as any);
   };
-
-  const data = [
-    { type: "header-dark" as const, key: "header-dark" },
-    ...DARK_TRACKS.map((t) => ({ type: "track" as const, key: `track-${t.id}`, track: t })),
-    { type: "header-light" as const, key: "header-light" },
-    ...LIGHT_TRACKS.map((t) => ({ type: "track" as const, key: `track-${t.id}`, track: t })),
-  ];
 
   return (
     <ScreenContainer containerClassName="bg-background">
@@ -102,168 +104,113 @@ export default function TracksScreen() {
         colors={["#0A0A14", "#1A1A2E"]}
         style={StyleSheet.absoluteFillObject}
       />
-      <View style={styles.headerArea}>
-        <Text style={[styles.pageTitle, { color: colors.foreground }]}>SELECT A TRACK</Text>
-        <Text style={[styles.pageSubtitle, { color: colors.muted }]}>
-          Each track applies a unique filter to your ambient sounds
-        </Text>
-        <ArtDecoDivider width={SCREEN_WIDTH * 0.6} color={colors.primary} />
-      </View>
-      <FlatList
-        data={data}
-        keyExtractor={(item) => item.key}
-        contentContainerStyle={styles.listContent}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => {
-          if (item.type === "header-dark") {
-            return (
-              <View style={styles.sectionHeader}>
-                <ArtDecoHeader
-                  title={"\u{1F311}  DARK SIDE"}
-                  color="#8B0000"
-                  textColor={colors.foreground}
-                />
-                <Text style={[styles.sectionSubtitle, { color: colors.muted }]}>
-                  Haunting, atmospheric, and experimental
-                </Text>
-              </View>
-            );
-          }
-          if (item.type === "header-light") {
-            return (
-              <View style={styles.sectionHeader}>
-                <ArtDecoHeader
-                  title={"\u{2600}\u{FE0F}  LIGHT SIDE"}
-                  color={colors.primary}
-                  textColor={colors.foreground}
-                />
-                <Text style={[styles.sectionSubtitle, { color: colors.muted }]}>
-                  Uplifting, rhythmic, and inspiring
-                </Text>
-              </View>
-            );
-          }
-          if (item.type === "track" && "track" in item) {
-            return (
-              <TrackCard
-                track={item.track!}
-                onPress={() => handleTrackPress(item.track!)}
-                durationLabel={(() => {
-                  const cachedSec = getDuration(item.track!.id);
-                  if (cachedSec > 0) {
-                    const m = Math.floor(cachedSec / 60);
-                    const s = Math.floor(cachedSec % 60);
-                    return `${m}:${s.toString().padStart(2, "0")}`;
-                  }
-                  return formatMs(item.track!.durationMs);
-                })()}
-              />
-            );
-          }
-          return null;
-        }}
-      />
+      >
+        {/* Instruction text */}
+        <View style={styles.instructionArea}>
+          <Text style={[styles.instructionText, { color: colors.muted }]}>
+            Tap a frame to begin the experience
+          </Text>
+        </View>
+
+        {/* Two film strips side by side */}
+        <View style={styles.stripsContainer}>
+          <FilmStrip
+            tracks={DARK_TRACKS}
+            side="dark"
+            onTrackPress={handleTrackPress}
+          />
+          <FilmStrip
+            tracks={LIGHT_TRACKS}
+            side="light"
+            onTrackPress={handleTrackPress}
+          />
+        </View>
+      </ScrollView>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  headerArea: {
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 4,
+  scrollContent: {
+    paddingBottom: 100,
   },
-  pageTitle: {
-    fontSize: 22,
+  instructionArea: {
+    alignItems: "center",
+    paddingVertical: 16,
+  },
+  instructionText: {
+    fontSize: 14,
+    letterSpacing: 1,
+    fontWeight: "500",
+    textTransform: "uppercase",
+  },
+  stripsContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+    gap: 12,
+  },
+  filmStrip: {
+    flex: 1,
+    flexDirection: "row",
+    borderWidth: 1,
+    borderRadius: 4,
+    overflow: "hidden",
+    paddingVertical: 8,
+  },
+  sprocketColumn: {
+    width: 14,
+    alignItems: "center",
+    justifyContent: "space-evenly",
+    paddingVertical: 4,
+  },
+  sprocketHole: {
+    width: SPROCKET_SIZE,
+    height: SPROCKET_SIZE,
+    borderRadius: SPROCKET_SIZE / 2,
+    backgroundColor: "#000",
+    borderWidth: 1,
+    borderColor: "#333",
+    marginVertical: 2,
+  },
+  framesColumn: {
+    flex: 1,
+    paddingVertical: 4,
+    gap: 6,
+  },
+  sideLabel: {
+    alignItems: "center",
+    paddingBottom: 6,
+    marginBottom: 2,
+    borderBottomWidth: 1,
+    marginHorizontal: 4,
+  },
+  sideLabelText: {
+    fontSize: 11,
     fontWeight: "800",
     letterSpacing: 3,
   },
-  pageSubtitle: {
-    fontSize: 13,
-    marginTop: 4,
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 100,
-  },
-  sectionHeader: {
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  sectionSubtitle: {
-    fontSize: 12,
-    textAlign: "center",
-    marginTop: -4,
-    marginBottom: 4,
-  },
-  card: {
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 10,
+  filmCell: {
+    width: "100%",
+    aspectRatio: 1,
+    borderRadius: 2,
     overflow: "hidden",
-    flexDirection: "row",
-  },
-  accentBar: {
-    width: 4,
-  },
-  cardContent: {
-    flex: 1,
-    padding: 14,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  trackEmoji: {
-    fontSize: 24,
-    marginRight: 10,
-  },
-  cardTitleArea: {
-    flex: 1,
-  },
-  trackTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-  },
-  trackMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 2,
-  },
-  trackBpm: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  trackDuration: {
-    fontSize: 12,
-    fontVariant: ["tabular-nums"] as any,
-  },
-  trackNumber: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    backgroundColor: "#111",
     borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    borderColor: "#333",
   },
-  trackNumberText: {
-    fontSize: 13,
-    fontWeight: "800",
+  cellImage: {
+    width: "100%",
+    height: "100%",
   },
-  effectName: {
-    fontSize: 13,
-    fontWeight: "600",
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  effectDesc: {
-    fontSize: 12,
-    lineHeight: 18,
+  cellOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: "30%",
   },
 });

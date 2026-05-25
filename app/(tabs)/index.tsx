@@ -232,7 +232,7 @@ export default function HomeScreen() {
           {/* ─── Album Info ─── */}
           <View style={styles.albumInfo}>
             <Text style={[styles.albumInfoText, { color: colors.muted }]}>
-              15 Tracks  {"\u{00B7}"}  Dark & Light Sides  {"\u{00B7}"}  2026
+              12 Tracks  {"\u{00B7}"}  Dark & Light Sides  {"\u{00B7}"}  2026
             </Text>
           </View>
         </View>

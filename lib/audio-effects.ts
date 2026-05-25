@@ -250,6 +250,7 @@ function warmChorus(micLevel: number, bpm: number, intensity: number, time: numb
 }
 
 // Map track IDs to their effect processors
+// Tracks: 1-6 Dark Side, 7-12 Light Side
 const EFFECT_PROCESSORS: Record<number, EffectProcessor> = {
   1: ectoplasm,
   2: insomnia,
@@ -257,15 +258,12 @@ const EFFECT_PROCESSORS: Record<number, EffectProcessor> = {
   4: krampusHelpers,
   5: spectralCorrection,
   6: penanceGate,
-  7: rhythmicGate,
-  8: shimmerDelay,
-  9: harmonicFreeze,
-  10: sidechainPump,
-  11: flangerWash,
-  12: vocoderPulse,
-  13: prismSplit,
-  14: orbitalResonance,
-  15: warmChorus,
+  7: rhythmicGate,       // Road Show
+  8: shimmerDelay,       // Recessional
+  9: sidechainPump,      // Excitement and Elimination
+  10: flangerWash,       // Piano Fandango
+  11: prismSplit,        // Much Ado
+  12: warmChorus,        // Brothers
 };
 
 export function getEffectProcessor(trackId: number): EffectProcessor {
