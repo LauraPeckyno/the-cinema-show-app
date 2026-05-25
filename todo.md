@@ -70,3 +70,4 @@
 - [x] Now Playing: Add buttons for Mic, Play, and Volume
 - [x] Now Playing: Add volume adjustment bars
 - [x] Now Playing: Remove bottom box with effect name and description
+- [x] Now Playing: Add blurred track artwork as immersive background
