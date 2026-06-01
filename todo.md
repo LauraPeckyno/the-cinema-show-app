@@ -78,3 +78,4 @@
 - [x] Home: Remove bottom text "12 Tracks Light and Dark Sides 2026"
 - [x] Home: Replace "Explore the Album" button with ticket-style image saying "Enter the Theatre"
 - [x] Home: Change "The Cinema Show" title font to Playfair Display
+- [x] Home: Add subtle gold shimmer animation to ticket button for premium cinematic feel

@@ -2,6 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { ScrollView, Text, View, Pressable, StyleSheet, Dimensions, Platform, Image } from "react-native";
 import { useRouter } from "expo-router";
 import { useFonts } from "expo-font";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  Easing,
+} from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { ArtDecoDivider, ArtDecoSunburst, ArtDecoHeader } from "@/components/art-deco";
@@ -126,6 +134,21 @@ export default function HomeScreen() {
     "PlayfairDisplay-Bold": "https://fonts.gstatic.com/s/playfairdisplay/v37/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvXDXbtY.ttf",
   });
 
+  // Gold shimmer animation for ticket button
+  const shimmerX = useSharedValue(-1);
+
+  useEffect(() => {
+    shimmerX.value = withRepeat(
+      withTiming(1, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+  }, []);
+
+  const shimmerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shimmerX.value * 120 }],
+  }));
+
   return (
     <ScreenContainer containerClassName="bg-background">
       {/* Background music — soft loop */}
@@ -235,6 +258,15 @@ export default function HomeScreen() {
             {/* Dashed tear lines */}
             <View style={[styles.ticketTearTop, { borderColor: colors.primary + "40" }]} />
             <View style={[styles.ticketTearBottom, { borderColor: colors.primary + "40" }]} />
+            {/* Gold shimmer overlay */}
+            <Animated.View style={[styles.shimmerOverlay, shimmerStyle]} pointerEvents="none">
+              <LinearGradient
+                colors={["transparent", colors.primary + "30", "transparent"]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={StyleSheet.absoluteFill}
+              />
+            </Animated.View>
             {/* Ticket content */}
             <Text style={[styles.ticketLabel, { color: colors.muted }]}>ADMIT ONE</Text>
             <Text style={[styles.ticketTitle, { color: colors.primary }]}>Enter the Theatre</Text>
@@ -413,5 +445,13 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 1.5,
     marginVertical: 4,
+  },
+  shimmerOverlay: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    width: 60,
+    left: "50%",
+    marginLeft: -30,
   },
 });
