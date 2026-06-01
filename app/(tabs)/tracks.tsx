@@ -1,9 +1,8 @@
-import { useState, useCallback } from "react";
-import { Text, View, StyleSheet, ScrollView, Pressable, Dimensions } from "react-native";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { Text, View, StyleSheet, ScrollView, Pressable, Dimensions, Platform } from "react-native";
 import { useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import Animated, { useSharedValue, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useAudioEngine } from "@/lib/audio-engine";
@@ -13,35 +12,125 @@ import { TRACK_ARTWORK } from "@/constants/track-artwork";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SPROCKET_SIZE = 8;
 
-/** A single film frame cell with artwork and long-press title overlay */
+// Album browse background music
+const ALBUM_MUSIC_SC_URL = "https://soundcloud.com/imaginaurium/space-horrors-3";
+const ALBUM_MUSIC_VOLUME = 25;
+
+// ─── Web Album Music (iframe-based) ────────────────────────────────────────
+function WebAlbumMusic({ volume, stopped }: { volume: number; stopped: boolean }) {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const widgetRef = useRef<any>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const script = document.createElement("script");
+    script.src = "https://w.soundcloud.com/player/api.js";
+    script.onload = () => setLoaded(true);
+    document.head.appendChild(script);
+    return () => { document.head.removeChild(script); };
+  }, []);
+
+  useEffect(() => {
+    if (!loaded || !iframeRef.current || Platform.OS !== "web") return;
+    const SC = (window as any).SC;
+    if (!SC?.Widget) return;
+    const w = SC.Widget(iframeRef.current);
+    widgetRef.current = w;
+    w.bind(SC.Widget.Events.READY, () => {
+      w.setVolume(volume);
+      w.play();
+    });
+    w.bind(SC.Widget.Events.FINISH, () => { w.seekTo(0); w.play(); });
+  }, [loaded]);
+
+  useEffect(() => {
+    if (stopped) {
+      widgetRef.current?.pause?.();
+    }
+  }, [stopped]);
+
+  if (Platform.OS !== "web") return null;
+
+  const src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(ALBUM_MUSIC_SC_URL)}&auto_play=true&show_artwork=false&visual=false&buying=false&sharing=false&download=false&show_playcount=false&show_user=false&color=%23C9A84C`;
+
+  return (
+    <View style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}>
+      {/* @ts-ignore — web-only iframe */}
+      <iframe
+        ref={iframeRef as any}
+        src={src}
+        width="1"
+        height="1"
+        allow="autoplay"
+        style={{ border: "none" }}
+      />
+    </View>
+  );
+}
+
+// ─── Native Album Music (WebView-based) ────────────────────────────────────
+let NativeAlbumMusic: React.ComponentType<{ volume: number; stopped: boolean }> = () => null;
+if (Platform.OS !== "web") {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { WebView } = require("react-native-webview");
+
+  NativeAlbumMusic = ({ volume, stopped }: { volume: number; stopped: boolean }) => {
+    const webViewRef = useRef<any>(null);
+
+    useEffect(() => {
+      if (stopped) {
+        webViewRef.current?.injectJavaScript?.(`
+          if (window.__widget) { window.__widget.pause(); }
+          true;
+        `);
+      }
+    }, [stopped]);
+
+    const html = `<!DOCTYPE html><html><head>
+      <script src="https://w.soundcloud.com/player/api.js"></script>
+    </head><body>
+      <iframe id="sc" width="100%" height="100" src="https://w.soundcloud.com/player/?url=${encodeURIComponent(ALBUM_MUSIC_SC_URL)}&auto_play=true&show_artwork=false&visual=false&buying=false&sharing=false&download=false&show_playcount=false&show_user=false&color=%23C9A84C" allow="autoplay"></iframe>
+      <script>
+        var iframe = document.getElementById('sc');
+        var widget = SC.Widget(iframe);
+        window.__widget = widget;
+        widget.bind(SC.Widget.Events.READY, function() {
+          widget.setVolume(${volume});
+          widget.play();
+        });
+        widget.bind(SC.Widget.Events.FINISH, function() {
+          widget.seekTo(0);
+          widget.play();
+        });
+      </script>
+    </body></html>`;
+
+    return (
+      <View style={{ position: "absolute", width: 50, height: 50, opacity: 0, top: -100 }}>
+        <WebView
+          ref={webViewRef}
+          source={{ html, baseUrl: "https://soundcloud.com" }}
+          javaScriptEnabled
+          mediaPlaybackRequiresUserAction={false}
+          allowsInlineMediaPlayback
+          style={{ width: 50, height: 50 }}
+        />
+      </View>
+    );
+  };
+}
+
+/** A single film frame cell with artwork and always-visible title */
 function FilmCell({ track, onPress }: { track: Track; onPress: () => void }) {
   const artworkUrl = TRACK_ARTWORK[track.id];
-  const [showTitle, setShowTitle] = useState(false);
-  const overlayOpacity = useSharedValue(0);
-
-  const animatedOverlayStyle = useAnimatedStyle(() => ({
-    opacity: overlayOpacity.value,
-  }));
-
-  const handleLongPress = useCallback(() => {
-    setShowTitle(true);
-    overlayOpacity.value = withTiming(1, { duration: 200 });
-  }, [overlayOpacity]);
-
-  const handlePressOut = useCallback(() => {
-    overlayOpacity.value = withTiming(0, { duration: 300 });
-    setTimeout(() => setShowTitle(false), 300);
-  }, [overlayOpacity]);
 
   return (
     <Pressable
       onPress={onPress}
-      onLongPress={handleLongPress}
-      onPressOut={handlePressOut}
-      delayLongPress={300}
       style={({ pressed }) => [
         styles.filmCell,
-        pressed && !showTitle && { transform: [{ scale: 0.95 }], opacity: 0.8 },
+        pressed && { transform: [{ scale: 0.95 }], opacity: 0.8 },
       ]}
     >
       <Image
@@ -50,36 +139,27 @@ function FilmCell({ track, onPress }: { track: Track; onPress: () => void }) {
         contentFit="cover"
         transition={300}
       />
-      {/* Subtle gradient overlay at bottom for depth */}
+      {/* Gradient overlay at bottom for text readability */}
       <LinearGradient
-        colors={["transparent", "rgba(0,0,0,0.6)"]}
+        colors={["transparent", "rgba(0,0,0,0.75)"]}
         style={styles.cellOverlay}
       />
-      {/* Title overlay on long-press */}
-      {showTitle && (
-        <Animated.View style={[styles.titleOverlay, animatedOverlayStyle]}>
-          <LinearGradient
-            colors={["rgba(0,0,0,0.85)", "rgba(0,0,0,0.7)", "rgba(0,0,0,0.85)"]}
-            style={StyleSheet.absoluteFillObject}
-          />
-          <Text style={styles.titleOverlayText} numberOfLines={2}>
-            {track.title}
-          </Text>
-          <Text style={styles.titleOverlayEffect}>
-            {track.effect.name}
-          </Text>
-        </Animated.View>
-      )}
+      {/* Always-visible title at bottom */}
+      <View style={styles.titleArea}>
+        <Text style={styles.titleText} numberOfLines={2}>
+          {track.title}
+        </Text>
+      </View>
     </Pressable>
   );
 }
 
 /** Film strip sprocket holes along the edge */
-function SprocketHoles({ count }: { count: number }) {
+function SprocketHoles({ count, color }: { count: number; color?: string }) {
   return (
     <View style={styles.sprocketColumn}>
       {Array.from({ length: count }).map((_, i) => (
-        <View key={i} style={styles.sprocketHole} />
+        <View key={i} style={[styles.sprocketHole, color ? { borderColor: color } : undefined]} />
       ))}
     </View>
   );
@@ -89,20 +169,21 @@ function SprocketHoles({ count }: { count: number }) {
 function FilmStrip({ tracks, side, onTrackPress }: { tracks: Track[]; side: "dark" | "light"; onTrackPress: (track: Track) => void }) {
   const colors = useColors();
   const isDark = side === "dark";
-  const stripColor = isDark ? "#1A0A0A" : "#0A1A2A";
-  const borderColor = isDark ? "#8B0000" : colors.primary;
+  const stripColor = isDark ? "#1A0A0A" : "#F5F5F5";
+  const borderColor = isDark ? "#8B0000" : "#CCCCCC";
+  const sprocketColor = isDark ? "#333" : "#AAAAAA";
   const sprocketCount = tracks.length * 4;
 
   return (
     <View style={[styles.filmStrip, { backgroundColor: stripColor, borderColor }]}>
       {/* Left sprocket holes */}
-      <SprocketHoles count={sprocketCount} />
+      <SprocketHoles count={sprocketCount} color={sprocketColor} />
 
       {/* Film frames */}
       <View style={styles.framesColumn}>
         {/* Side label */}
         <View style={[styles.sideLabel, { borderBottomColor: borderColor }]}>
-          <Text style={[styles.sideLabelText, { color: isDark ? "#E57373" : colors.primary }]}>
+          <Text style={[styles.sideLabelText, { color: isDark ? "#E57373" : "#333333" }]}>
             {isDark ? "DARK" : "LIGHT"}
           </Text>
         </View>
@@ -117,7 +198,7 @@ function FilmStrip({ tracks, side, onTrackPress }: { tracks: Track[]; side: "dar
       </View>
 
       {/* Right sprocket holes */}
-      <SprocketHoles count={sprocketCount} />
+      <SprocketHoles count={sprocketCount} color={sprocketColor} />
     </View>
   );
 }
@@ -126,14 +207,30 @@ export default function TracksScreen() {
   const router = useRouter();
   const colors = useColors();
   const { selectTrack } = useAudioEngine();
+  const [musicStopped, setMusicStopped] = useState(false);
 
   const handleTrackPress = (track: Track) => {
+    // Stop album background music
+    setMusicStopped(true);
+    // Select track and navigate
     selectTrack(track);
     router.push("/now-playing" as any);
   };
 
+  // Reset music state when returning to this screen
+  useEffect(() => {
+    setMusicStopped(false);
+  }, []);
+
   return (
     <ScreenContainer containerClassName="bg-background">
+      {/* Album browse background music */}
+      {Platform.OS === "web" ? (
+        <WebAlbumMusic volume={ALBUM_MUSIC_VOLUME} stopped={musicStopped} />
+      ) : (
+        <NativeAlbumMusic volume={ALBUM_MUSIC_VOLUME} stopped={musicStopped} />
+      )}
+
       <LinearGradient
         colors={["#0A0A14", "#1A1A2E"]}
         style={StyleSheet.absoluteFillObject}
@@ -145,7 +242,7 @@ export default function TracksScreen() {
         {/* Instruction text */}
         <View style={styles.instructionArea}>
           <Text style={[styles.instructionText, { color: colors.muted }]}>
-            Hold a frame to reveal its title
+            Tap a frame to start the show!
           </Text>
         </View>
 
@@ -245,38 +342,24 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: "30%",
+    height: "40%",
   },
-  titleOverlay: {
+  titleArea: {
     position: "absolute",
-    top: 0,
+    bottom: 0,
     left: 0,
     right: 0,
-    bottom: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
   },
-  titleOverlayText: {
+  titleText: {
     color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "800",
+    fontSize: 11,
+    fontWeight: "700",
     textAlign: "center",
-    letterSpacing: 0.5,
-    textShadowColor: "rgba(0,0,0,0.8)",
+    letterSpacing: 0.3,
+    textShadowColor: "rgba(0,0,0,0.9)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
-  },
-  titleOverlayEffect: {
-    color: "#D4AF37",
-    fontSize: 10,
-    fontWeight: "600",
-    textAlign: "center",
-    letterSpacing: 1,
-    marginTop: 4,
-    textTransform: "uppercase",
-    textShadowColor: "rgba(0,0,0,0.8)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
 });

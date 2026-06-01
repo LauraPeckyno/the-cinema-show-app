@@ -1,13 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { ScrollView, Text, View, Pressable, StyleSheet, Dimensions, Platform, Image } from "react-native";
 import { useRouter } from "expo-router";
 import { useFonts } from "expo-font";
+import { useAudioPlayer } from "expo-audio";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
   withTiming,
+  withSequence,
   Easing,
+  runOnJS,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { ScreenContainer } from "@/components/screen-container";
@@ -16,12 +19,15 @@ import { ArtDecoDivider, ArtDecoSunburst, ArtDecoHeader } from "@/components/art
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-// SoundCloud embed URL for "Four Better or Worse" — plays as a soft background loop
+// SoundCloud embed URL for background music
 const BG_MUSIC_SC_URL = "https://soundcloud.com/imaginaurium/thoroughly-positive-pitzy-2";
 const BG_MUSIC_VOLUME = 25;
 
+// Projector sound effect
+const projectorSound = require("@/assets/sounds/projector-start.mp3");
+
 // ─── Web Background Music (iframe-based) ────────────────────────────────────
-function WebBgMusic({ volume, muted }: { volume: number; muted: boolean }) {
+function WebBgMusic({ volume, muted, stopped }: { volume: number; muted: boolean; stopped: boolean }) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const widgetRef = useRef<any>(null);
   const [loaded, setLoaded] = useState(false);
@@ -49,8 +55,12 @@ function WebBgMusic({ volume, muted }: { volume: number; muted: boolean }) {
   }, [loaded]);
 
   useEffect(() => {
-    widgetRef.current?.setVolume?.(muted ? 0 : volume);
-  }, [volume, muted]);
+    if (stopped) {
+      widgetRef.current?.pause?.();
+    } else {
+      widgetRef.current?.setVolume?.(muted ? 0 : volume);
+    }
+  }, [volume, muted, stopped]);
 
   if (Platform.OS !== "web") return null;
 
@@ -72,21 +82,28 @@ function WebBgMusic({ volume, muted }: { volume: number; muted: boolean }) {
 }
 
 // ─── Native Background Music (WebView-based) ────────────────────────────────
-let NativeBgMusic: React.ComponentType<{ volume: number; muted: boolean }> = () => null;
+let NativeBgMusic: React.ComponentType<{ volume: number; muted: boolean; stopped: boolean }> = () => null;
 if (Platform.OS !== "web") {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { WebView } = require("react-native-webview");
 
-  NativeBgMusic = ({ volume, muted }: { volume: number; muted: boolean }) => {
+  NativeBgMusic = ({ volume, muted, stopped }: { volume: number; muted: boolean; stopped: boolean }) => {
     const webViewRef = useRef<any>(null);
 
     useEffect(() => {
-      const v = muted ? 0 : volume;
-      webViewRef.current?.injectJavaScript?.(`
-        if (window.__widget) { window.__widget.setVolume(${v}); }
-        true;
-      `);
-    }, [volume, muted]);
+      if (stopped) {
+        webViewRef.current?.injectJavaScript?.(`
+          if (window.__widget) { window.__widget.pause(); }
+          true;
+        `);
+      } else {
+        const v = muted ? 0 : volume;
+        webViewRef.current?.injectJavaScript?.(`
+          if (window.__widget) { window.__widget.setVolume(${v}); }
+          true;
+        `);
+      }
+    }, [volume, muted, stopped]);
 
     const html = `<!DOCTYPE html><html><head>
       <script src="https://w.soundcloud.com/player/api.js"></script>
@@ -129,13 +146,21 @@ export default function HomeScreen() {
   const router = useRouter();
   const colors = useColors();
   const [isMuted, setIsMuted] = useState(false);
+  const [musicStopped, setMusicStopped] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const [fontsLoaded] = useFonts({
     "PlayfairDisplay-Bold": "https://fonts.gstatic.com/s/playfairdisplay/v37/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvXDXbtY.ttf",
   });
 
+  // Projector sound player
+  const projectorPlayer = useAudioPlayer(projectorSound);
+
   // Gold shimmer animation for ticket button
   const shimmerX = useSharedValue(-1);
+
+  // Fade-to-black overlay opacity
+  const fadeOpacity = useSharedValue(0);
 
   useEffect(() => {
     shimmerX.value = withRepeat(
@@ -149,13 +174,49 @@ export default function HomeScreen() {
     transform: [{ translateX: shimmerX.value * 120 }],
   }));
 
+  const fadeOverlayStyle = useAnimatedStyle(() => ({
+    opacity: fadeOpacity.value,
+  }));
+
+  const navigateToTracks = useCallback(() => {
+    router.push("/(tabs)/tracks" as any);
+  }, [router]);
+
+  const handleTicketPress = useCallback(() => {
+    if (isTransitioning) return;
+    setIsTransitioning(true);
+
+    // Play projector sound
+    projectorPlayer.seekTo(0);
+    projectorPlayer.play();
+
+    // Stop background music
+    setMusicStopped(true);
+
+    // Fade to black then navigate
+    fadeOpacity.value = withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) }, (finished) => {
+      if (finished) {
+        runOnJS(navigateToTracks)();
+      }
+    });
+  }, [isTransitioning, projectorPlayer, fadeOpacity, navigateToTracks]);
+
+  // Reset transition state when screen regains focus
+  useEffect(() => {
+    return () => {
+      setIsTransitioning(false);
+      setMusicStopped(false);
+      fadeOpacity.value = 0;
+    };
+  }, []);
+
   return (
     <ScreenContainer containerClassName="bg-background">
       {/* Background music — soft loop */}
       {Platform.OS === "web" ? (
-        <WebBgMusic volume={BG_MUSIC_VOLUME} muted={isMuted} />
+        <WebBgMusic volume={BG_MUSIC_VOLUME} muted={isMuted} stopped={musicStopped} />
       ) : (
-        <NativeBgMusic volume={BG_MUSIC_VOLUME} muted={isMuted} />
+        <NativeBgMusic volume={BG_MUSIC_VOLUME} muted={isMuted} stopped={musicStopped} />
       )}
 
       <ScrollView
@@ -176,7 +237,6 @@ export default function HomeScreen() {
             <Text style={[styles.title, { color: colors.foreground, fontFamily: fontsLoaded ? "PlayfairDisplay-Bold" : undefined }]}>
               THE CINEMA{"\n"}SHOW
             </Text>
-
           </View>
 
           {/* ─── Music Mute/Unmute Button ─── */}
@@ -241,7 +301,7 @@ export default function HomeScreen() {
 
           {/* ─── Ticket Button ─── */}
           <Pressable
-            onPress={() => router.push("/(tabs)/tracks" as any)}
+            onPress={handleTicketPress}
             style={({ pressed }) => [
               styles.ticketButton,
               {
@@ -273,9 +333,11 @@ export default function HomeScreen() {
             <Text style={[styles.ticketLabel, { color: colors.muted }]}>{"\u2605"} {"\u2605"} {"\u2605"}</Text>
           </Pressable>
 
-
         </View>
       </ScrollView>
+
+      {/* ─── Fade-to-Black Overlay ─── */}
+      <Animated.View style={[styles.fadeOverlay, fadeOverlayStyle]} pointerEvents={isTransitioning ? "auto" : "none"} />
     </ScreenContainer>
   );
 }
@@ -307,12 +369,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: 4,
     lineHeight: 44,
-  },
-  artist: {
-    fontSize: 14,
-    fontWeight: "500",
-    marginTop: 8,
-    letterSpacing: 1,
   },
   muteButton: {
     flexDirection: "row",
@@ -453,5 +509,10 @@ const styles = StyleSheet.create({
     width: 60,
     left: "50%",
     marginLeft: -30,
+  },
+  fadeOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#000000",
+    zIndex: 999,
   },
 });

@@ -79,3 +79,9 @@
 - [x] Home: Replace "Explore the Album" button with ticket-style image saying "Enter the Theatre"
 - [x] Home: Change "The Cinema Show" title font to Playfair Display
 - [x] Home: Add subtle gold shimmer animation to ticket button for premium cinematic feel
+- [x] Home: Add projector sound effect on ticket button tap
+- [x] Home: Stop music and fade screen to black before navigating to album page
+- [x] Album: Change song titles to always display on images (remove long-press requirement)
+- [x] Album: Change instruction text to "Tap a frame to start the show!"
+- [x] Album: Add background music (Space Horrors 3 from SoundCloud)
+- [x] Album: Stop background music when user taps a track and navigates to Now Playing
