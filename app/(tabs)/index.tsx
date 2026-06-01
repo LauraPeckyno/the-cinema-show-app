@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ScrollView, Text, View, Pressable, StyleSheet, Dimensions, Platform, Image } from "react-native";
 import { useRouter } from "expo-router";
+import { useFonts } from "expo-font";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { ArtDecoDivider, ArtDecoSunburst, ArtDecoHeader } from "@/components/art-deco";
@@ -121,6 +122,10 @@ export default function HomeScreen() {
   const colors = useColors();
   const [isMuted, setIsMuted] = useState(false);
 
+  const [fontsLoaded] = useFonts({
+    "PlayfairDisplay-Bold": "https://fonts.gstatic.com/s/playfairdisplay/v37/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvXDXbtY.ttf",
+  });
+
   return (
     <ScreenContainer containerClassName="bg-background">
       {/* Background music — soft loop */}
@@ -145,7 +150,7 @@ export default function HomeScreen() {
             <Text style={[styles.subtitle, { color: colors.primary }]}>
               Now Playing
             </Text>
-            <Text style={[styles.title, { color: colors.foreground }]}>
+            <Text style={[styles.title, { color: colors.foreground, fontFamily: fontsLoaded ? "PlayfairDisplay-Bold" : undefined }]}>
               THE CINEMA{"\n"}SHOW
             </Text>
 
@@ -211,17 +216,29 @@ export default function HomeScreen() {
 
           <ArtDecoDivider width={SCREEN_WIDTH * 0.6} color={colors.primary} />
 
-          {/* ─── CTA Button ─── */}
+          {/* ─── Ticket Button ─── */}
           <Pressable
             onPress={() => router.push("/(tabs)/tracks" as any)}
             style={({ pressed }) => [
-              styles.ctaButton,
-              { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
+              styles.ticketButton,
+              {
+                borderColor: colors.primary,
+                backgroundColor: colors.primary + "10",
+                opacity: pressed ? 0.85 : 1,
+                transform: [{ scale: pressed ? 0.97 : 1 }],
+              },
             ]}
           >
-            <Text style={[styles.ctaText, { color: colors.background }]}>
-              {"\u{1F3AC}"}  EXPLORE THE ALBUM
-            </Text>
+            {/* Ticket perforations */}
+            <View style={[styles.ticketNotchLeft, { backgroundColor: colors.background }]} />
+            <View style={[styles.ticketNotchRight, { backgroundColor: colors.background }]} />
+            {/* Dashed tear lines */}
+            <View style={[styles.ticketTearTop, { borderColor: colors.primary + "40" }]} />
+            <View style={[styles.ticketTearBottom, { borderColor: colors.primary + "40" }]} />
+            {/* Ticket content */}
+            <Text style={[styles.ticketLabel, { color: colors.muted }]}>ADMIT ONE</Text>
+            <Text style={[styles.ticketTitle, { color: colors.primary }]}>Enter the Theatre</Text>
+            <Text style={[styles.ticketLabel, { color: colors.muted }]}>{"\u2605"} {"\u2605"} {"\u2605"}</Text>
           </Pressable>
 
 
@@ -341,22 +358,60 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     textAlign: "center",
   },
-  ctaButton: {
-    paddingHorizontal: 32,
-    paddingVertical: 16,
+  ticketButton: {
+    position: "relative",
+    alignItems: "center",
+    paddingHorizontal: 40,
+    paddingVertical: 20,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    marginTop: 12,
+    overflow: "visible",
+  },
+  ticketNotchLeft: {
+    position: "absolute",
+    left: -8,
+    top: "50%",
+    width: 16,
+    height: 16,
     borderRadius: 8,
-    marginTop: 8,
+    marginTop: -8,
   },
-  ctaText: {
-    fontSize: 16,
+  ticketNotchRight: {
+    position: "absolute",
+    right: -8,
+    top: "50%",
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    marginTop: -8,
+  },
+  ticketTearTop: {
+    position: "absolute",
+    top: 8,
+    left: 16,
+    right: 16,
+    borderTopWidth: 1,
+    borderStyle: "dashed",
+  },
+  ticketTearBottom: {
+    position: "absolute",
+    bottom: 8,
+    left: 16,
+    right: 16,
+    borderTopWidth: 1,
+    borderStyle: "dashed",
+  },
+  ticketLabel: {
+    fontSize: 9,
+    fontWeight: "600",
+    letterSpacing: 3,
+    marginVertical: 2,
+  },
+  ticketTitle: {
+    fontSize: 18,
     fontWeight: "800",
-    letterSpacing: 2,
-  },
-  albumInfo: {
-    marginTop: 16,
-  },
-  albumInfoText: {
-    fontSize: 12,
-    letterSpacing: 1,
+    letterSpacing: 1.5,
+    marginVertical: 4,
   },
 });

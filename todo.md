@@ -76,3 +76,5 @@
 - [x] Home: Change background music to https://soundcloud.com/imaginaurium/thoroughly-positive-pitzy-2
 - [x] Home: Update "Experience" paragraph text and match font to headphones paragraph
 - [x] Home: Remove bottom text "12 Tracks Light and Dark Sides 2026"
+- [x] Home: Replace "Explore the Album" button with ticket-style image saying "Enter the Theatre"
+- [x] Home: Change "The Cinema Show" title font to Playfair Display
