@@ -76,3 +76,4 @@
 - [x] Change Light Side film strip color to white for clear distinction from Dark Side
 - [x] Remove now playing mini-bar from Tracks screen (causes crash on tap)
 - [x] Add pulsing glow around artwork border on Now Playing screen synced to track effect when playing
+- [x] Fix crash when tapping a track from album browse page to open Now Playing screen (added react-native-reanimated/plugin to babel.config.js)
