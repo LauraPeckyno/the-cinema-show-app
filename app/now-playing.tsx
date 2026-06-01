@@ -12,7 +12,6 @@ import { useHeadphoneDetection } from "@/hooks/use-headphone-detection";
 import { useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { BlurView } from "expo-blur";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useAudioEngine } from "@/lib/audio-engine";
@@ -224,20 +223,6 @@ export default function NowPlayingScreen() {
         colors={["#0A0A14", isDark ? "#1A0A2E" : "#1A1A2E", "#0A0A14"]}
         style={StyleSheet.absoluteFillObject}
       />
-
-      {/* Blurred artwork background */}
-      <View style={styles.blurBackground}>
-        <Image
-          source={{ uri: artworkUrl }}
-          style={StyleSheet.absoluteFillObject}
-          contentFit="cover"
-        />
-        <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFillObject} />
-        <LinearGradient
-          colors={["rgba(10,10,20,0.4)", "rgba(10,10,20,0.7)", "rgba(10,10,20,0.95)"]}
-          style={StyleSheet.absoluteFillObject}
-        />
-      </View>
 
       {/* Hidden SoundCloud Player */}
       <SoundCloudPlayer
@@ -473,10 +458,6 @@ export default function NowPlayingScreen() {
 const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 40,
-  },
-  blurBackground: {
-    ...StyleSheet.absoluteFillObject,
-    overflow: "hidden",
   },
   emptyContainer: {
     flex: 1,

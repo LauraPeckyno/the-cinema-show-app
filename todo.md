@@ -70,5 +70,3 @@
 - [x] Now Playing: Add buttons for Mic, Play, and Volume
 - [x] Now Playing: Add volume adjustment bars
 - [x] Now Playing: Remove bottom box with effect name and description
-- [x] Now Playing: Add blurred track artwork as immersive background
-- [x] Fix fatal error causing APK to never load (expo-blur 56 incompatible with SDK 54, downgraded to 14.0.3)
