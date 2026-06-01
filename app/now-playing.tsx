@@ -22,6 +22,14 @@ import { useKeepAwake } from "expo-keep-awake";
 import { reportTrackDuration } from "@/hooks/use-track-durations";
 import { MicPassthrough } from "@/components/mic-passthrough";
 import { TRACK_ARTWORK } from "@/constants/track-artwork";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+  Easing,
+} from "react-native-reanimated";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -218,6 +226,29 @@ export default function NowPlayingScreen() {
       : currentTrack.durationEstimate;
   const artworkUrl = TRACK_ARTWORK[currentTrack.id];
 
+  // Pulsing glow animation synced to BPM
+  const glowOpacity = useSharedValue(0);
+  const beatMs = currentTrack.bpm > 0 ? (60 / currentTrack.bpm) * 1000 : 1000;
+
+  React.useEffect(() => {
+    if (isPlaying) {
+      glowOpacity.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: beatMs * 0.3, easing: Easing.out(Easing.ease) }),
+          withTiming(0.2, { duration: beatMs * 0.7, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        false
+      );
+    } else {
+      glowOpacity.value = withTiming(0, { duration: 300 });
+    }
+  }, [isPlaying, beatMs]);
+
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: glowOpacity.value,
+  }));
+
   return (
     <ScreenContainer edges={["top", "bottom", "left", "right"]} containerClassName="bg-background">
       <LinearGradient
@@ -280,8 +311,9 @@ export default function NowPlayingScreen() {
           </Pressable>
         </View>
 
-        {/* Track Artwork */}
+        {/* Track Artwork with pulsing glow */}
         <View style={styles.artworkArea}>
+          <Animated.View style={[styles.artworkGlow, glowStyle, { shadowColor: effectColor }]} />
           <View style={[styles.artworkFrame, { borderColor: effectColor + "60" }]}>
             <Image
               source={{ uri: artworkUrl }}
@@ -530,6 +562,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 16,
     elevation: 10,
+  },
+  artworkGlow: {
+    position: "absolute",
+    width: SCREEN_WIDTH * 0.7,
+    height: SCREEN_WIDTH * 0.7,
+    borderRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 24,
+    elevation: 20,
+    backgroundColor: "transparent",
+    borderWidth: 2,
+    borderColor: "transparent",
   },
   artworkImage: {
     width: "100%",
