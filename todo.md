@@ -70,3 +70,9 @@
 - [x] Now Playing: Add buttons for Mic, Play, and Volume
 - [x] Now Playing: Add volume adjustment bars
 - [x] Now Playing: Remove bottom box with effect name and description
+- [x] Home: Change top title from "an immersive audio experience" to "Now Playing" (centered)
+- [x] Home: Change font on "The Cinema Show" title
+- [x] Home: Remove "by Robert Peckyno" text
+- [x] Home: Change background music to https://soundcloud.com/imaginaurium/thoroughly-positive-pitzy-2
+- [x] Home: Update "Experience" paragraph text and match font to headphones paragraph
+- [x] Home: Remove bottom text "12 Tracks Light and Dark Sides 2026"

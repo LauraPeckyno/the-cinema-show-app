@@ -8,7 +8,7 @@ import { ArtDecoDivider, ArtDecoSunburst, ArtDecoHeader } from "@/components/art
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 // SoundCloud embed URL for "Four Better or Worse" — plays as a soft background loop
-const BG_MUSIC_SC_URL = "https://soundcloud.com/imaginaurium/four-better-or-worse";
+const BG_MUSIC_SC_URL = "https://soundcloud.com/imaginaurium/thoroughly-positive-pitzy-2";
 const BG_MUSIC_VOLUME = 25;
 
 // ─── Web Background Music (iframe-based) ────────────────────────────────────
@@ -143,14 +143,12 @@ export default function HomeScreen() {
           {/* ─── Title Section ─── */}
           <View style={styles.titleSection}>
             <Text style={[styles.subtitle, { color: colors.primary }]}>
-              {"— AN IMMERSIVE AUDIO EXPERIENCE —"}
+              Now Playing
             </Text>
             <Text style={[styles.title, { color: colors.foreground }]}>
               THE CINEMA{"\n"}SHOW
             </Text>
-            <Text style={[styles.artist, { color: colors.muted }]}>
-              by Robert Peckyno
-            </Text>
+
           </View>
 
           {/* ─── Music Mute/Unmute Button ─── */}
@@ -207,10 +205,7 @@ export default function HomeScreen() {
 
           <View style={styles.descriptionSection}>
             <Text style={[styles.description, { color: colors.muted }]}>
-              Step into a world where your surroundings become part of the music.
-              The Cinema Show captures ambient sounds through your microphone and
-              weaves them into an instrumental soundtrack — creating a unique,
-              one-of-a-kind listening experience that is different every time.
+              Step into a world where you become a part of the music. The Cinema Show captures ambient sounds and weaves them into the instrumental soundtrack - creating a unique listening experience that is different every time.
             </Text>
           </View>
 
@@ -229,12 +224,7 @@ export default function HomeScreen() {
             </Text>
           </Pressable>
 
-          {/* ─── Album Info ─── */}
-          <View style={styles.albumInfo}>
-            <Text style={[styles.albumInfoText, { color: colors.muted }]}>
-              12 Tracks  {"\u{00B7}"}  Dark & Light Sides  {"\u{00B7}"}  2026
-            </Text>
-          </View>
+
         </View>
       </ScrollView>
     </ScreenContainer>
@@ -347,8 +337,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   description: {
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: 12,
+    lineHeight: 18,
     textAlign: "center",
   },
   ctaButton: {
