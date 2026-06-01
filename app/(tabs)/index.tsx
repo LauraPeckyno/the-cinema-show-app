@@ -186,7 +186,8 @@ export default function HomeScreen() {
     if (isTransitioning) return;
     setIsTransitioning(true);
 
-    // Play projector sound
+    // Play projector sound (soft volume)
+    projectorPlayer.volume = 0.3;
     projectorPlayer.seekTo(0);
     projectorPlayer.play();
 
