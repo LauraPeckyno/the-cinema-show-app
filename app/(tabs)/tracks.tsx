@@ -10,7 +10,6 @@ import { useAudioEngine } from "@/lib/audio-engine";
 import { DARK_TRACKS, LIGHT_TRACKS, Track } from "@/constants/tracks";
 import { TRACK_ARTWORK } from "@/constants/track-artwork";
 
-
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SPROCKET_SIZE = 8;
 
@@ -76,11 +75,11 @@ function FilmCell({ track, onPress }: { track: Track; onPress: () => void }) {
 }
 
 /** Film strip sprocket holes along the edge */
-function SprocketHoles({ count, color }: { count: number; color: string }) {
+function SprocketHoles({ count }: { count: number }) {
   return (
     <View style={styles.sprocketColumn}>
       {Array.from({ length: count }).map((_, i) => (
-        <View key={i} style={[styles.sprocketHole, { borderColor: color }]} />
+        <View key={i} style={styles.sprocketHole} />
       ))}
     </View>
   );
@@ -88,23 +87,22 @@ function SprocketHoles({ count, color }: { count: number; color: string }) {
 
 /** A complete film strip (one side of the album) */
 function FilmStrip({ tracks, side, onTrackPress }: { tracks: Track[]; side: "dark" | "light"; onTrackPress: (track: Track) => void }) {
+  const colors = useColors();
   const isDark = side === "dark";
-  const stripColor = isDark ? "#1A0A0A" : "#F5F5F5";
-  const borderColor = isDark ? "#8B0000" : "#FFFFFF";
-  const sprocketColor = isDark ? "#333" : "#CCCCCC";
-  const labelColor = isDark ? "#E57373" : "#333333";
+  const stripColor = isDark ? "#1A0A0A" : "#0A1A2A";
+  const borderColor = isDark ? "#8B0000" : colors.primary;
   const sprocketCount = tracks.length * 4;
 
   return (
     <View style={[styles.filmStrip, { backgroundColor: stripColor, borderColor }]}>
       {/* Left sprocket holes */}
-      <SprocketHoles count={sprocketCount} color={sprocketColor} />
+      <SprocketHoles count={sprocketCount} />
 
       {/* Film frames */}
       <View style={styles.framesColumn}>
         {/* Side label */}
         <View style={[styles.sideLabel, { borderBottomColor: borderColor }]}>
-          <Text style={[styles.sideLabelText, { color: labelColor }]}>
+          <Text style={[styles.sideLabelText, { color: isDark ? "#E57373" : colors.primary }]}>
             {isDark ? "DARK" : "LIGHT"}
           </Text>
         </View>
@@ -119,12 +117,10 @@ function FilmStrip({ tracks, side, onTrackPress }: { tracks: Track[]; side: "dar
       </View>
 
       {/* Right sprocket holes */}
-      <SprocketHoles count={sprocketCount} color={sprocketColor} />
+      <SprocketHoles count={sprocketCount} />
     </View>
   );
 }
-
-
 
 export default function TracksScreen() {
   const router = useRouter();
@@ -135,7 +131,6 @@ export default function TracksScreen() {
     selectTrack(track);
     router.push("/now-playing" as any);
   };
-
 
   return (
     <ScreenContainer containerClassName="bg-background">
@@ -212,6 +207,7 @@ const styles = StyleSheet.create({
     borderRadius: SPROCKET_SIZE / 2,
     backgroundColor: "#000",
     borderWidth: 1,
+    borderColor: "#333",
     marginVertical: 2,
   },
   framesColumn: {
@@ -283,5 +279,4 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
-
 });

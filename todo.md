@@ -72,8 +72,3 @@
 - [x] Now Playing: Remove bottom box with effect name and description
 - [x] Now Playing: Add blurred track artwork as immersive background
 - [x] Fix fatal error causing APK to never load (expo-blur 56 incompatible with SDK 54, downgraded to 14.0.3)
-- [x] Add "now playing" mini-bar at bottom of Tracks screen with tap-to-return
-- [x] Change Light Side film strip color to white for clear distinction from Dark Side
-- [x] Remove now playing mini-bar from Tracks screen (causes crash on tap)
-- [x] Add pulsing glow around artwork border on Now Playing screen synced to track effect when playing
-- [x] Fix crash when tapping a track from album browse page to open Now Playing screen (added react-native-reanimated/plugin to babel.config.js)
