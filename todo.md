@@ -96,3 +96,4 @@
 - [x] About: Remove SoundCloud header and everything below it
 - [x] About: Add "Learn More @ streamingkeys.com" button linking to https://streamingkeys.com
 - [x] About: Add copyright text in small italic below the button
+- [x] Fix: Home tab shows black screen when tapped (used useFocusEffect to reset fade state on tab focus)

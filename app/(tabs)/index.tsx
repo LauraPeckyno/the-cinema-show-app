@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { ScrollView, Text, View, Pressable, StyleSheet, Dimensions, Platform, Image } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { useFonts } from "expo-font";
 import { useAudioPlayer } from "expo-audio";
 import Animated, {
@@ -202,14 +202,14 @@ export default function HomeScreen() {
     });
   }, [isTransitioning, projectorPlayer, fadeOpacity, navigateToTracks]);
 
-  // Reset transition state when screen regains focus
-  useEffect(() => {
-    return () => {
+  // Reset transition state when screen regains focus (e.g. tapping Home tab)
+  useFocusEffect(
+    useCallback(() => {
       setIsTransitioning(false);
       setMusicStopped(false);
       fadeOpacity.value = 0;
-    };
-  }, []);
+    }, [])
+  );
 
   return (
     <ScreenContainer containerClassName="bg-background">
