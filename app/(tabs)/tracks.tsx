@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Text, View, StyleSheet, ScrollView, Pressable, Dimensions, Platform } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { ScreenContainer } from "@/components/screen-container";
@@ -217,10 +217,12 @@ export default function TracksScreen() {
     router.push("/now-playing" as any);
   };
 
-  // Reset music state when returning to this screen
-  useEffect(() => {
-    setMusicStopped(false);
-  }, []);
+  // Reset music state when returning to this screen (e.g. back from Now Playing)
+  useFocusEffect(
+    useCallback(() => {
+      setMusicStopped(false);
+    }, [])
+  );
 
   return (
     <ScreenContainer containerClassName="bg-background">
