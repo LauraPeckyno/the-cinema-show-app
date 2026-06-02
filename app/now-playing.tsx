@@ -7,7 +7,18 @@ import {
   Dimensions,
   ScrollView,
   Modal,
+  PanResponder,
+  GestureResponderEvent,
 } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  withSequence,
+  Easing,
+  cancelAnimation,
+} from "react-native-reanimated";
 import { useHeadphoneDetection } from "@/hooks/use-headphone-detection";
 import { useRouter } from "expo-router";
 import { Image } from "expo-image";
@@ -38,13 +49,36 @@ function CustomSlider({
   icon: string;
 }) {
   const colors = useColors();
+  const trackRef = useRef<View>(null);
+  const trackLayoutRef = useRef({ x: 0, width: SCREEN_WIDTH - 80 });
 
-  const handlePress = (e: any) => {
-    const nativeEvent = e.nativeEvent;
-    const x = nativeEvent.locationX ?? nativeEvent.offsetX ?? 0;
-    const trackWidth = SCREEN_WIDTH - 80;
-    const pct = Math.max(0, Math.min(100, (x / trackWidth) * 100));
-    onValueChange(pct);
+  const computePercent = (pageX: number) => {
+    const { x, width } = trackLayoutRef.current;
+    const pct = Math.max(0, Math.min(100, ((pageX - x) / width) * 100));
+    return pct;
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (e: GestureResponderEvent) => {
+        const pct = computePercent(e.nativeEvent.pageX);
+        onValueChange(pct);
+      },
+      onPanResponderMove: (e: GestureResponderEvent) => {
+        const pct = computePercent(e.nativeEvent.pageX);
+        onValueChange(pct);
+      },
+    })
+  ).current;
+
+  const handleLayout = () => {
+    trackRef.current?.measureInWindow((x, _y, width) => {
+      if (width > 0) {
+        trackLayoutRef.current = { x, width };
+      }
+    });
   };
 
   return (
@@ -54,9 +88,11 @@ function CustomSlider({
         <Text style={[styles.sliderLabel, { color: colors.muted }]}>{label}</Text>
         <Text style={[styles.sliderValue, { color }]}>{Math.round(value)}%</Text>
       </View>
-      <Pressable
-        onPress={handlePress}
+      <View
+        ref={trackRef}
+        onLayout={handleLayout}
         style={[styles.sliderTrack, { backgroundColor: colors.border }]}
+        {...panResponder.panHandlers}
       >
         <View
           style={[
@@ -73,7 +109,7 @@ function CustomSlider({
             },
           ]}
         />
-      </Pressable>
+      </View>
     </View>
   );
 }
@@ -201,6 +237,44 @@ export default function NowPlayingScreen() {
     updatePlaybackProgress(0, 0);
   }, [setPlaying, updatePlaybackProgress]);
 
+  // Cinematic artwork animation - subtle breathing scale + glow when playing
+  const artworkScale = useSharedValue(1);
+  const artworkGlow = useSharedValue(0.3);
+
+  useEffect(() => {
+    if (isPlaying) {
+      artworkScale.value = withRepeat(
+        withSequence(
+          withTiming(1.02, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        false
+      );
+      artworkGlow.value = withRepeat(
+        withSequence(
+          withTiming(0.8, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0.3, { duration: 2000, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        false
+      );
+    } else {
+      cancelAnimation(artworkScale);
+      cancelAnimation(artworkGlow);
+      artworkScale.value = withTiming(1, { duration: 300 });
+      artworkGlow.value = withTiming(0.3, { duration: 300 });
+    }
+  }, [isPlaying]);
+
+  const animatedArtworkStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: artworkScale.value }],
+  }));
+
+  const animatedGlowStyle = useAnimatedStyle(() => ({
+    opacity: artworkGlow.value,
+  }));
+
   if (!currentTrack) {
     return (
       <ScreenContainer edges={["top", "bottom", "left", "right"]} containerClassName="bg-background">
@@ -282,16 +356,21 @@ export default function NowPlayingScreen() {
           </Pressable>
         </View>
 
-        {/* Track Artwork */}
+        {/* Track Artwork with cinematic animation */}
         <View style={styles.artworkArea}>
-          <View style={[styles.artworkFrame, { borderColor: effectColor + "60" }]}>
-            <Image
-              source={{ uri: artworkUrl }}
-              style={styles.artworkImage}
-              contentFit="cover"
-              transition={300}
-            />
-          </View>
+          <Animated.View style={[styles.artworkGlowWrap, animatedGlowStyle]}>
+            <View style={[styles.artworkGlowInner, { backgroundColor: effectColor, shadowColor: effectColor }]} />
+          </Animated.View>
+          <Animated.View style={[styles.artworkAnimWrap, animatedArtworkStyle]}>
+            <View style={[styles.artworkFrame, { borderColor: effectColor + "60" }]}>
+              <Image
+                source={{ uri: artworkUrl }}
+                style={styles.artworkImage}
+                contentFit="cover"
+                transition={300}
+              />
+            </View>
+          </Animated.View>
         </View>
 
         {/* Track Title (centered) */}
@@ -541,6 +620,28 @@ const styles = StyleSheet.create({
   artworkImage: {
     width: "100%",
     height: "100%",
+  },
+  artworkGlowWrap: {
+    position: "absolute",
+    top: 16,
+    alignSelf: "center",
+    width: SCREEN_WIDTH * 0.72,
+    height: SCREEN_WIDTH * 0.72,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  artworkGlowInner: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 16,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 30,
+    elevation: 15,
+    opacity: 0.4,
+  },
+  artworkAnimWrap: {
+    alignItems: "center",
   },
   titleArea: {
     alignItems: "center",

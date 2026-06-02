@@ -88,3 +88,5 @@
 - [x] Home: Remove Art Deco sunburst for cleaner minimal header
 - [x] Now Playing: Increase spacing between volume sliders and enlarge tap/focus area on slider thumbs
 - [x] Now Playing: Make speaker icon a toggle for music volume mute
+- [x] Now Playing: Add drag gesture to sliders for smooth continuous adjustment
+- [x] Now Playing: Add subtle cinematic animation while music is playing (breathing scale + effect-colored glow pulse)
