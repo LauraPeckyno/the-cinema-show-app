@@ -90,3 +90,9 @@
 - [x] Now Playing: Make speaker icon a toggle for music volume mute
 - [x] Now Playing: Add drag gesture to sliders for smooth continuous adjustment
 - [x] Now Playing: Add subtle cinematic animation while music is playing (breathing scale + effect-colored glow pulse)
+- [x] About: Move app icon below 'The App' section, place album cover at top
+- [x] About: Change "Robert Peckyno" to "streamingkeys", remove "2026 Instrumental Album" subtitle
+- [x] About: Update "The App" description text (Inception-inspired, mic sampling, studio filters)
+- [x] About: Remove SoundCloud header and everything below it
+- [x] About: Add "Learn More @ streamingkeys.com" button linking to https://streamingkeys.com
+- [x] About: Add copyright text in small italic below the button

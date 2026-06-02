@@ -3,7 +3,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
-import { ArtDecoDivider, ArtDecoFrame, ArtDecoHeader, ArtDecoSunburst } from "@/components/art-deco";
+import { ArtDecoDivider, ArtDecoHeader } from "@/components/art-deco";
 
 export default function AboutScreen() {
   const colors = useColors();
@@ -19,18 +19,17 @@ export default function AboutScreen() {
         style={StyleSheet.absoluteFillObject}
       />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Album Art */}
-        <View style={styles.artContainer}>
+        {/* Album Cover at top */}
+        <View style={styles.albumCoverContainer}>
           <Image
-            source={require("@/assets/images/icon.png")}
-            style={styles.albumArt}
-            contentFit="contain"
+            source={require("@/assets/images/cinemashow.png")}
+            style={styles.albumCover}
+            contentFit="cover"
           />
         </View>
 
         <Text style={[styles.title, { color: colors.foreground }]}>THE CINEMA SHOW</Text>
-        <Text style={[styles.artist, { color: colors.primary }]}>Robert Peckyno</Text>
-        <Text style={[styles.year, { color: colors.muted }]}>2026 Instrumental Album</Text>
+        <Text style={[styles.artist, { color: colors.primary }]}>streamingkeys</Text>
 
         <ArtDecoDivider width={200} color={colors.primary} />
 
@@ -47,55 +46,44 @@ export default function AboutScreen() {
 
         <ArtDecoHeader title="THE APP" color={colors.primary} textColor={colors.foreground} />
         <View style={styles.section}>
+          {/* App Icon */}
+          <View style={styles.appIconContainer}>
+            <Image
+              source={require("@/assets/images/icon.png")}
+              style={styles.appIcon}
+              contentFit="contain"
+            />
+          </View>
           <Text style={[styles.bodyText, { color: colors.muted }]}>
-            Inspired by the Inception companion app, The Cinema Show uses your device's
-            microphone to sample ambient sounds from your environment. These samples are
-            then processed with unique audio effects and synced to the BPM of each track,
-            creating a one-of-a-kind immersive listening experience that blends your world
-            with cinematic music.
-          </Text>
-          <Text style={[styles.bodyText, { color: colors.muted, marginTop: 12 }]}>
-            Each of the 12 tracks applies a different filter and effect to your ambient
-            audio — from spectral reverb and granular stutter to vocoder pulses and
-            harmonic freeze. No two listening sessions are ever the same.
+            Inspired by the amazing companion app to the movie Inception, the Cinema Show
+            uses your device's microphone to sample your environment. These samples are then
+            processed with studio audio filters creating a one-of-a-kind immersive listening
+            experience that is unique every time.
           </Text>
         </View>
 
-        {/* Links */}
-        <ArtDecoHeader title="SOUNDCLOUD" color={colors.primary} textColor={colors.foreground} />
-        <View style={styles.section}>
-          <ArtDecoFrame color="#8B0000" style={styles.linkFrame}>
-            <Pressable
-              onPress={() => openLink("https://soundcloud.com/imaginaurium/sets/the-cinema-show-dark-2026")}
-              style={({ pressed }) => [pressed && { opacity: 0.7 }]}
-            >
-              <Text style={[styles.linkText, { color: "#E57373" }]}>
-                {"\u{1F311}"}  The Cinema Show [Dark]
-              </Text>
-              <Text style={[styles.linkDesc, { color: colors.muted }]}>6 tracks — atmospheric and haunting</Text>
-            </Pressable>
-          </ArtDecoFrame>
-          <ArtDecoFrame color={colors.primary} style={styles.linkFrame}>
-            <Pressable
-              onPress={() => openLink("https://soundcloud.com/imaginaurium/sets/the-cinema-show-light")}
-              style={({ pressed }) => [pressed && { opacity: 0.7 }]}
-            >
-              <Text style={[styles.linkText, { color: colors.primary }]}>
-                {"\u{2600}\u{FE0F}"}  The Cinema Show [Light]
-              </Text>
-              <Text style={[styles.linkDesc, { color: colors.muted }]}>6 tracks — uplifting and inspiring</Text>
-            </Pressable>
-          </ArtDecoFrame>
-        </View>
-
-        {/* Credits */}
         <ArtDecoDivider width={160} color={colors.primary} />
-        <View style={[styles.section, styles.credits]}>
-          <Text style={[styles.creditText, { color: colors.muted }]}>
-            Music by Robert Peckyno / @streamingkeys
-          </Text>
-          <Text style={[styles.creditText, { color: colors.muted }]}>
-            Album Release: May 1, 2026
+
+        {/* Learn More Button */}
+        <View style={styles.buttonContainer}>
+          <Pressable
+            onPress={() => openLink("https://streamingkeys.com")}
+            style={({ pressed }) => [
+              styles.learnMoreButton,
+              { borderColor: colors.primary },
+              pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] },
+            ]}
+          >
+            <Text style={[styles.learnMoreText, { color: colors.primary }]}>
+              Learn More @ streamingkeys.com
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Copyright */}
+        <View style={styles.copyrightContainer}>
+          <Text style={[styles.copyrightText, { color: colors.muted }]}>
+            All music, graphics, and this application are {"\u00A9"}2026 by Robert Peckyno. All Rights Reserved.
           </Text>
         </View>
       </ScrollView>
@@ -109,22 +97,24 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
     alignItems: "center",
   },
-  artContainer: {
-    width: 140,
-    height: 140,
-    borderRadius: 16,
+  albumCoverContainer: {
+    width: 220,
+    height: 220,
+    borderRadius: 12,
     overflow: "hidden",
-    marginTop: 16,
-    marginBottom: 16,
+    marginTop: 20,
+    marginBottom: 20,
     shadowColor: "#C8A951",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 10,
+    borderWidth: 2,
+    borderColor: "#C8A95140",
   },
-  albumArt: {
-    width: 140,
-    height: 140,
+  albumCover: {
+    width: "100%",
+    height: "100%",
   },
   title: {
     fontSize: 26,
@@ -137,39 +127,51 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     letterSpacing: 1,
     marginTop: 4,
-  },
-  year: {
-    fontSize: 13,
-    marginTop: 4,
     marginBottom: 4,
   },
   section: {
     width: "100%",
     marginBottom: 8,
   },
+  appIconContainer: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  appIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 16,
+  },
   bodyText: {
     fontSize: 14,
     lineHeight: 22,
     textAlign: "center",
   },
-  linkFrame: {
-    marginBottom: 12,
+  buttonContainer: {
+    marginTop: 20,
+    marginBottom: 16,
+    alignItems: "center",
   },
-  linkText: {
+  learnMoreButton: {
+    borderWidth: 1.5,
+    borderRadius: 24,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+  },
+  learnMoreText: {
     fontSize: 15,
     fontWeight: "700",
-    letterSpacing: 1,
-    marginBottom: 4,
+    letterSpacing: 0.5,
   },
-  linkDesc: {
-    fontSize: 12,
-  },
-  credits: {
+  copyrightContainer: {
+    marginTop: 8,
+    paddingHorizontal: 20,
     alignItems: "center",
-    paddingTop: 8,
   },
-  creditText: {
-    fontSize: 12,
-    marginBottom: 4,
+  copyrightText: {
+    fontSize: 11,
+    fontStyle: "italic",
+    textAlign: "center",
+    lineHeight: 16,
   },
 });
