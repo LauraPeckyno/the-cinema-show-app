@@ -15,7 +15,7 @@ import Animated, {
 import { LinearGradient } from "expo-linear-gradient";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
-import { ArtDecoDivider, ArtDecoSunburst, ArtDecoHeader } from "@/components/art-deco";
+import { ArtDecoDivider, ArtDecoHeader } from "@/components/art-deco";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -225,11 +225,6 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.container}>
-          {/* ─── Art Deco Sunburst Header ─── */}
-          <View style={styles.sunburstWrap}>
-            <ArtDecoSunburst size={SCREEN_WIDTH * 0.6} color={colors.primary} />
-          </View>
-
           {/* ─── Title Section ─── */}
           <View style={styles.titleSection}>
             <Text style={[styles.subtitle, { color: colors.primary }]}>
@@ -350,10 +345,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
   },
-  sunburstWrap: {
-    marginBottom: -8,
-    opacity: 0.6,
-  },
+
   titleSection: {
     alignItems: "center",
     marginBottom: 4,

@@ -18,6 +18,7 @@ const MAPPING = {
   "mic.fill": "mic",
   "mic.slash.fill": "mic-off",
   "speaker.wave.2.fill": "volume-up",
+  "speaker.slash.fill": "volume-off",
   "chevron.left": "chevron-left",
   "chevron.right": "chevron-right",
   "film.fill": "movie",

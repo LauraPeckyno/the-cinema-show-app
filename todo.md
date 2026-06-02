@@ -85,3 +85,6 @@
 - [x] Album: Change instruction text to "Tap a frame to start the show!"
 - [x] Album: Add background music (Space Horrors 3 from SoundCloud)
 - [x] Album: Stop background music when user taps a track and navigates to Now Playing
+- [x] Home: Remove Art Deco sunburst for cleaner minimal header
+- [x] Now Playing: Increase spacing between volume sliders and enlarge tap/focus area on slider thumbs
+- [x] Now Playing: Make speaker icon a toggle for music volume mute

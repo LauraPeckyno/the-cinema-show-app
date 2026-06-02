@@ -123,6 +123,23 @@ export default function NowPlayingScreen() {
     isLoading,
   } = state;
 
+  // Music mute toggle state
+  const [isMusicMuted, setIsMusicMuted] = useState(false);
+  const savedMusicVolumeRef = useRef(musicVolume);
+
+  const handleMuteToggle = useCallback(() => {
+    if (isMusicMuted) {
+      // Unmute - restore saved volume
+      setMusicVolume(savedMusicVolumeRef.current);
+      setIsMusicMuted(false);
+    } else {
+      // Mute - save current volume and set to 0
+      savedMusicVolumeRef.current = musicVolume;
+      setMusicVolume(0);
+      setIsMusicMuted(true);
+    }
+  }, [isMusicMuted, musicVolume, setMusicVolume]);
+
   const dispatchMicLevel = useCallback((level: number) => {
     const sensitivity = micSensitivity / 100;
     const adjustedLevel = Math.min(1, level * sensitivity * 2);
@@ -345,15 +362,24 @@ export default function NowPlayingScreen() {
             )}
           </Pressable>
 
-          {/* Volume indicator */}
-          <View
-            style={[
+          {/* Volume Mute Toggle */}
+          <Pressable
+            onPress={handleMuteToggle}
+            style={({ pressed }) => [
               styles.controlButton,
-              { backgroundColor: colors.surface, borderColor: colors.border },
+              {
+                backgroundColor: isMusicMuted ? colors.error + "20" : colors.surface,
+                borderColor: isMusicMuted ? colors.error : colors.border,
+              },
+              pressed && { transform: [{ scale: 0.95 }] },
             ]}
           >
-            <IconSymbol name="speaker.wave.2.fill" size={24} color={colors.primary} />
-          </View>
+            <IconSymbol
+              name={isMusicMuted ? "speaker.slash.fill" : "speaker.wave.2.fill"}
+              size={24}
+              color={isMusicMuted ? colors.error : colors.primary}
+            />
+          </Pressable>
         </View>
 
         {/* Mic Error Message */}
@@ -596,11 +622,11 @@ const styles = StyleSheet.create({
   },
   slidersArea: {
     paddingHorizontal: 24,
-    gap: 16,
+    gap: 24,
     marginBottom: 24,
   },
   sliderContainer: {
-    gap: 6,
+    gap: 8,
   },
   sliderLabelRow: {
     flexDirection: "row",
@@ -621,25 +647,32 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   sliderTrack: {
-    height: 6,
-    borderRadius: 3,
+    height: 10,
+    borderRadius: 5,
     overflow: "visible",
     position: "relative",
+    paddingVertical: 8,
+    marginVertical: 4,
   },
   sliderFill: {
-    height: "100%",
-    borderRadius: 3,
+    height: 10,
+    borderRadius: 5,
     position: "absolute",
     left: 0,
     top: 0,
   },
   sliderThumb: {
     position: "absolute",
-    top: -5,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    marginLeft: -8,
+    top: -7,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginLeft: -12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   modalOverlay: {
     flex: 1,
