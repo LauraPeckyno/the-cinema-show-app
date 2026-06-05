@@ -23,6 +23,10 @@ export interface AudioEngineState {
   trackDuration: number; // actual duration in seconds from SoundCloud (0 = not yet fetched)
   isLoading: boolean;
   error: string | null;
+  // Album queue / auto-advance state
+  albumQueue: Track[]; // ordered list of tracks for continuous playback
+  albumQueueIndex: number; // current position in the queue (-1 = not in album mode)
+  isAlbumMode: boolean; // true when "Start the Show" is active
 }
 
 const initialState: AudioEngineState = {
@@ -43,6 +47,9 @@ const initialState: AudioEngineState = {
   trackDuration: 0,
   isLoading: false,
   error: null,
+  albumQueue: [],
+  albumQueueIndex: -1,
+  isAlbumMode: false,
 };
 
 // ─── Actions ─────────────────────────────────────────────────────────────────
@@ -62,7 +69,10 @@ type AudioAction =
   | { type: "SET_PLAYBACK_PROGRESS"; progress: number; time: number }
   | { type: "SET_TRACK_DURATION"; duration: number }
   | { type: "SET_LOADING"; loading: boolean }
-  | { type: "SET_ERROR"; error: string | null };
+  | { type: "SET_ERROR"; error: string | null }
+  | { type: "SET_ALBUM_QUEUE"; queue: Track[]; startIndex: number }
+  | { type: "ADVANCE_ALBUM_QUEUE" }
+  | { type: "CLEAR_ALBUM_QUEUE" };
 
 function audioReducer(state: AudioEngineState, action: AudioAction): AudioEngineState {
   switch (action.type) {
@@ -115,6 +125,65 @@ function audioReducer(state: AudioEngineState, action: AudioAction): AudioEngine
       return { ...state, isLoading: action.loading };
     case "SET_ERROR":
       return { ...state, error: action.error };
+    // Album queue actions
+    case "SET_ALBUM_QUEUE": {
+      const track = action.queue[action.startIndex];
+      const trackId = track?.id;
+      const savedDryWet = trackId != null && state.trackDryWetMap[trackId] != null
+        ? state.trackDryWetMap[trackId]
+        : 50;
+      return {
+        ...state,
+        albumQueue: action.queue,
+        albumQueueIndex: action.startIndex,
+        isAlbumMode: true,
+        currentTrack: track || null,
+        playbackProgress: 0,
+        playbackTime: 0,
+        trackDuration: 0,
+        isPlaying: false,
+        isLoading: !!track,
+        dryWetMix: savedDryWet,
+      };
+    }
+    case "ADVANCE_ALBUM_QUEUE": {
+      const nextIndex = state.albumQueueIndex + 1;
+      if (nextIndex >= state.albumQueue.length) {
+        // Queue exhausted — end album mode
+        return {
+          ...state,
+          isAlbumMode: false,
+          albumQueue: [],
+          albumQueueIndex: -1,
+          isPlaying: false,
+          playbackProgress: 0,
+          playbackTime: 0,
+        };
+      }
+      const nextTrack = state.albumQueue[nextIndex];
+      const trackId = nextTrack?.id;
+      const savedDryWet = trackId != null && state.trackDryWetMap[trackId] != null
+        ? state.trackDryWetMap[trackId]
+        : 50;
+      return {
+        ...state,
+        albumQueueIndex: nextIndex,
+        currentTrack: nextTrack,
+        playbackProgress: 0,
+        playbackTime: 0,
+        trackDuration: 0,
+        isPlaying: false,
+        isLoading: true,
+        dryWetMix: savedDryWet,
+      };
+    }
+    case "CLEAR_ALBUM_QUEUE":
+      return {
+        ...state,
+        isAlbumMode: false,
+        albumQueue: [],
+        albumQueueIndex: -1,
+      };
     default:
       return state;
   }
@@ -144,6 +213,10 @@ interface AudioEngineContextType {
   setPlaying: (playing: boolean) => void;
   setLoading: (loading: boolean) => void;
   updateMicLevel: (level: number, processedLevel: number) => void;
+  // Album queue helpers
+  startAlbumPlayback: (tracks: Track[]) => void;
+  advanceToNextTrack: () => boolean; // returns true if advanced, false if queue exhausted
+  clearAlbumQueue: () => void;
 }
 
 const AudioEngineContext = createContext<AudioEngineContextType | null>(null);
@@ -195,6 +268,8 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const selectTrack = useCallback((track: Track) => {
+    // Selecting a single track clears album mode
+    dispatch({ type: "CLEAR_ALBUM_QUEUE" });
     dispatch({ type: "SET_TRACK", track });
   }, []);
 
@@ -278,6 +353,26 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
     dispatch({ type: "SET_MIC_LEVEL", level, processedLevel });
   }, []);
 
+  // Album queue helpers
+  const startAlbumPlayback = useCallback((tracks: Track[]) => {
+    dispatch({ type: "SET_ALBUM_QUEUE", queue: tracks, startIndex: 0 });
+  }, []);
+
+  const advanceToNextTrack = useCallback((): boolean => {
+    const { albumQueueIndex, albumQueue } = stateRef.current;
+    const nextIndex = albumQueueIndex + 1;
+    if (nextIndex >= albumQueue.length) {
+      dispatch({ type: "ADVANCE_ALBUM_QUEUE" }); // will clear album mode
+      return false;
+    }
+    dispatch({ type: "ADVANCE_ALBUM_QUEUE" });
+    return true;
+  }, []);
+
+  const clearAlbumQueue = useCallback(() => {
+    dispatch({ type: "CLEAR_ALBUM_QUEUE" });
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -303,6 +398,9 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
         setPlaying,
         setLoading,
         updateMicLevel,
+        startAlbumPlayback,
+        advanceToNextTrack,
+        clearAlbumQueue,
       }}
     >
       {children}

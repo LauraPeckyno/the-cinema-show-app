@@ -106,3 +106,4 @@
 - [x] Krampus Wishes: Reversed audio plays at 1/2 speed with large reverb on everything
 - [x] Corpse on the Grating: Fixed feedback (reduced reverb feedback from 0.93 to 0.78-0.82, individual LP filters per delay)
 - [x] Recessional: Fixed feedback (individual HP/shimmer per tap, reduced feedback from 0.55-0.80 to 0.35-0.50)
+- [x] Implement auto-advance for "Start the Show": tracks automatically progress to next when each finishes (continuous album playback)

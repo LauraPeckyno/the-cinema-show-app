@@ -141,6 +141,7 @@ export default function NowPlayingScreen() {
     setPlaying,
     setLoading,
     updateMicLevel,
+    advanceToNextTrack,
   } = useAudioEngine();
 
   const {
@@ -157,6 +158,7 @@ export default function NowPlayingScreen() {
     playbackTime,
     trackDuration,
     isLoading,
+    isAlbumMode,
   } = state;
 
   // Music mute toggle state
@@ -205,7 +207,11 @@ export default function NowPlayingScreen() {
 
   const handleSCReady = useCallback(() => {
     setLoading(false);
-  }, [setLoading]);
+    // In album mode, auto-play when a new track becomes ready
+    if (isAlbumMode && !isPlaying) {
+      setPlaying(true);
+    }
+  }, [setLoading, isAlbumMode, isPlaying, setPlaying]);
 
   const handleSCDuration = useCallback(
     (durationMs: number) => {
@@ -233,9 +239,21 @@ export default function NowPlayingScreen() {
   );
 
   const handleSCFinish = useCallback(() => {
-    setPlaying(false);
-    updatePlaybackProgress(0, 0);
-  }, [setPlaying, updatePlaybackProgress]);
+    if (isAlbumMode) {
+      // Auto-advance to next track in the album queue
+      const hasNext = advanceToNextTrack();
+      if (!hasNext) {
+        // Album finished — navigate back to tracks screen
+        router.back();
+      }
+      // If hasNext is true, the currentTrack will update and SoundCloudPlayer
+      // will re-render with the new track URL and auto-play
+    } else {
+      // Single track mode — just stop
+      setPlaying(false);
+      updatePlaybackProgress(0, 0);
+    }
+  }, [isAlbumMode, advanceToNextTrack, setPlaying, updatePlaybackProgress, router]);
 
   // Cinematic artwork animation - visible breathing scale + strong glow when playing
   const artworkScale = useSharedValue(1);

@@ -206,7 +206,7 @@ function FilmStrip({ tracks, side, onTrackPress }: { tracks: Track[]; side: "dar
 export default function TracksScreen() {
   const router = useRouter();
   const colors = useColors();
-  const { selectTrack } = useAudioEngine();
+  const { selectTrack, startAlbumPlayback } = useAudioEngine();
   const [musicStopped, setMusicStopped] = useState(false);
 
   const handleTrackPress = (track: Track) => {
@@ -218,9 +218,9 @@ export default function TracksScreen() {
   };
 
   const handleStartTheShow = () => {
-    // Stop album background music and start with first dark side track
+    // Stop album background music and start continuous album playback
     setMusicStopped(true);
-    selectTrack(TRACKS[0]);
+    startAlbumPlayback(TRACKS);
     router.push("/now-playing" as any);
   };
 
