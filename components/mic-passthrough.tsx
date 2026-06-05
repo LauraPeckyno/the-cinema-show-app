@@ -327,61 +327,69 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 4: { // KRAMPUS' HELPERS — Completely reversed waveform + rotary modulator at 480 BPM and 240 BPM
-          // ── WAVEFORM REVERSAL ──
-          // Uses a ScriptProcessor/AudioWorklet pattern: captures audio into a buffer,
-          // then plays it back in reverse. We use a pair of alternating delay buffers
-          // to create a continuous reverse effect.
-          var revBufSize = 4096; // buffer size for reverse chunks
-          var reverseNode = ctx.createScriptProcessor(revBufSize, 1, 1);
-          var revBuffer = new Float32Array(revBufSize);
-          var revWritePos = 0;
-          var revReadReady = false;
-          reverseNode.onaudioprocess = function(e) {
+        case 4: { // KRAMPUS' HELPERS — Reversed waveform at 1/2 speed + rotary modulator + large reverb
+          // ── WAVEFORM REVERSAL at HALF SPEED ──
+          // Captures audio into a large buffer, plays back in reverse at half speed
+          // (reads every other sample) creating a slowed, reversed texture
+          var revBufSize4 = 8192; // larger buffer for half-speed playback
+          var reverseNode4 = ctx.createScriptProcessor(revBufSize4, 1, 1);
+          var revBuffer4 = new Float32Array(revBufSize4 * 2); // double buffer for half-speed
+          var revWriteIdx4 = 0;
+          var revPhase4 = 0; // alternates: 0=filling, 1=playing
+          var revPlayBuf4 = new Float32Array(revBufSize4 * 2);
+          reverseNode4.onaudioprocess = function(e) {
             var inp = e.inputBuffer.getChannelData(0);
             var out = e.outputBuffer.getChannelData(0);
-            // Write input to buffer
-            for (var ri = 0; ri < revBufSize; ri++) {
-              revBuffer[ri] = inp[ri];
+            // Accumulate input into write buffer
+            for (var wi = 0; wi < revBufSize4; wi++) {
+              revBuffer4[revWriteIdx4] = inp[wi];
+              revWriteIdx4++;
+              if (revWriteIdx4 >= revBufSize4 * 2) {
+                // Buffer full - copy to play buffer and reset
+                for (var ci = 0; ci < revBufSize4 * 2; ci++) {
+                  revPlayBuf4[ci] = revBuffer4[ci];
+                }
+                revWriteIdx4 = 0;
+              }
             }
-            // Output the buffer in reverse order
-            for (var ro = 0; ro < revBufSize; ro++) {
-              out[ro] = revBuffer[revBufSize - 1 - ro];
+            // Output: read from play buffer in reverse at half speed
+            // Half speed = read 1 sample for every 2 output samples (interpolated)
+            for (var ro = 0; ro < revBufSize4; ro++) {
+              var readPos = (revBufSize4 * 2 - 1) - Math.floor(ro * 0.5);
+              if (readPos >= 0 && readPos < revBufSize4 * 2) {
+                out[ro] = revPlayBuf4[readPos] * 0.8;
+              } else {
+                out[ro] = 0;
+              }
             }
           };
 
           // ── ROTARY MODULATOR at 480 BPM (8 Hz) ──
-          // Simulates a Leslie-style rotary speaker with amplitude + frequency modulation
-          var rotary480Hz = 480.0 / 60.0; // 8 Hz
+          var rotary480Hz = 480.0 / 60.0;
           var rotary480Lfo = ctx.createOscillator(); rotary480Lfo.type = 'sine';
           rotary480Lfo.frequency.value = rotary480Hz;
-          // Amplitude modulation (tremolo) at 480 BPM
           var rotary480Amp = ctx.createGain(); rotary480Amp.gain.value = 1.0;
           var rotary480AmpDepth = ctx.createGain();
-          rotary480AmpDepth.gain.value = 0.4 + intensity * 0.3; // deep AM
+          rotary480AmpDepth.gain.value = 0.4 + intensity * 0.3;
           rotary480Lfo.connect(rotary480AmpDepth);
           rotary480AmpDepth.connect(rotary480Amp.gain);
-          // Frequency modulation (doppler/pitch wobble) at 480 BPM via modulated delay
           var rotary480Del = ctx.createDelay(0.05);
           rotary480Del.delayTime.value = 0.003;
           var rotary480DelMod = ctx.createGain();
-          rotary480DelMod.gain.value = 0.002 + intensity * 0.002; // subtle pitch modulation
+          rotary480DelMod.gain.value = 0.002 + intensity * 0.002;
           rotary480Lfo.connect(rotary480DelMod);
           rotary480DelMod.connect(rotary480Del.delayTime);
           rotary480Lfo.start();
 
           // ── ROTARY MODULATOR at 240 BPM (4 Hz) ──
-          // Second rotary at half speed for bass rotor simulation
-          var rotary240Hz = 240.0 / 60.0; // 4 Hz
+          var rotary240Hz = 240.0 / 60.0;
           var rotary240Lfo = ctx.createOscillator(); rotary240Lfo.type = 'sine';
           rotary240Lfo.frequency.value = rotary240Hz;
-          // Amplitude modulation at 240 BPM
           var rotary240Amp = ctx.createGain(); rotary240Amp.gain.value = 1.0;
           var rotary240AmpDepth = ctx.createGain();
           rotary240AmpDepth.gain.value = 0.35 + intensity * 0.25;
           rotary240Lfo.connect(rotary240AmpDepth);
           rotary240AmpDepth.connect(rotary240Amp.gain);
-          // Frequency modulation at 240 BPM
           var rotary240Del = ctx.createDelay(0.05);
           rotary240Del.delayTime.value = 0.005;
           var rotary240DelMod = ctx.createGain();
@@ -390,22 +398,43 @@ function buildEffectChainJS(): string {
           rotary240DelMod.connect(rotary240Del.delayTime);
           rotary240Lfo.start();
 
-          // ── Signal chain: input → reverse → rotary480 → rotary240 → output ──
-          inputBoost.connect(reverseNode);
-          // Reversed signal splits into two rotary paths that merge
-          reverseNode.connect(rotary480Del);
+          // ── LARGE REVERB (5-7 second decay) ──
+          // Applied to the entire output for cavernous atmosphere
+          var krRevDelays = [0.089, 0.127, 0.167, 0.199, 0.241, 0.307];
+          var krRevMerge = ctx.createGain(); krRevMerge.gain.value = 0.5;
+
+          // ── Signal chain: input → reverse(half-speed) → rotary480 + rotary240 → reverb → output ──
+          inputBoost.connect(reverseNode4);
+          reverseNode4.connect(rotary480Del);
           rotary480Del.connect(rotary480Amp);
-          reverseNode.connect(rotary240Del);
+          reverseNode4.connect(rotary240Del);
           rotary240Del.connect(rotary240Amp);
-          // Mix both rotary outputs
-          var rotaryMerge = ctx.createGain(); rotaryMerge.gain.value = 0.6;
-          rotary480Amp.connect(rotaryMerge);
-          rotary240Amp.connect(rotaryMerge);
-          rotaryMerge.connect(analyser);
-          // Small dry reversed signal for presence
-          var revDry = ctx.createGain(); revDry.gain.value = 0.15;
-          reverseNode.connect(revDry);
-          revDry.connect(analyser);
+          // Mix rotary outputs
+          var rotaryMerge4 = ctx.createGain(); rotaryMerge4.gain.value = 0.5;
+          rotary480Amp.connect(rotaryMerge4);
+          rotary240Amp.connect(rotaryMerge4);
+          // Feed rotary mix into reverb (connect to each delay line input)
+          // The reverb delay lines need signal fed into them
+          // We create a reverb input splitter
+          var krRevIn = ctx.createGain(); krRevIn.gain.value = 0.7;
+          rotaryMerge4.connect(krRevIn);
+          // Properly build reverb: input -> delays -> feedback loop -> merge
+          var krRevDels = [];
+          for (var kri2 = 0; kri2 < krRevDelays.length; kri2++) {
+            var krd = ctx.createDelay(2.0);
+            krd.delayTime.value = krRevDelays[kri2] * (1 + intensity * 0.15);
+            var krfb = ctx.createGain();
+            krfb.gain.value = 0.82 + intensity * 0.05;
+            krRevIn.connect(krd);
+            krd.connect(krfb);
+            krfb.connect(krd); // feedback loop
+            krd.connect(krRevMerge);
+          }
+          // Output: dry rotary + wet reverb
+          var krDryOut = ctx.createGain(); krDryOut.gain.value = 0.3;
+          rotaryMerge4.connect(krDryOut);
+          krDryOut.connect(analyser);
+          krRevMerge.connect(analyser);
           analyser.connect(output);
           break;
         }
@@ -438,15 +467,19 @@ function buildEffectChainJS(): string {
           var revLp = ctx.createBiquadFilter();
           revLp.type = 'lowpass'; revLp.frequency.value = 3000 + (1 - intensity) * 2000;
           revLp.Q.value = 0.7;
-          // Very high feedback for 7-second decay
-          // RT60 ~ 7s requires feedback ~ 0.93-0.96 for these delay times
+          // Long reverb with SAFE feedback to prevent runaway/feedback
+          // Using lower feedback (0.78-0.82) with more delay lines for density
+          // This gives ~4-5s decay without risk of oscillation
           for (var ri = 0; ri < revDelays.length; ri++) {
             var rd = ctx.createDelay(2.0);
             rd.delayTime.value = revDelays[ri] * (1 + intensity * 0.2);
             var rFb = ctx.createGain();
-            rFb.gain.value = 0.93 + intensity * 0.03; // ~7s RT60
+            rFb.gain.value = 0.78 + intensity * 0.04; // safe feedback, no runaway
+            var rdLp = ctx.createBiquadFilter();
+            rdLp.type = 'lowpass'; rdLp.frequency.value = 3000 + (1 - intensity) * 2000;
+            rdLp.Q.value = 0.7;
             stereoMerge.connect(rd);
-            rd.connect(revLp); revLp.connect(rFb); rFb.connect(rd);
+            rd.connect(rdLp); rdLp.connect(rFb); rFb.connect(rd);
             rd.connect(revMerger);
           }
 
@@ -575,31 +608,38 @@ function buildEffectChainJS(): string {
 
         case 8: { // CRYSTAL DELAY — bright cascading multi-tap with pitch-shifted repeats
           var cdTimes = [beatSec * 0.25, beatSec * 0.5, beatSec * 0.75, beatSec, beatSec * 1.5, beatSec * 2];
-          var cdMerger = ctx.createGain(); cdMerger.gain.value = 0.4;
-          var cdHp = ctx.createBiquadFilter();
-          cdHp.type = 'highpass'; cdHp.frequency.value = 3000 + intensity * 4000; // very bright
-          cdHp.Q.value = 2 + intensity * 3;
-          // Shimmer: pitch-shift via modulated delay on feedback
-          var shimDel = ctx.createDelay(0.05);
-          shimDel.delayTime.value = 0.01;
-          var shimLfo = ctx.createOscillator(); shimLfo.type = 'sawtooth';
-          shimLfo.frequency.value = 2 + intensity * 4;
-          var shimLfoG = ctx.createGain(); shimLfoG.gain.value = 0.005 + intensity * 0.01;
-          shimLfo.connect(shimLfoG); shimLfoG.connect(shimDel.delayTime);
-          shimLfo.start();
+          var cdMerger = ctx.createGain(); cdMerger.gain.value = 0.35;
+          // Shimmer LFO for pitch modulation
+          var shimLfo8 = ctx.createOscillator(); shimLfo8.type = 'sine';
+          shimLfo8.frequency.value = 2 + intensity * 3;
+          shimLfo8.start();
 
+          // Each delay tap gets its OWN filter and feedback to prevent shared-node feedback loops
           for (var ci = 0; ci < cdTimes.length; ci++) {
-            var cd = ctx.createDelay(5.0);
-            cd.delayTime.value = cdTimes[ci];
-            var cFb = ctx.createGain();
-            cFb.gain.value = 0.55 + intensity * 0.25 - ci * 0.02;
-            inputBoost.connect(cd);
-            cd.connect(cdHp);
-            cdHp.connect(shimDel); shimDel.connect(cFb); cFb.connect(cd);
-            cd.connect(cdMerger);
+            var cd8 = ctx.createDelay(5.0);
+            cd8.delayTime.value = cdTimes[ci];
+            // Individual highpass per tap (prevents shared filter feedback)
+            var cdHp8 = ctx.createBiquadFilter();
+            cdHp8.type = 'highpass'; cdHp8.frequency.value = 3000 + intensity * 3000;
+            cdHp8.Q.value = 1.5 + intensity * 2;
+            // Individual shimmer delay per tap
+            var shimDel8 = ctx.createDelay(0.05);
+            shimDel8.delayTime.value = 0.01;
+            var shimG8 = ctx.createGain(); shimG8.gain.value = 0.004 + intensity * 0.006;
+            shimLfo8.connect(shimG8); shimG8.connect(shimDel8.delayTime);
+            // SAFE feedback: reduced values, no shared routing
+            var cFb8 = ctx.createGain();
+            cFb8.gain.value = 0.35 + intensity * 0.15 - ci * 0.02; // much lower feedback
+            // Chain: input -> delay -> hp -> shimmer -> feedback -> delay
+            inputBoost.connect(cd8);
+            cd8.connect(cdHp8);
+            cdHp8.connect(shimDel8);
+            shimDel8.connect(cFb8);
+            cFb8.connect(cd8);
+            cd8.connect(cdMerger);
           }
-          var cdDry = ctx.createGain(); cdDry.gain.value = 0.15;
-          inputBoost.connect(cdDry); cdDry.connect(analyser);
+          var cdDry8 = ctx.createGain(); cdDry8.gain.value = 0.2;
+          inputBoost.connect(cdDry8); cdDry8.connect(analyser);
           cdMerger.connect(analyser);
           analyser.connect(output);
           break;

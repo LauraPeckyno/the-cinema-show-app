@@ -103,3 +103,6 @@
 - [x] Tracks: Update instruction text to "Start the Show to play all or Select a Scene below"
 - [x] Home: Swap "The Experience" section and "Headphones Required" box positions
 - [x] Home: Remove first sentence from Headphones Required box
+- [x] Krampus Wishes: Reversed audio plays at 1/2 speed with large reverb on everything
+- [x] Corpse on the Grating: Fixed feedback (reduced reverb feedback from 0.93 to 0.78-0.82, individual LP filters per delay)
+- [x] Recessional: Fixed feedback (individual HP/shimmer per tap, reduced feedback from 0.55-0.80 to 0.35-0.50)
