@@ -237,24 +237,24 @@ export default function NowPlayingScreen() {
     updatePlaybackProgress(0, 0);
   }, [setPlaying, updatePlaybackProgress]);
 
-  // Cinematic artwork animation - subtle breathing scale + glow when playing
+  // Cinematic artwork animation - visible breathing scale + strong glow when playing
   const artworkScale = useSharedValue(1);
-  const artworkGlow = useSharedValue(0.3);
+  const artworkGlow = useSharedValue(0.2);
 
   useEffect(() => {
     if (isPlaying) {
       artworkScale.value = withRepeat(
         withSequence(
-          withTiming(1.02, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.ease) })
+          withTiming(1.04, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1.0, { duration: 2500, easing: Easing.inOut(Easing.ease) })
         ),
         -1,
         false
       );
       artworkGlow.value = withRepeat(
         withSequence(
-          withTiming(0.8, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-          withTiming(0.3, { duration: 2000, easing: Easing.inOut(Easing.ease) })
+          withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0.3, { duration: 1500, easing: Easing.inOut(Easing.ease) })
         ),
         -1,
         false
@@ -263,7 +263,7 @@ export default function NowPlayingScreen() {
       cancelAnimation(artworkScale);
       cancelAnimation(artworkGlow);
       artworkScale.value = withTiming(1, { duration: 300 });
-      artworkGlow.value = withTiming(0.3, { duration: 300 });
+      artworkGlow.value = withTiming(0.2, { duration: 300 });
     }
   }, [isPlaying]);
 
@@ -623,22 +623,22 @@ const styles = StyleSheet.create({
   },
   artworkGlowWrap: {
     position: "absolute",
-    top: 16,
+    top: 4,
     alignSelf: "center",
-    width: SCREEN_WIDTH * 0.72,
-    height: SCREEN_WIDTH * 0.72,
+    width: SCREEN_WIDTH * 0.80,
+    height: SCREEN_WIDTH * 0.80,
     alignItems: "center",
     justifyContent: "center",
   },
   artworkGlowInner: {
     width: "100%",
     height: "100%",
-    borderRadius: 16,
+    borderRadius: 20,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 30,
-    elevation: 15,
-    opacity: 0.4,
+    shadowOpacity: 0.9,
+    shadowRadius: 50,
+    elevation: 25,
+    opacity: 0.7,
   },
   artworkAnimWrap: {
     alignItems: "center",

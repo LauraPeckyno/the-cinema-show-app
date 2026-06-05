@@ -98,3 +98,8 @@
 - [x] About: Add copyright text in small italic below the button
 - [x] Fix: Home tab shows black screen when tapped (used useFocusEffect to reset fade state on tab focus)
 - [x] Fix: Apply useFocusEffect to Tracks tab so background music restarts when returning from Now Playing
+- [x] Now Playing: Enhance artwork animation to be more visible with a stronger glow effect
+- [x] Tracks: Add "Start the Show" button above instructions to play all tracks in order (dark side first)
+- [x] Tracks: Update instruction text to "Start the Show to play all or Select a Scene below"
+- [x] Home: Swap "The Experience" section and "Headphones Required" box positions
+- [x] Home: Remove first sentence from Headphones Required box

@@ -270,26 +270,24 @@ export default function HomeScreen() {
             <View style={[styles.albumCoverGlow, { backgroundColor: colors.primary + "15" }]} />
           </View>
 
-          {/* ─── Headphones Required Notice (text only, no icon) ─── */}
-          <View style={[styles.headphonesNotice, { borderColor: colors.primary + "40" }]}>
-            <Text style={[styles.headphonesTitle, { color: colors.primary }]}>
-              HEADPHONES REQUIRED
-            </Text>
-            <Text style={[styles.headphonesText, { color: colors.muted }]}>
-              This experience uses your device microphone to sample ambient sounds
-              and blend them with the music. To avoid audio feedback, please connect
-              headphones or earbuds before starting.
-            </Text>
-          </View>
-
-          <ArtDecoDivider width={SCREEN_WIDTH * 0.5} color={colors.primary} />
-
           {/* ─── Description ─── */}
           <ArtDecoHeader title="THE EXPERIENCE" color={colors.primary} textColor={colors.foreground} />
 
           <View style={styles.descriptionSection}>
             <Text style={[styles.description, { color: colors.muted }]}>
               Step into a world where you become a part of the music. The Cinema Show captures ambient sounds and weaves them into the instrumental soundtrack - creating a unique listening experience that is different every time.
+            </Text>
+          </View>
+
+          <ArtDecoDivider width={SCREEN_WIDTH * 0.5} color={colors.primary} />
+
+          {/* ─── Headphones Required Notice (text only, no icon) ─── */}
+          <View style={[styles.headphonesNotice, { borderColor: colors.primary + "40" }]}>
+            <Text style={[styles.headphonesTitle, { color: colors.primary }]}>
+              HEADPHONES REQUIRED
+            </Text>
+            <Text style={[styles.headphonesText, { color: colors.muted }]}>
+              To avoid audio feedback, please connect headphones or earbuds before starting.
             </Text>
           </View>
 

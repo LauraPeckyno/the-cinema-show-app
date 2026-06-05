@@ -6,7 +6,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useAudioEngine } from "@/lib/audio-engine";
-import { DARK_TRACKS, LIGHT_TRACKS, Track } from "@/constants/tracks";
+import { DARK_TRACKS, LIGHT_TRACKS, TRACKS, Track } from "@/constants/tracks";
 import { TRACK_ARTWORK } from "@/constants/track-artwork";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -217,6 +217,13 @@ export default function TracksScreen() {
     router.push("/now-playing" as any);
   };
 
+  const handleStartTheShow = () => {
+    // Stop album background music and start with first dark side track
+    setMusicStopped(true);
+    selectTrack(TRACKS[0]);
+    router.push("/now-playing" as any);
+  };
+
   // Reset music state when returning to this screen (e.g. back from Now Playing)
   useFocusEffect(
     useCallback(() => {
@@ -241,10 +248,19 @@ export default function TracksScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Instruction text */}
+        {/* Start the Show button */}
         <View style={styles.instructionArea}>
+          <Pressable
+            onPress={handleStartTheShow}
+            style={({ pressed }) => [
+              styles.startShowButton,
+              pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] },
+            ]}
+          >
+            <Text style={styles.startShowText}>▶  Start the Show</Text>
+          </Pressable>
           <Text style={[styles.instructionText, { color: colors.muted }]}>
-            Tap a frame to start the show!
+            Start the Show to play all or Select a Scene below
           </Text>
         </View>
 
@@ -275,9 +291,24 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   instructionText: {
-    fontSize: 14,
+    fontSize: 12,
+    letterSpacing: 0.5,
+    fontWeight: "400",
+    textAlign: "center",
+    marginTop: 10,
+  },
+  startShowButton: {
+    backgroundColor: "#C9A84C",
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 24,
+    marginBottom: 4,
+  },
+  startShowText: {
+    color: "#1A1A2E",
+    fontSize: 16,
+    fontWeight: "700",
     letterSpacing: 1,
-    fontWeight: "500",
     textTransform: "uppercase",
   },
   stripsContainer: {
