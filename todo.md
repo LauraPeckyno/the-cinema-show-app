@@ -117,3 +117,4 @@
 - [x] Set fixed volume defaults: music at 90% device volume, effects at 30% of music volume, mic at +15dB gain
 - [x] Ensure music signal is never affected by effects processing (only mic input is effected)
 - [x] Overall mixed volume controlled by device volume, never exceed safe hearing levels
+- [x] Add dynamics compressor and limiter to effects output to prevent transient spikes from high mic gain

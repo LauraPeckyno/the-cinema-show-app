@@ -763,6 +763,25 @@ function buildDryWetChainJS(): string {
       var merger = ctx.createGain();
       merger.gain.value = 1.0;
 
+      // ─── Dynamics Compressor ───────────────────────────────────────────
+      // Tames transient spikes from the high mic gain (+15dB input boost)
+      // Ratio 12:1 with fast attack catches percussive hits immediately
+      var compressor = ctx.createDynamicsCompressor();
+      compressor.threshold.value = -24;  // start compressing at -24dB
+      compressor.knee.value = 6;         // soft knee for natural response
+      compressor.ratio.value = 12;       // aggressive ratio for transients
+      compressor.attack.value = 0.003;   // 3ms attack — catches fast transients
+      compressor.release.value = 0.15;   // 150ms release — smooth recovery
+
+      // ─── Hard Limiter (brick-wall) ─────────────────────────────────────
+      // Second stage: prevents ANY signal from exceeding -3dB (safe ceiling)
+      var limiter = ctx.createDynamicsCompressor();
+      limiter.threshold.value = -3;      // brick-wall ceiling at -3dB
+      limiter.knee.value = 0;            // hard knee = true limiter behavior
+      limiter.ratio.value = 20;          // near-infinite ratio
+      limiter.attack.value = 0.001;      // 1ms — instant catch
+      limiter.release.value = 0.05;      // 50ms fast release
+
       // Analyser for combined level metering
       var analyser = ctx.createAnalyser();
       analyser.fftSize = 512;
@@ -782,13 +801,18 @@ function buildDryWetChainJS(): string {
       effectChain.output.connect(wetGain);
       wetGain.connect(merger);
 
-      merger.connect(analyser);
+      // Signal chain: merger -> compressor -> limiter -> analyser
+      merger.connect(compressor);
+      compressor.connect(limiter);
+      limiter.connect(analyser);
 
       return {
         analyser: analyser,
-        output: analyser, // output from analyser
+        output: analyser, // output from analyser (post-compressor/limiter)
         dryGain: dryGain,
         wetGain: wetGain,
+        compressor: compressor,
+        limiter: limiter,
         effectChain: effectChain
       };
     }
