@@ -111,3 +111,6 @@
 - [x] Rename "Corpse on the Grating" to "Investigation Station" in tracks.ts
 - [x] Update album cover image on home page to Cloudflare R2 URL
 - [x] Replace SoundCloudPlayer component with direct audio player using expo-audio
+- [x] Now Playing: Remove volume sliders, replace with single animated mic/effects toggle button
+- [x] Now Playing: Remove mute music and effects buttons (on either side of play button)
+- [x] Tracks page: Swap columns so Light Side is on the left, Dark Side on the right

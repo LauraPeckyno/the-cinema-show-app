@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   Text,
   View,
@@ -7,8 +7,6 @@ import {
   Dimensions,
   ScrollView,
   Modal,
-  PanResponder,
-  GestureResponderEvent,
 } from "react-native";
 import Animated, {
   useSharedValue,
@@ -34,85 +32,6 @@ import { MicPassthrough } from "@/components/mic-passthrough";
 import { TRACK_ARTWORK } from "@/constants/track-artwork";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
-function CustomSlider({
-  value,
-  onValueChange,
-  label,
-  color,
-  icon,
-}: {
-  value: number;
-  onValueChange: (v: number) => void;
-  label: string;
-  color: string;
-  icon: string;
-}) {
-  const colors = useColors();
-  const trackRef = useRef<View>(null);
-  const trackLayoutRef = useRef({ x: 0, width: SCREEN_WIDTH - 80 });
-
-  const computePercent = (pageX: number) => {
-    const { x, width } = trackLayoutRef.current;
-    const pct = Math.max(0, Math.min(100, ((pageX - x) / width) * 100));
-    return pct;
-  };
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (e: GestureResponderEvent) => {
-        const pct = computePercent(e.nativeEvent.pageX);
-        onValueChange(pct);
-      },
-      onPanResponderMove: (e: GestureResponderEvent) => {
-        const pct = computePercent(e.nativeEvent.pageX);
-        onValueChange(pct);
-      },
-    })
-  ).current;
-
-  const handleLayout = () => {
-    trackRef.current?.measureInWindow((x, _y, width) => {
-      if (width > 0) {
-        trackLayoutRef.current = { x, width };
-      }
-    });
-  };
-
-  return (
-    <View style={styles.sliderContainer}>
-      <View style={styles.sliderLabelRow}>
-        <Text style={styles.sliderIcon}>{icon}</Text>
-        <Text style={[styles.sliderLabel, { color: colors.muted }]}>{label}</Text>
-        <Text style={[styles.sliderValue, { color }]}>{Math.round(value)}%</Text>
-      </View>
-      <View
-        ref={trackRef}
-        onLayout={handleLayout}
-        style={[styles.sliderTrack, { backgroundColor: colors.border }]}
-        {...panResponder.panHandlers}
-      >
-        <View
-          style={[
-            styles.sliderFill,
-            { width: `${value}%`, backgroundColor: color },
-          ]}
-        />
-        <View
-          style={[
-            styles.sliderThumb,
-            {
-              left: `${value}%`,
-              backgroundColor: color,
-            },
-          ]}
-        />
-      </View>
-    </View>
-  );
-}
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -160,23 +79,6 @@ export default function NowPlayingScreen() {
     isLoading,
     isAlbumMode,
   } = state;
-
-  // Music mute toggle state
-  const [isMusicMuted, setIsMusicMuted] = useState(false);
-  const savedMusicVolumeRef = useRef(musicVolume);
-
-  const handleMuteToggle = useCallback(() => {
-    if (isMusicMuted) {
-      // Unmute - restore saved volume
-      setMusicVolume(savedMusicVolumeRef.current);
-      setIsMusicMuted(false);
-    } else {
-      // Mute - save current volume and set to 0
-      savedMusicVolumeRef.current = musicVolume;
-      setMusicVolume(0);
-      setIsMusicMuted(true);
-    }
-  }, [isMusicMuted, musicVolume, setMusicVolume]);
 
   const dispatchMicLevel = useCallback((level: number) => {
     const sensitivity = micSensitivity / 100;
@@ -291,6 +193,44 @@ export default function NowPlayingScreen() {
 
   const animatedGlowStyle = useAnimatedStyle(() => ({
     opacity: artworkGlow.value,
+  }));
+
+  // Animated mic toggle button - pulsing glow when active
+  const micPulse = useSharedValue(1);
+  const micGlow = useSharedValue(0);
+
+  useEffect(() => {
+    if (isMicActive) {
+      micPulse.value = withRepeat(
+        withSequence(
+          withTiming(1.08, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1.0, { duration: 800, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        false
+      );
+      micGlow.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0.4, { duration: 1000, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        false
+      );
+    } else {
+      cancelAnimation(micPulse);
+      cancelAnimation(micGlow);
+      micPulse.value = withTiming(1, { duration: 200 });
+      micGlow.value = withTiming(0, { duration: 200 });
+    }
+  }, [isMicActive]);
+
+  const animatedMicStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: micPulse.value }],
+  }));
+
+  const animatedMicGlowStyle = useAnimatedStyle(() => ({
+    opacity: micGlow.value,
   }));
 
   if (!currentTrack) {
@@ -418,27 +358,8 @@ export default function NowPlayingScreen() {
           </View>
         </View>
 
-        {/* Control Buttons: Mic, Play, Volume */}
+        {/* Control Buttons: Play only */}
         <View style={styles.controlsRow}>
-          {/* Mic Toggle */}
-          <Pressable
-            onPress={() => { setMicError(null); toggleMic(); }}
-            style={({ pressed }) => [
-              styles.controlButton,
-              {
-                backgroundColor: isMicActive ? colors.success + "20" : colors.surface,
-                borderColor: isMicActive ? colors.success : colors.border,
-              },
-              pressed && { transform: [{ scale: 0.95 }] },
-            ]}
-          >
-            <IconSymbol
-              name={isMicActive ? "mic.fill" : "mic.slash.fill"}
-              size={24}
-              color={isMicActive ? colors.success : colors.muted}
-            />
-          </Pressable>
-
           {/* Play/Pause */}
           <Pressable
             onPress={togglePlayback}
@@ -458,25 +379,6 @@ export default function NowPlayingScreen() {
               />
             )}
           </Pressable>
-
-          {/* Volume Mute Toggle */}
-          <Pressable
-            onPress={handleMuteToggle}
-            style={({ pressed }) => [
-              styles.controlButton,
-              {
-                backgroundColor: isMusicMuted ? colors.error + "20" : colors.surface,
-                borderColor: isMusicMuted ? colors.error : colors.border,
-              },
-              pressed && { transform: [{ scale: 0.95 }] },
-            ]}
-          >
-            <IconSymbol
-              name={isMusicMuted ? "speaker.slash.fill" : "speaker.wave.2.fill"}
-              size={24}
-              color={isMusicMuted ? colors.error : colors.primary}
-            />
-          </Pressable>
         </View>
 
         {/* Mic Error Message */}
@@ -488,43 +390,31 @@ export default function NowPlayingScreen() {
           </View>
         )}
 
-        {/* Volume Adjustment Bars */}
-        <View style={styles.slidersArea}>
-          <CustomSlider
-            value={masterVolume}
-            onValueChange={setMasterVolume}
-            label="Master Volume"
-            color={colors.primary}
-            icon={"\u{1F50A}"}
-          />
-          <CustomSlider
-            value={musicVolume}
-            onValueChange={setMusicVolume}
-            label="Music Volume"
-            color={effectColor}
-            icon={"\u{1F3B5}"}
-          />
-          <CustomSlider
-            value={dryWetMix}
-            onValueChange={setDryWetMix}
-            label="Dry / Wet Mix"
-            color={"#9B59B6"}
-            icon={"\u{1F4A7}"}
-          />
-          <CustomSlider
-            value={micSensitivity}
-            onValueChange={setMicSensitivity}
-            label="Mic Sensitivity"
-            color={colors.success}
-            icon={"\u{1F399}\u{FE0F}"}
-          />
-          <CustomSlider
-            value={effectIntensity}
-            onValueChange={setEffectIntensity}
-            label="Effect Intensity"
-            color={"#E67E22"}
-            icon={"\u{2728}"}
-          />
+        {/* Animated Mic & Effects Toggle */}
+        <View style={styles.micToggleArea}>
+          <Animated.View style={[styles.micToggleGlow, animatedMicGlowStyle, { backgroundColor: effectColor }]} />
+          <Animated.View style={animatedMicStyle}>
+            <Pressable
+              onPress={() => { setMicError(null); toggleMic(); }}
+              style={({ pressed }) => [
+                styles.micToggleButton,
+                {
+                  backgroundColor: isMicActive ? effectColor + "25" : colors.surface,
+                  borderColor: isMicActive ? effectColor : colors.border,
+                },
+                pressed && { opacity: 0.8 },
+              ]}
+            >
+              <IconSymbol
+                name={isMicActive ? "mic.fill" : "mic.slash.fill"}
+                size={32}
+                color={isMicActive ? effectColor : colors.muted}
+              />
+              <Text style={[styles.micToggleLabel, { color: isMicActive ? effectColor : colors.muted }]}>
+                {isMicActive ? "Effects Active" : "Tap to Activate Effects"}
+              </Text>
+            </Pressable>
+          </Animated.View>
         </View>
       </ScrollView>
 
@@ -701,14 +591,6 @@ const styles = StyleSheet.create({
     gap: 28,
     marginBottom: 32,
   },
-  controlButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   playButton: {
     width: 72,
     height: 72,
@@ -739,59 +621,34 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textAlign: "center",
   },
-  slidersArea: {
-    paddingHorizontal: 24,
-    gap: 24,
-    marginBottom: 24,
+  micToggleArea: {
+    alignItems: "center",
+    marginBottom: 32,
+    position: "relative",
   },
-  sliderContainer: {
-    gap: 8,
+  micToggleGlow: {
+    position: "absolute",
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    top: -10,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 30,
+    elevation: 15,
   },
-  sliderLabelRow: {
+  micToggleButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderRadius: 32,
+    borderWidth: 1.5,
   },
-  sliderIcon: {
-    fontSize: 14,
-  },
-  sliderLabel: {
-    fontSize: 13,
-    fontWeight: "500",
-    flex: 1,
-  },
-  sliderValue: {
-    fontSize: 13,
-    fontWeight: "700",
-    fontVariant: ["tabular-nums"],
-  },
-  sliderTrack: {
-    height: 10,
-    borderRadius: 5,
-    overflow: "visible",
-    position: "relative",
-    paddingVertical: 8,
-    marginVertical: 4,
-  },
-  sliderFill: {
-    height: 10,
-    borderRadius: 5,
-    position: "absolute",
-    left: 0,
-    top: 0,
-  },
-  sliderThumb: {
-    position: "absolute",
-    top: -7,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    marginLeft: -12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+  micToggleLabel: {
+    fontSize: 15,
+    fontWeight: "600",
   },
   modalOverlay: {
     flex: 1,

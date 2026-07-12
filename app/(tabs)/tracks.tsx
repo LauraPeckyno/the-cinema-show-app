@@ -267,13 +267,13 @@ export default function TracksScreen() {
         {/* Two film strips side by side */}
         <View style={styles.stripsContainer}>
           <FilmStrip
-            tracks={DARK_TRACKS}
-            side="dark"
+            tracks={LIGHT_TRACKS}
+            side="light"
             onTrackPress={handleTrackPress}
           />
           <FilmStrip
-            tracks={LIGHT_TRACKS}
-            side="light"
+            tracks={DARK_TRACKS}
+            side="dark"
             onTrackPress={handleTrackPress}
           />
         </View>
