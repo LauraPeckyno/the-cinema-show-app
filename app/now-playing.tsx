@@ -26,7 +26,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useAudioEngine } from "@/lib/audio-engine";
-import { SoundCloudPlayer } from "@/components/soundcloud-player";
+import { AudioFilePlayer } from "@/components/audio-file-player";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useKeepAwake } from "expo-keep-awake";
 import { reportTrackDuration } from "@/hooks/use-track-durations";
@@ -246,7 +246,7 @@ export default function NowPlayingScreen() {
         // Album finished — navigate back to tracks screen
         router.back();
       }
-      // If hasNext is true, the currentTrack will update and SoundCloudPlayer
+      // If hasNext is true, the currentTrack will update and AudioFilePlayer
       // will re-render with the new track URL and auto-play
     } else {
       // Single track mode — just stop
@@ -333,8 +333,8 @@ export default function NowPlayingScreen() {
         style={StyleSheet.absoluteFillObject}
       />
 
-      {/* Hidden SoundCloud Player */}
-      <SoundCloudPlayer
+      {/* Audio File Player */}
+      <AudioFilePlayer
         track={currentTrack}
         isPlaying={isPlaying}
         volume={Math.round((masterVolume / 100) * musicVolume)}

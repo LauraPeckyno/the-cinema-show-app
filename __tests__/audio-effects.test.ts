@@ -24,7 +24,7 @@ describe("Track Data", () => {
       expect(track.side).toMatch(/^(dark|light)$/);
       expect(track.bpm).toBeGreaterThan(0);
       expect(track.bpm).toBeLessThan(250);
-      expect(track.soundcloudUrl).toContain("soundcloud.com");
+      expect(track.audioUrl).toContain("http");
       expect(track.effect.name).toBeTruthy();
       expect(track.effect.description).toBeTruthy();
       expect(track.effect.color).toMatch(/^#[0-9A-Fa-f]{6}$/);
@@ -37,29 +37,16 @@ describe("Track Data", () => {
     expect(new Set(names).size).toBe(12);
   });
 
-  it("should have valid SoundCloud URLs for all tracks", () => {
+  it("should have valid audio URLs for all tracks", () => {
     for (const track of TRACKS) {
-      expect(track.soundcloudUrl).toMatch(/^https:\/\/soundcloud\.com\/imaginaurium\//);
+      expect(track.audioUrl).toMatch(/^https?:\/\/.+\.(wav|mp3|ogg|m4a)$/);
     }
   });
 
-  it("should have durationMs for all tracks", () => {
+  it("should have durationEstimate for all tracks", () => {
     for (const track of TRACKS) {
-      expect(track.durationMs).toBeGreaterThan(0);
-      expect(track.durationMs).toBeLessThan(600000); // less than 10 minutes
-    }
-  });
-
-  it("should format durationMs correctly to m:ss", () => {
-    for (const track of TRACKS) {
-      const sec = Math.floor(track.durationMs / 1000);
-      const m = Math.floor(sec / 60);
-      const s = sec % 60;
-      const formatted = `${m}:${s.toString().padStart(2, "0")}`;
-      expect(formatted).toMatch(/^\d+:\d{2}$/);
-      // All current tracks are between 30s and 37s
-      expect(sec).toBeGreaterThanOrEqual(30);
-      expect(sec).toBeLessThanOrEqual(40);
+      expect(track.durationEstimate).toBeGreaterThan(0);
+      expect(track.durationEstimate).toBeLessThan(600); // less than 10 minutes
     }
   });
 });
@@ -158,25 +145,25 @@ describe("Audio Effects Processor", () => {
 });
 
 describe("Volume Computation", () => {
-  it("master volume * music volume should produce correct SoundCloud volume", () => {
+  it("master volume * music volume should produce correct audio volume", () => {
     const masterVolume = 80;
     const musicVolume = 70;
-    const scVolume = Math.round((masterVolume / 100) * musicVolume);
-    expect(scVolume).toBe(56);
+    const audioVolume = Math.round((masterVolume / 100) * musicVolume);
+    expect(audioVolume).toBe(56);
   });
 
   it("master volume at 0 should silence everything", () => {
     const masterVolume = 0;
     const musicVolume = 100;
-    const scVolume = Math.round((masterVolume / 100) * musicVolume);
-    expect(scVolume).toBe(0);
+    const audioVolume = Math.round((masterVolume / 100) * musicVolume);
+    expect(audioVolume).toBe(0);
   });
 
   it("master volume at 100 should pass music volume through", () => {
     const masterVolume = 100;
     const musicVolume = 50;
-    const scVolume = Math.round((masterVolume / 100) * musicVolume);
-    expect(scVolume).toBe(50);
+    const audioVolume = Math.round((masterVolume / 100) * musicVolume);
+    expect(audioVolume).toBe(50);
   });
 });
 

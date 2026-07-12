@@ -12,10 +12,10 @@ export interface Track {
   title: string;
   side: AlbumSide;
   bpm: number;
-  soundcloudUrl: string;
+  audioUrl: string; // Direct URL to audio file (Cloudflare R2)
   effect: AudioEffect;
   durationEstimate: number; // estimated duration in seconds (used as fallback)
-  durationMs: number; // actual duration in milliseconds from SoundCloud
+  durationMs: number; // actual duration in milliseconds (0 = not yet known)
 }
 
 export const TRACKS: Track[] = [
@@ -27,7 +27,7 @@ export const TRACKS: Track[] = [
     title: "Corpse Parade",
     side: "dark",
     bpm: 80,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/corpseparade",
+    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/CorpseParade.wav",
     effect: {
       name: "Ectoplasm",
       description: "Deep cathedral reverb with spectral shimmer and ghostly echoes",
@@ -35,14 +35,14 @@ export const TRACKS: Track[] = [
       icon: "\u{1F47B}",
     },
     durationEstimate: 240,
-    durationMs: 35212,
+    durationMs: 0,
   },
   {
     id: 2,
     title: "Sleep Deprivation",
     side: "dark",
     bpm: 76,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/sleepdeprivation",
+    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/SleepDeprivation.wav",
     effect: {
       name: "Insomnia",
       description: "Micro-sliced grains with random stutter, pitch drift, and dual ping-pong delays",
@@ -50,14 +50,14 @@ export const TRACKS: Track[] = [
       icon: "\u{1F300}",
     },
     durationEstimate: 210,
-    durationMs: 30708,
+    durationMs: 0,
   },
   {
     id: 3,
     title: "Mutation and Madness",
     side: "dark",
     bpm: 120,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/mutationandmadness",
+    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/MutationandMadness.wav",
     effect: {
       name: "Mutation Chaos",
       description: "Bitcrusher at 60 BPM, Chorus at 40 BPM (10% width), Mono Delay at 30 BPM, Gate at 60 BPM",
@@ -65,14 +65,14 @@ export const TRACKS: Track[] = [
       icon: "\u{26A1}",
     },
     durationEstimate: 220,
-    durationMs: 30601,
+    durationMs: 0,
   },
   {
     id: 4,
     title: "Krampus Wishes",
     side: "dark",
     bpm: 75,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/krampuswishes",
+    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/KrampusWishes.wav",
     effect: {
       name: "Krampus' Helpers",
       description: "Completely reversed waveform with rotary modulator at 480 BPM and 240 BPM",
@@ -80,14 +80,14 @@ export const TRACKS: Track[] = [
       icon: "\u{1F504}",
     },
     durationEstimate: 250,
-    durationMs: 35229,
+    durationMs: 0,
   },
   {
     id: 5,
-    title: "Corpse on the Grating",
+    title: "Investigation Station",
     side: "dark",
     bpm: 80,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/corpseonthegrating",
+    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/InvestigationStation.wav",
     effect: {
       name: "Spectral Correction",
       description: "Stereo Enhancer at 200% width, 7-second reverb, auto pitch correction to A440 minor scale",
@@ -95,14 +95,14 @@ export const TRACKS: Track[] = [
       icon: "\u{2699}\u{FE0F}",
     },
     durationEstimate: 230,
-    durationMs: 30248,
+    durationMs: 0,
   },
   {
     id: 6,
     title: "Expiation",
     side: "dark",
     bpm: 60,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/expiation",
+    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/Expiation.wav",
     effect: {
       name: "Penance Gate",
       description: "Square wave gate (1ms attack, 22ms release) into Ping Pong Delay at 60 BPM, 95% wet return",
@@ -110,7 +110,7 @@ export const TRACKS: Track[] = [
       icon: "\u{1F4FC}",
     },
     durationEstimate: 260,
-    durationMs: 34642,
+    durationMs: 0,
   },
 
   // ═══════════════════════════════════════════════════════════════════
@@ -121,7 +121,7 @@ export const TRACKS: Track[] = [
     title: "Road Show",
     side: "light",
     bpm: 120,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/roadshow",
+    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/RoadShow.wav",
     effect: {
       name: "Rhythmic Gate",
       description: "Tempo-synced gate that chops audio into rhythmic patterns",
@@ -129,14 +129,14 @@ export const TRACKS: Track[] = [
       icon: "\u{1F3B5}",
     },
     durationEstimate: 200,
-    durationMs: 30077,
+    durationMs: 0,
   },
   {
     id: 8,
     title: "Recessional",
     side: "light",
     bpm: 95,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/2020-recessional",
+    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/Recessional.wav",
     effect: {
       name: "Shimmer Delay",
       description: "Pitch-shifted delay with ascending octave shimmer",
@@ -144,14 +144,14 @@ export const TRACKS: Track[] = [
       icon: "\u{2728}",
     },
     durationEstimate: 230,
-    durationMs: 30172,
+    durationMs: 0,
   },
   {
     id: 9,
     title: "Excitement and Elimination",
     side: "light",
     bpm: 128,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/excitement-and-elimination",
+    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/ExcitementandElimination.wav",
     effect: {
       name: "Sidechain Pump",
       description: "Rhythmic ducking that creates a pumping, breathing effect synced to the beat",
@@ -159,14 +159,14 @@ export const TRACKS: Track[] = [
       icon: "\u{1F4A5}",
     },
     durationEstimate: 205,
-    durationMs: 30282,
+    durationMs: 0,
   },
   {
     id: 10,
     title: "Piano Fandango",
     side: "light",
     bpm: 105,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/acoustic-atmospheres-gypsy-fandango",
+    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/PianoFandango.wav",
     effect: {
       name: "Flanger Wash",
       description: "Deep flanging with stereo widening and chorus",
@@ -174,14 +174,14 @@ export const TRACKS: Track[] = [
       icon: "\u{1F30A}",
     },
     durationEstimate: 225,
-    durationMs: 30243,
+    durationMs: 0,
   },
   {
     id: 11,
     title: "Brothers",
     side: "light",
     bpm: 92,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/brothers",
+    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/Brothers.wav",
     effect: {
       name: "Warm Chorus",
       description: "Rich chorus doubling with warm saturation and gentle detuning",
@@ -189,14 +189,14 @@ export const TRACKS: Track[] = [
       icon: "\u{1F91D}",
     },
     durationEstimate: 235,
-    durationMs: 30217,
+    durationMs: 0,
   },
   {
     id: 12,
     title: "Much Ado",
     side: "light",
     bpm: 115,
-    soundcloudUrl: "https://soundcloud.com/imaginaurium/much-ado",
+    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/MuchAdo.wav",
     effect: {
       name: "Prism Split",
       description: "Splits audio into spectral bands with rainbow-shifted delays",
@@ -204,7 +204,7 @@ export const TRACKS: Track[] = [
       icon: "\u{1F308}",
     },
     durationEstimate: 210,
-    durationMs: 30869,
+    durationMs: 0,
   },
 ];
 

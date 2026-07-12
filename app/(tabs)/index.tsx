@@ -140,7 +140,7 @@ if (Platform.OS !== "web") {
 }
 
 // ─── Album Cover Image ──────────────────────────────────────────────────────
-const albumCover = require("@/assets/images/cinemashow.png");
+const albumCoverUri = "http://streamingkeys.imaginaurium.workers.dev/Cover.png";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -262,7 +262,7 @@ export default function HomeScreen() {
           <View style={styles.albumCoverContainer}>
             <View style={[styles.albumCoverBorder, { borderColor: colors.primary + "80" }]}>
               <Image
-                source={albumCover}
+                source={{ uri: albumCoverUri }}
                 style={styles.albumCoverImage}
                 resizeMode="cover"
               />

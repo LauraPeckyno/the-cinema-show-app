@@ -107,3 +107,7 @@
 - [x] Corpse on the Grating: Fixed feedback (reduced reverb feedback from 0.93 to 0.78-0.82, individual LP filters per delay)
 - [x] Recessional: Fixed feedback (individual HP/shimmer per tap, reduced feedback from 0.55-0.80 to 0.35-0.50)
 - [x] Implement auto-advance for "Start the Show": tracks automatically progress to next when each finishes (continuous album playback)
+- [x] Migrate music playback from SoundCloud widget to Cloudflare R2 direct audio files (expo-audio)
+- [x] Rename "Corpse on the Grating" to "Investigation Station" in tracks.ts
+- [x] Update album cover image on home page to Cloudflare R2 URL
+- [x] Replace SoundCloudPlayer component with direct audio player using expo-audio

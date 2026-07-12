@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const CACHE_KEY = "sc_track_durations_v1";
+const CACHE_KEY = "track_durations_v2";
 
 /**
  * Map of trackId -> duration in seconds.
- * Populated when SoundCloud widgets report actual durations.
+ * Populated when audio player reports actual durations.
  * Persisted to AsyncStorage so durations are available on subsequent launches.
  */
 type DurationMap = Record<number, number>;
@@ -46,9 +46,9 @@ async function persistCache() {
 }
 
 /**
- * Call this when the SoundCloud widget reports a track's duration.
+ * Call this when the audio player reports a track's duration.
  * @param trackId  The track ID
- * @param durationMs  Duration in **milliseconds** (as returned by SC widget)
+ * @param durationMs  Duration in **milliseconds**
  */
 export function reportTrackDuration(trackId: number, durationMs: number) {
   const sec = durationMs / 1000;

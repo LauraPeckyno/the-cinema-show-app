@@ -13,14 +13,14 @@ export interface AudioEngineState {
   micSensitivity: number; // 0-100
   effectIntensity: number; // 0-100
   masterVolume: number; // 0-100 — controls overall output (both music + mic)
-  musicVolume: number; // 0-100 — controls SoundCloud track volume
+  musicVolume: number; // 0-100 — controls music track volume
   dryWetMix: number; // 0-100 — 0=fully dry (raw ambient), 100=fully wet (effected)
   trackDryWetMap: Record<number, number>; // per-track dry/wet values, keyed by track ID
   micLevel: number; // 0-1 raw mic level
   processedMicLevel: number; // 0-1 after effect processing
   playbackProgress: number; // 0-1
   playbackTime: number; // seconds
-  trackDuration: number; // actual duration in seconds from SoundCloud (0 = not yet fetched)
+  trackDuration: number; // actual duration in seconds (0 = not yet fetched)
   isLoading: boolean;
   error: string | null;
   // Album queue / auto-advance state
