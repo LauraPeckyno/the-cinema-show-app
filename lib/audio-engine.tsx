@@ -10,11 +10,11 @@ export interface AudioEngineState {
   isPlaying: boolean;
   isMicActive: boolean;
   micPermissionGranted: boolean;
-  micSensitivity: number; // 0-100
-  effectIntensity: number; // 0-100
-  masterVolume: number; // 0-100 — controls overall output (both music + mic)
-  musicVolume: number; // 0-100 — controls music track volume
-  dryWetMix: number; // 0-100 — 0=fully dry (raw ambient), 100=fully wet (effected)
+  micSensitivity: number; // fixed at 100 (max gain, +15dB)
+  effectIntensity: number; // fixed at 100 (full effect processing)
+  masterVolume: number; // fixed at 100 — overall output controlled by device volume
+  musicVolume: number; // fixed at 90 — music at 90% of device volume
+  dryWetMix: number; // fixed at 100 — fully wet (effected mic output)
   trackDryWetMap: Record<number, number>; // per-track dry/wet values, keyed by track ID
   micLevel: number; // 0-1 raw mic level
   processedMicLevel: number; // 0-1 after effect processing
@@ -34,11 +34,11 @@ const initialState: AudioEngineState = {
   isPlaying: false,
   isMicActive: false,
   micPermissionGranted: false,
-  micSensitivity: 70,
-  effectIntensity: 50,
-  masterVolume: 80,
-  musicVolume: 70,
-  dryWetMix: 50, // default 50/50 mix
+  micSensitivity: 100, // max gain (+15dB) — captures slightest touch
+  effectIntensity: 100, // full effect processing
+  masterVolume: 100, // device volume controls overall output
+  musicVolume: 90, // music at 90% of device volume
+  dryWetMix: 100, // fully wet — effected mic output only
   trackDryWetMap: {},
   micLevel: 0,
   processedMicLevel: 0,
@@ -192,8 +192,6 @@ function audioReducer(state: AudioEngineState, action: AudioAction): AudioEngine
 // ─── Persistence Keys ───────────────────────────────────────────────────────
 
 const STORAGE_KEY_DRY_WET = "@cinema_show_dry_wet_map";
-const STORAGE_KEY_MASTER_VOL = "@cinema_show_master_vol";
-const STORAGE_KEY_MUSIC_VOL = "@cinema_show_music_vol";
 
 // ─── Context ─────────────────────────────────────────────────────────────────
 
@@ -230,20 +228,10 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     (async () => {
       try {
-        const [dryWetRaw, masterRaw, musicRaw] = await Promise.all([
-          AsyncStorage.getItem(STORAGE_KEY_DRY_WET),
-          AsyncStorage.getItem(STORAGE_KEY_MASTER_VOL),
-          AsyncStorage.getItem(STORAGE_KEY_MUSIC_VOL),
-        ]);
+        const dryWetRaw = await AsyncStorage.getItem(STORAGE_KEY_DRY_WET);
         if (dryWetRaw) {
           const map = JSON.parse(dryWetRaw);
           dispatch({ type: "LOAD_TRACK_DRY_WET_MAP", map });
-        }
-        if (masterRaw) {
-          dispatch({ type: "SET_MASTER_VOLUME", value: Number(masterRaw) });
-        }
-        if (musicRaw) {
-          dispatch({ type: "SET_MUSIC_VOLUME", value: Number(musicRaw) });
         }
       } catch {
         // ignore storage errors
@@ -315,12 +303,10 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
 
   const setMasterVolume = useCallback((value: number) => {
     dispatch({ type: "SET_MASTER_VOLUME", value });
-    AsyncStorage.setItem(STORAGE_KEY_MASTER_VOL, String(value)).catch(() => {});
   }, []);
 
   const setMusicVolume = useCallback((value: number) => {
     dispatch({ type: "SET_MUSIC_VOLUME", value });
-    AsyncStorage.setItem(STORAGE_KEY_MUSIC_VOL, String(value)).catch(() => {});
   }, []);
 
   const setDryWetMix = useCallback((value: number) => {

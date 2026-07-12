@@ -273,11 +273,11 @@ export default function NowPlayingScreen() {
         style={StyleSheet.absoluteFillObject}
       />
 
-      {/* Audio File Player */}
+      {/* Audio File Player — music at 90% of device volume (fixed) */}
       <AudioFilePlayer
         track={currentTrack}
         isPlaying={isPlaying}
-        volume={Math.round((masterVolume / 100) * musicVolume)}
+        volume={musicVolume}
         onReady={handleSCReady}
         onPlay={handleSCPlay}
         onPause={handleSCPause}
@@ -286,7 +286,7 @@ export default function NowPlayingScreen() {
         onDuration={handleSCDuration}
       />
 
-      {/* Mic Audio Passthrough */}
+      {/* Mic Audio Passthrough — effects at 30% of music volume, +15dB mic gain */}
       <MicPassthrough
         isActive={isMicActive}
         trackId={currentTrack.id}
@@ -294,6 +294,7 @@ export default function NowPlayingScreen() {
         effectIntensity={effectIntensity}
         micSensitivity={micSensitivity}
         masterVolume={masterVolume}
+        musicVolume={musicVolume}
         dryWetMix={dryWetMix}
         onLevelUpdate={dispatchMicLevel}
         onError={(err) => setMicError(err)}

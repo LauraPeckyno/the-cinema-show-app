@@ -114,3 +114,6 @@
 - [x] Now Playing: Remove volume sliders, replace with single animated mic/effects toggle button
 - [x] Now Playing: Remove mute music and effects buttons (on either side of play button)
 - [x] Tracks page: Swap columns so Light Side is on the left, Dark Side on the right
+- [x] Set fixed volume defaults: music at 90% device volume, effects at 30% of music volume, mic at +15dB gain
+- [x] Ensure music signal is never affected by effects processing (only mic input is effected)
+- [x] Overall mixed volume controlled by device volume, never exceed safe hearing levels

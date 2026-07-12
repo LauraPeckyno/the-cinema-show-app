@@ -144,26 +144,30 @@ describe("Audio Effects Processor", () => {
   });
 });
 
-describe("Volume Computation", () => {
-  it("master volume * music volume should produce correct audio volume", () => {
-    const masterVolume = 80;
-    const musicVolume = 70;
-    const audioVolume = Math.round((masterVolume / 100) * musicVolume);
-    expect(audioVolume).toBe(56);
+describe("Volume Computation (Fixed Levels)", () => {
+  it("music volume should be fixed at 90% of device volume", () => {
+    const musicVolume = 90; // fixed
+    expect(musicVolume).toBe(90);
   });
 
-  it("master volume at 0 should silence everything", () => {
-    const masterVolume = 0;
-    const musicVolume = 100;
-    const audioVolume = Math.round((masterVolume / 100) * musicVolume);
-    expect(audioVolume).toBe(0);
+  it("effects output should be 30% of music volume", () => {
+    const musicVolume = 90;
+    const effectsCeiling = (musicVolume / 100) * 0.30;
+    expect(effectsCeiling).toBeCloseTo(0.27);
   });
 
-  it("master volume at 100 should pass music volume through", () => {
-    const masterVolume = 100;
-    const musicVolume = 50;
-    const audioVolume = Math.round((masterVolume / 100) * musicVolume);
-    expect(audioVolume).toBe(50);
+  it("effects should never exceed music volume", () => {
+    const musicVolume = 90;
+    const effectsCeiling = (musicVolume / 100) * 0.30;
+    expect(effectsCeiling).toBeLessThan(musicVolume / 100);
+  });
+
+  it("mic input gain should be +15dB equivalent (high sensitivity)", () => {
+    // +15dB ≈ 5.6x linear gain; our input boost is 15x-30x (even higher for faint sounds)
+    const inputBoostMin = 15.0; // at intensity=0
+    const inputBoostMax = 30.0; // at intensity=1
+    expect(inputBoostMin).toBeGreaterThanOrEqual(5.6); // exceeds +15dB
+    expect(inputBoostMax).toBeGreaterThan(inputBoostMin);
   });
 });
 

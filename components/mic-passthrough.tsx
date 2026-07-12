@@ -6,8 +6,9 @@ interface MicPassthroughProps {
   trackId: number;
   bpm: number;
   effectIntensity: number; // 0-100
-  micSensitivity: number; // 0-100
-  masterVolume: number; // 0-100 — overall output volume
+  micSensitivity: number; // 0-100 (fixed at 100 = +15dB gain)
+  masterVolume: number; // 0-100 — overall output volume (device-controlled)
+  musicVolume: number; // 0-100 — music track volume (effects capped at 30% of this)
   dryWetMix: number; // 0-100 — 0=fully dry (raw ambient), 100=fully wet (effected)
   onLevelUpdate?: (level: number) => void;
   onError?: (error: string) => void;
@@ -32,6 +33,7 @@ export function MicPassthrough({
   effectIntensity,
   micSensitivity,
   masterVolume,
+  musicVolume,
   dryWetMix,
   onLevelUpdate,
   onError,
@@ -45,6 +47,7 @@ export function MicPassthrough({
         effectIntensity={effectIntensity}
         micSensitivity={micSensitivity}
         masterVolume={masterVolume}
+        musicVolume={musicVolume}
         dryWetMix={dryWetMix}
         onLevelUpdate={onLevelUpdate}
         onError={onError}
@@ -60,6 +63,7 @@ export function MicPassthrough({
       effectIntensity={effectIntensity}
       micSensitivity={micSensitivity}
       masterVolume={masterVolume}
+      musicVolume={musicVolume}
       dryWetMix={dryWetMix}
       onLevelUpdate={onLevelUpdate}
       onError={onError}
@@ -800,6 +804,7 @@ function WebMicPassthrough({
   effectIntensity,
   micSensitivity,
   masterVolume,
+  musicVolume,
   dryWetMix,
   onLevelUpdate,
   onError,
@@ -826,12 +831,15 @@ function WebMicPassthrough({
     };
   }, [isActive, trackId]);
 
-  // Update master volume — includes mic sensitivity as gain multiplier
+  // Update output volume — effects capped at 30% of music volume, never exceeds safe levels
   useEffect(() => {
     if (outputGainRef.current) {
-      outputGainRef.current.gain.value = (masterVolume / 100) * (micSensitivity / 25); // ultra-high sensitivity — 4x at max, captures faintest sounds
+      // Effects output = 30% of music volume (which is 90% of device volume)
+      // This ensures effected mic never overwhelms the music
+      const effectsCeiling = (musicVolume / 100) * 0.30;
+      outputGainRef.current.gain.value = effectsCeiling;
     }
-  }, [masterVolume, micSensitivity]);
+  }, [musicVolume]);
 
   // Update dry/wet mix
   useEffect(() => {
@@ -861,7 +869,9 @@ function WebMicPassthrough({
       sourceRef.current = source;
 
       const outputGain = ctx.createGain();
-      outputGain.gain.value = (masterVolume / 100) * (micSensitivity / 50);
+      // Effects output = 30% of music volume — safe hearing level
+      const effectsCeiling = (musicVolume / 100) * 0.30;
+      outputGain.gain.value = effectsCeiling;
       outputGainRef.current = outputGain;
 
       // Build dry/wet chain
@@ -937,6 +947,7 @@ function NativeMicPassthrough({
   effectIntensity,
   micSensitivity,
   masterVolume,
+  musicVolume,
   dryWetMix,
   onLevelUpdate,
   onError,
@@ -985,7 +996,8 @@ function NativeMicPassthrough({
   }, []);
 
   const intensity = effectIntensity / 100;
-  const vol = (masterVolume / 100) * (micSensitivity / 25); // ultra-high sensitivity — 4x at max, captures faintest sounds
+  // Effects output = 30% of music volume — safe hearing level, never overwhelms music
+  const vol = (musicVolume / 100) * 0.30;
   const mix = dryWetMix / 100;
 
   const htmlContent = `
