@@ -118,3 +118,8 @@
 - [x] Ensure music signal is never affected by effects processing (only mic input is effected)
 - [x] Overall mixed volume controlled by device volume, never exceed safe hearing levels
 - [x] Add dynamics compressor and limiter to effects output to prevent transient spikes from high mic gain
+- [x] Reorder tracks: Recessional before Road Show, Brothers last (after Much Ado)
+- [x] Add 4-second effect ramp-up when mic toggle is pressed (works even without music playing)
+- [x] Redesign Road Show effect: gated delay, quarter-note samples, 12-beat repeat, pitch-lowering modulator (BPM 140)
+- [x] Redesign Recessional effect: long church reverb, 10dB gate, half-rate delay, max 3 echoes (BPM 152)
+- [x] Redesign Excitement and Elimination effect: ping-pong delay, 20dB gate, 2x speed, random phaser, max 2 delays (BPM 152)
