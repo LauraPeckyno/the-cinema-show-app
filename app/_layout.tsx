@@ -9,6 +9,8 @@ import { Platform } from "react-native";
 import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { AudioEngineProvider } from "@/lib/audio-engine";
+import { preDownload } from "@/lib/audio-cache";
+import * as SplashScreen from "expo-splash-screen";
 import {
   SafeAreaFrameContext,
   SafeAreaInsetsContext,
@@ -23,11 +25,32 @@ import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-run
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
 
+// Keep splash screen visible until album cover is pre-downloaded
+SplashScreen.preventAutoHideAsync();
+
+const ALBUM_COVER_URL = "http://streamingkeys.imaginaurium.workers.dev/Cover.png";
+
 export const unstable_settings = {
   anchor: "(tabs)",
 };
 
 export default function RootLayout() {
+  const [appReady, setAppReady] = useState(false);
+
+  // Pre-download album cover before showing the app
+  useEffect(() => {
+    (async () => {
+      try {
+        await preDownload(ALBUM_COVER_URL);
+      } catch (e) {
+        // Non-blocking: if download fails, app still loads with remote URL
+        console.warn("Album cover pre-download failed:", e);
+      } finally {
+        setAppReady(true);
+        SplashScreen.hideAsync();
+      }
+    })();
+  }, []);
   const initialInsets = initialWindowMetrics?.insets ?? DEFAULT_WEB_INSETS;
   const initialFrame = initialWindowMetrics?.frame ?? DEFAULT_WEB_FRAME;
 
@@ -78,6 +101,9 @@ export default function RootLayout() {
       },
     };
   }, [initialInsets, initialFrame]);
+
+  // Don't render until album cover is pre-downloaded
+  if (!appReady) return null;
 
   const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>

@@ -8,6 +8,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useAudioEngine } from "@/lib/audio-engine";
 import { DARK_TRACKS, LIGHT_TRACKS, TRACKS, Track } from "@/constants/tracks";
 import { TRACK_ARTWORK } from "@/constants/track-artwork";
+import { preDownload, preDownloadAll } from "@/lib/audio-cache";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SPROCKET_SIZE = 8;
@@ -209,19 +210,27 @@ export default function TracksScreen() {
   const { selectTrack, startAlbumPlayback } = useAudioEngine();
   const [musicStopped, setMusicStopped] = useState(false);
 
-  const handleTrackPress = (track: Track) => {
+  const handleTrackPress = async (track: Track) => {
     // Stop album background music
     setMusicStopped(true);
+    // Pre-download the selected track before navigating
+    await preDownload(track.audioUrl);
     // Select track and navigate
     selectTrack(track);
     router.push("/now-playing" as any);
   };
 
-  const handleStartTheShow = () => {
+  const handleStartTheShow = async () => {
     // Stop album background music and start continuous album playback
     setMusicStopped(true);
+    // Pre-download all tracks (first track blocks, rest download in background)
+    const firstTrack = TRACKS[0];
+    await preDownload(firstTrack.audioUrl);
     startAlbumPlayback(TRACKS);
     router.push("/now-playing" as any);
+    // Continue downloading remaining tracks in background
+    const remainingUrls = TRACKS.slice(1).map((t) => t.audioUrl);
+    preDownloadAll(remainingUrls).catch((e) => console.warn("Background pre-download error:", e));
   };
 
   // Reset music state when returning to this screen (e.g. back from Now Playing)

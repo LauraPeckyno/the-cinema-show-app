@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useCallback } from "react";
 import { Platform } from "react-native";
 import { Track } from "@/constants/tracks";
+import { getCachedUri } from "@/lib/audio-cache";
 
 interface AudioFilePlayerProps {
   track: Track;
@@ -81,7 +82,7 @@ function WebAudioFilePlayer({
 
   // Create or replace audio element when track changes
   useEffect(() => {
-    const url = track.audioUrl;
+    const url = getCachedUri(track.audioUrl);
     if (trackUrlRef.current === url && audioRef.current) return;
     trackUrlRef.current = url;
     isReadyRef.current = false;
@@ -215,7 +216,7 @@ function NativeAudioFilePlayer({
 
   // Create player when track changes
   useEffect(() => {
-    const url = track.audioUrl;
+    const url = getCachedUri(track.audioUrl);
     if (trackUrlRef.current === url && playerRef.current) return;
     trackUrlRef.current = url;
     isReadyRef.current = false;

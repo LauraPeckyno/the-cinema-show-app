@@ -133,3 +133,8 @@
 - [x] Redesign Investigation Station effect: rotary modulator at 2x BPM (BPM 80)
 - [x] Redesign Expiation effect: 20dB gate, beat-synced delay, treble cut >5kHz, 2/3 rate playback (BPM 90)
 - [x] Fix mic feedback loops: reduce all feedback coefficients, remove delay feedback loops, add hard limiters to prevent signal accumulation
+- [x] Create audio cache utility for downloading and caching tracks locally
+- [x] Pre-download album cover before first screen is shown
+- [x] Pre-download track(s) when user taps a song or Start the Show button
+- [x] Update audio player to use cached local files instead of remote URLs
+- [x] Request storage permissions if needed (not required - uses app-sandboxed cacheDirectory)

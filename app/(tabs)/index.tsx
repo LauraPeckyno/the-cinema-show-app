@@ -140,7 +140,11 @@ if (Platform.OS !== "web") {
 }
 
 // ─── Album Cover Image ──────────────────────────────────────────────────────
-const albumCoverUri = "http://streamingkeys.imaginaurium.workers.dev/Cover.png";
+import { getCachedUri } from "@/lib/audio-cache";
+
+const ALBUM_COVER_REMOTE = "http://streamingkeys.imaginaurium.workers.dev/Cover.png";
+// Use cached local URI if pre-downloaded, otherwise falls back to remote
+const getAlbumCoverUri = () => getCachedUri(ALBUM_COVER_REMOTE);
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -262,7 +266,7 @@ export default function HomeScreen() {
           <View style={styles.albumCoverContainer}>
             <View style={[styles.albumCoverBorder, { borderColor: colors.primary + "80" }]}>
               <Image
-                source={{ uri: albumCoverUri }}
+                source={{ uri: getAlbumCoverUri() }}
                 style={styles.albumCoverImage}
                 resizeMode="cover"
               />
