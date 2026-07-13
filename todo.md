@@ -132,3 +132,4 @@
 - [x] Redesign Krampus Wishes effect: 8-beat delay, reversed half-speed playback, large reverb (BPM 120)
 - [x] Redesign Investigation Station effect: rotary modulator at 2x BPM (BPM 80)
 - [x] Redesign Expiation effect: 20dB gate, beat-synced delay, treble cut >5kHz, 2/3 rate playback (BPM 90)
+- [x] Fix mic feedback loops: reduce all feedback coefficients, remove delay feedback loops, add hard limiters to prevent signal accumulation
