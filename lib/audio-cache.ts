@@ -1,14 +1,20 @@
 import { Platform } from "react-native";
+import { getApiBaseUrl } from "@/constants/oauth";
 
 /**
  * Audio & Asset Cache
  *
  * Downloads remote audio files and images to local storage for instant playback.
- * - On native: Uses expo-file-system cacheDirectory for fast local access
- * - On web: Uses the Cache API (or falls back to direct URLs since browsers handle caching)
+ * - On web: Routes through the backend proxy (/api/media/:filename) to add CORS headers,
+ *   then caches as blob URLs for instant access.
+ * - On native: Uses expo-file-system cacheDirectory for fast local access.
+ *   Native apps don't have CORS restrictions so can fetch directly from Cloudflare.
  *
  * No storage permissions are needed for cacheDirectory on native (it's app-sandboxed).
  */
+
+// The Cloudflare Workers base URL (used on native where CORS doesn't apply)
+const CF_WORKER_BASE = "http://streamingkeys.imaginaurium.workers.dev";
 
 // In-memory map of remote URL -> local URI (or blob URL on web)
 const cache = new Map<string, string>();
@@ -17,11 +23,30 @@ const cache = new Map<string, string>();
 const pendingDownloads = new Map<string, Promise<string>>();
 
 /**
+ * Convert a Cloudflare direct URL to a proxy URL for web.
+ * e.g., "http://streamingkeys.imaginaurium.workers.dev/Cover.png"
+ *    -> "https://3000-xxx.manus.computer/api/media/Cover.png"
+ */
+function toProxyUrl(remoteUrl: string): string {
+  const filename = remoteUrl.replace(CF_WORKER_BASE + "/", "");
+  const apiBase = getApiBaseUrl();
+  return `${apiBase}/api/media/${filename}`;
+}
+
+/**
  * Get a cached local URI for a remote URL.
- * Returns the remote URL immediately if not cached yet.
+ * On web, returns the proxy URL if not yet cached (so it works even without pre-download).
+ * On native, returns the original URL if not cached.
  */
 export function getCachedUri(remoteUrl: string): string {
-  return cache.get(remoteUrl) || remoteUrl;
+  if (cache.has(remoteUrl)) {
+    return cache.get(remoteUrl)!;
+  }
+  // On web, always use proxy URL to avoid CORS issues
+  if (Platform.OS === "web" && remoteUrl.startsWith(CF_WORKER_BASE)) {
+    return toProxyUrl(remoteUrl);
+  }
+  return remoteUrl;
 }
 
 /**
@@ -33,7 +58,7 @@ export function isCached(remoteUrl: string): boolean {
 
 /**
  * Pre-download a single file and cache it locally.
- * Returns the local URI (or the original URL on web if Cache API isn't available).
+ * Returns the local URI (blob URL on web, file URI on native).
  */
 export async function preDownload(remoteUrl: string): Promise<string> {
   // Already cached
@@ -59,11 +84,26 @@ export async function preDownload(remoteUrl: string): Promise<string> {
 }
 
 /**
- * Pre-download multiple files in parallel.
+ * Pre-download multiple files in parallel (limited concurrency).
  * Returns when all downloads are complete.
  */
 export async function preDownloadAll(urls: string[]): Promise<void> {
-  await Promise.all(urls.map((url) => preDownload(url)));
+  // Download 2 at a time to avoid overwhelming the connection
+  const CONCURRENCY = 2;
+  const queue = [...urls];
+  const workers = Array.from({ length: CONCURRENCY }, async () => {
+    while (queue.length > 0) {
+      const url = queue.shift();
+      if (url) {
+        try {
+          await preDownload(url);
+        } catch (e) {
+          console.warn("Background pre-download failed:", url, e);
+        }
+      }
+    }
+  });
+  await Promise.all(workers);
 }
 
 /**
@@ -77,46 +117,39 @@ async function _doDownload(remoteUrl: string): Promise<string> {
 }
 
 /**
- * Web: Use fetch + Cache API to pre-cache the file.
- * The browser will serve it from cache on subsequent requests.
+ * Web: Fetch via the backend proxy (which adds CORS + Content-Type),
+ * then store as a blob URL for instant access.
  */
 async function _doDownloadWeb(remoteUrl: string): Promise<string> {
   try {
-    // Use the Cache API if available
-    if ("caches" in globalThis) {
-      const cacheStore = await caches.open("audio-cache-v1");
-      const existing = await cacheStore.match(remoteUrl);
-      if (existing) {
-        // Already in browser cache — create blob URL for instant access
-        const blob = await existing.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        return blobUrl;
-      }
+    // Use proxy URL to avoid CORS issues
+    const fetchUrl = remoteUrl.startsWith(CF_WORKER_BASE)
+      ? toProxyUrl(remoteUrl)
+      : remoteUrl;
 
-      // Download and store in cache
-      const response = await fetch(remoteUrl);
-      if (response.ok) {
-        // Clone response for cache storage
-        const responseClone = response.clone();
-        await cacheStore.put(remoteUrl, responseClone);
-        // Create blob URL for immediate use
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        return blobUrl;
-      }
+    const response = await fetch(fetchUrl);
+    if (response.ok) {
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      return blobUrl;
     }
 
-    // Fallback: just fetch to warm the browser's HTTP cache
-    await fetch(remoteUrl);
-    return remoteUrl;
+    // If fetch failed, return the proxy URL (browser will try again on use)
+    console.warn(`Web pre-download returned ${response.status} for ${remoteUrl}`);
+    return fetchUrl;
   } catch (e) {
-    console.warn("Web pre-download failed, using remote URL:", e);
+    console.warn("Web pre-download failed, using proxy URL:", e);
+    // Return proxy URL as fallback
+    if (remoteUrl.startsWith(CF_WORKER_BASE)) {
+      return toProxyUrl(remoteUrl);
+    }
     return remoteUrl;
   }
 }
 
 /**
  * Native: Use expo-file-system to download to cacheDirectory.
+ * Native apps don't have CORS restrictions, so fetch directly from Cloudflare.
  */
 async function _doDownloadNative(remoteUrl: string): Promise<string> {
   try {

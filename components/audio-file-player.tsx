@@ -100,22 +100,31 @@ function WebAudioFilePlayer({
 
     const audio = new Audio(url);
     audio.preload = "auto";
-    audio.crossOrigin = "anonymous";
+    // Don't set crossOrigin for same-origin proxy or blob URLs
+    if (url.startsWith("http") && !url.startsWith(window.location.origin)) {
+      audio.crossOrigin = "anonymous";
+    }
     audioRef.current = audio;
 
-    audio.addEventListener("canplaythrough", () => {
+    // Use loadedmetadata for readiness (fires much sooner than canplaythrough for large files)
+    audio.addEventListener("loadedmetadata", () => {
+      if (audio.duration && isFinite(audio.duration)) {
+        onDuration?.(audio.duration * 1000);
+      }
+      if (!isReadyRef.current) {
+        isReadyRef.current = true;
+        onReady?.();
+      }
+    });
+
+    // Also mark ready on canplay as a fallback
+    audio.addEventListener("canplay", () => {
       if (!isReadyRef.current) {
         isReadyRef.current = true;
         if (audio.duration && isFinite(audio.duration)) {
           onDuration?.(audio.duration * 1000);
         }
         onReady?.();
-      }
-    });
-
-    audio.addEventListener("loadedmetadata", () => {
-      if (audio.duration && isFinite(audio.duration)) {
-        onDuration?.(audio.duration * 1000);
       }
     });
 

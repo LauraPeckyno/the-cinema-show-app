@@ -140,7 +140,8 @@ if (Platform.OS !== "web") {
 }
 
 // ─── Album Cover Image ──────────────────────────────────────────────────────
-import { getCachedUri } from "@/lib/audio-cache";
+import { getCachedUri, preDownloadAll } from "@/lib/audio-cache";
+import { TRACKS } from "@/constants/tracks";
 
 const ALBUM_COVER_REMOTE = "http://streamingkeys.imaginaurium.workers.dev/Cover.png";
 // Use cached local URI if pre-downloaded, otherwise falls back to remote
@@ -171,6 +172,14 @@ export default function HomeScreen() {
       withTiming(1, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
       -1,
       true
+    );
+  }, []);
+
+  // Pre-download all 12 tracks in background on home screen load
+  useEffect(() => {
+    const allAudioUrls = TRACKS.map((t) => t.audioUrl);
+    preDownloadAll(allAudioUrls).catch((e) =>
+      console.warn("Background track pre-download error:", e)
     );
   }, []);
 

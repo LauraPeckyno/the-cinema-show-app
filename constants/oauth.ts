@@ -35,14 +35,18 @@ export function getApiBaseUrl(): string {
     return API_BASE_URL.replace(/\/$/, "");
   }
 
-  // On web, derive from current hostname by replacing port 8081 with 3000
+  // On web, derive from current hostname
   if (ReactNative.Platform.OS === "web" && typeof window !== "undefined" && window.location) {
-    const { protocol, hostname } = window.location;
-    // Pattern: 8081-sandboxid.region.domain -> 3000-sandboxid.region.domain
+    const { protocol, hostname, port } = window.location;
+    // Dev pattern: 8081-sandboxid.region.domain -> 3000-sandboxid.region.domain
     const apiHostname = hostname.replace(/^8081-/, "3000-");
     if (apiHostname !== hostname) {
       return `${protocol}//${apiHostname}`;
     }
+    // Production/custom domain: API is on the same origin (served by the same server)
+    // Return origin so proxy routes like /api/media work correctly
+    const origin = port ? `${protocol}//${hostname}:${port}` : `${protocol}//${hostname}`;
+    return origin;
   }
 
   // Fallback to empty (will use relative URL)

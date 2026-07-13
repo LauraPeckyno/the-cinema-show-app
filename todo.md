@@ -138,3 +138,8 @@
 - [x] Pre-download track(s) when user taps a song or Start the Show button
 - [x] Update audio player to use cached local files instead of remote URLs
 - [x] Request storage permissions if needed (not required - uses app-sandboxed cacheDirectory)
+- [x] Debug and fix album cover not loading on home page
+- [x] Debug and fix songs not loading on playback page
+- [x] Start background download of all 12 tracks on home screen load
+- [x] Swap artwork images for Recessional and Road Show
+- [x] Swap artwork images for Much Ado and Brothers

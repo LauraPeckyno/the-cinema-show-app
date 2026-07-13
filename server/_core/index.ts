@@ -60,6 +60,61 @@ async function startServer() {
     res.json({ ok: true, timestamp: Date.now() });
   });
 
+  // ─── Media Proxy for Cloudflare R2 (adds CORS + Content-Type) ──────────────
+  const CF_WORKER_BASE = "http://streamingkeys.imaginaurium.workers.dev";
+  app.get("/api/media/:filename", async (req, res) => {
+    try {
+      const { filename } = req.params;
+      const remoteUrl = `${CF_WORKER_BASE}/${encodeURIComponent(filename)}`;
+
+      // Determine content type from extension
+      const ext = filename.split(".").pop()?.toLowerCase();
+      const contentTypes: Record<string, string> = {
+        wav: "audio/wav",
+        mp3: "audio/mpeg",
+        png: "image/png",
+        jpg: "image/jpeg",
+        jpeg: "image/jpeg",
+      };
+      const contentType = contentTypes[ext || ""] || "application/octet-stream";
+
+      // Fetch from Cloudflare Worker
+      const upstream = await fetch(remoteUrl);
+      if (!upstream.ok) {
+        res.status(upstream.status).send("Upstream error");
+        return;
+      }
+
+      // Set proper headers
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Accept-Ranges", "bytes");
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      const contentLength = upstream.headers.get("content-length");
+      if (contentLength) res.setHeader("Content-Length", contentLength);
+
+      // Stream the response
+      if (upstream.body) {
+        const reader = upstream.body.getReader();
+        const pump = async () => {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) { res.end(); break; }
+            if (!res.write(value)) {
+              await new Promise<void>((resolve) => res.once("drain", resolve));
+            }
+          }
+        };
+        pump().catch(() => res.end());
+      } else {
+        const buffer = Buffer.from(await upstream.arrayBuffer());
+        res.send(buffer);
+      }
+    } catch (e) {
+      console.error("Media proxy error:", e);
+      res.status(500).send("Proxy error");
+    }
+  });
+
   app.use(
     "/api/trpc",
     createExpressMiddleware({
