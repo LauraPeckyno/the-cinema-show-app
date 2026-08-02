@@ -143,3 +143,6 @@
 - [x] Start background download of all 12 tracks on home screen load
 - [x] Swap artwork images for Recessional and Road Show
 - [x] Swap artwork images for Much Ado and Brothers
+- [x] Update all audio URLs from WAV on streamingkeys to MP3 on streamingkeys2 (CORS-enabled)
+- [x] Update album cover URL to streamingkeys2/cinemashow_cover.png
+- [x] Remove backend proxy dependency (direct fetch now works with CORS)

@@ -27,7 +27,7 @@ export const TRACKS: Track[] = [
     title: "Corpse Parade",
     side: "dark",
     bpm: 116,
-    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/CorpseParade.wav",
+    audioUrl: "https://streamingkeys2.imaginaurium.workers.dev/CorpseParade.mp3",
     effect: {
       name: "Phantom Stutter",
       description: "Dual random delays (0.25-1s), 16th-note repeat with pitch mod (max 4), 4-24 beat half-speed repeat",
@@ -42,7 +42,7 @@ export const TRACKS: Track[] = [
     title: "Sleep Deprivation",
     side: "dark",
     bpm: 76,
-    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/SleepDeprivation.wav",
+    audioUrl: "https://streamingkeys2.imaginaurium.workers.dev/SleepDeprivation.mp3",
     effect: {
       name: "Insomnia Filter",
       description: "HP filter at 1000Hz, 2x rate delay, large room reverb",
@@ -57,7 +57,7 @@ export const TRACKS: Track[] = [
     title: "Mutation and Madness",
     side: "dark",
     bpm: 120,
-    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/MutationandMadness.wav",
+    audioUrl: "https://streamingkeys2.imaginaurium.workers.dev/MutationandMadness.mp3",
     effect: {
       name: "CB Radio",
       description: "Random 0.5s sampling, CB radio distortion, 2x rate delay",
@@ -72,7 +72,7 @@ export const TRACKS: Track[] = [
     title: "Krampus Wishes",
     side: "dark",
     bpm: 120,
-    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/KrampusWishes.wav",
+    audioUrl: "https://streamingkeys2.imaginaurium.workers.dev/KrampusWishes.mp3",
     effect: {
       name: "Reverse Echo",
       description: "8-beat delay, reversed half-speed playback, very large reverb",
@@ -87,7 +87,7 @@ export const TRACKS: Track[] = [
     title: "Investigation Station",
     side: "dark",
     bpm: 80,
-    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/InvestigationStation.wav",
+    audioUrl: "https://streamingkeys2.imaginaurium.workers.dev/InvestigationStation.mp3",
     effect: {
       name: "Rotary Speaker",
       description: "Hammond-style rotary modulator at 2x BPM",
@@ -102,7 +102,7 @@ export const TRACKS: Track[] = [
     title: "Expiation",
     side: "dark",
     bpm: 90,
-    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/Expiation.wav",
+    audioUrl: "https://streamingkeys2.imaginaurium.workers.dev/Expiation.mp3",
     effect: {
       name: "Dark Delay",
       description: "20dB gate, beat-synced delay, treble cut >5kHz, 2/3 rate playback",
@@ -121,7 +121,7 @@ export const TRACKS: Track[] = [
     title: "Recessional",
     side: "light",
     bpm: 152,
-    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/Recessional.wav",
+    audioUrl: "https://streamingkeys2.imaginaurium.workers.dev/Recessional.mp3",
     effect: {
       name: "Cathedral",
       description: "Long church reverb with 10dB noise gate, half-rate delay, max 3 echoes",
@@ -136,7 +136,7 @@ export const TRACKS: Track[] = [
     title: "Road Show",
     side: "light",
     bpm: 140,
-    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/RoadShow.wav",
+    audioUrl: "https://streamingkeys2.imaginaurium.workers.dev/RoadShow.mp3",
     effect: {
       name: "Gated Stutter",
       description: "Quarter-note gated delay (0.25s samples), 12-beat repeat with pitch-lowering modulator",
@@ -151,7 +151,7 @@ export const TRACKS: Track[] = [
     title: "Excitement and Elimination",
     side: "light",
     bpm: 152,
-    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/ExcitementandElimination.wav",
+    audioUrl: "https://streamingkeys2.imaginaurium.workers.dev/ExcitementandElimination.mp3",
     effect: {
       name: "Ping Pong Phaser",
       description: "Ping-pong delay at music rate, 20dB gate, 2x speed playback, random phaser, max 2 delays",
@@ -166,7 +166,7 @@ export const TRACKS: Track[] = [
     title: "Piano Fandango",
     side: "light",
     bpm: 106,
-    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/PianoFandango.wav",
+    audioUrl: "https://streamingkeys2.imaginaurium.workers.dev/PianoFandango.mp3",
     effect: {
       name: "Shifting Chorus",
       description: "Simple chorus effect with random rate change every 16 measures",
@@ -181,7 +181,7 @@ export const TRACKS: Track[] = [
     title: "Much Ado",
     side: "light",
     bpm: 120,
-    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/MuchAdo.wav",
+    audioUrl: "https://streamingkeys2.imaginaurium.workers.dev/MuchAdo.mp3",
     effect: {
       name: "Time Stretch",
       description: "3x time-stretch slowdown, large hall reverb, 20dB gate delay in time with music",
@@ -196,7 +196,7 @@ export const TRACKS: Track[] = [
     title: "Brothers",
     side: "light",
     bpm: 84,
-    audioUrl: "http://streamingkeys.imaginaurium.workers.dev/Brothers.wav",
+    audioUrl: "https://streamingkeys2.imaginaurium.workers.dev/Brothers.mp3",
     effect: {
       name: "Chipmunk",
       description: "1-second delay with sped-up chipmunk playback",

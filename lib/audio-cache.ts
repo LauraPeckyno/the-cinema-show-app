@@ -1,5 +1,4 @@
 import { Platform } from "react-native";
-import { getApiBaseUrl } from "@/constants/oauth";
 
 /**
  * Audio & Asset Cache
@@ -13,8 +12,8 @@ import { getApiBaseUrl } from "@/constants/oauth";
  * No storage permissions are needed for cacheDirectory on native (it's app-sandboxed).
  */
 
-// The Cloudflare Workers base URL (used on native where CORS doesn't apply)
-const CF_WORKER_BASE = "http://streamingkeys.imaginaurium.workers.dev";
+// The Cloudflare Workers base URL (CORS-enabled, works on all platforms)
+const CF_WORKER_BASE = "https://streamingkeys2.imaginaurium.workers.dev";
 
 // In-memory map of remote URL -> local URI (or blob URL on web)
 const cache = new Map<string, string>();
@@ -23,28 +22,20 @@ const cache = new Map<string, string>();
 const pendingDownloads = new Map<string, Promise<string>>();
 
 /**
- * Convert a Cloudflare direct URL to a proxy URL for web.
- * e.g., "http://streamingkeys.imaginaurium.workers.dev/Cover.png"
- *    -> "https://3000-xxx.manus.computer/api/media/Cover.png"
+ * Since CORS is now enabled on the Cloudflare Worker, we can fetch directly.
+ * This function is kept for backward compatibility but just returns the URL as-is.
  */
-function toProxyUrl(remoteUrl: string): string {
-  const filename = remoteUrl.replace(CF_WORKER_BASE + "/", "");
-  const apiBase = getApiBaseUrl();
-  return `${apiBase}/api/media/${filename}`;
+function toDirectUrl(remoteUrl: string): string {
+  return remoteUrl;
 }
 
 /**
  * Get a cached local URI for a remote URL.
- * On web, returns the proxy URL if not yet cached (so it works even without pre-download).
- * On native, returns the original URL if not cached.
+ * Returns the cached blob/file URI if available, otherwise the direct remote URL.
  */
 export function getCachedUri(remoteUrl: string): string {
   if (cache.has(remoteUrl)) {
     return cache.get(remoteUrl)!;
-  }
-  // On web, always use proxy URL to avoid CORS issues
-  if (Platform.OS === "web" && remoteUrl.startsWith(CF_WORKER_BASE)) {
-    return toProxyUrl(remoteUrl);
   }
   return remoteUrl;
 }
@@ -117,32 +108,23 @@ async function _doDownload(remoteUrl: string): Promise<string> {
 }
 
 /**
- * Web: Fetch via the backend proxy (which adds CORS + Content-Type),
+ * Web: Fetch directly from Cloudflare (CORS enabled),
  * then store as a blob URL for instant access.
  */
 async function _doDownloadWeb(remoteUrl: string): Promise<string> {
   try {
-    // Use proxy URL to avoid CORS issues
-    const fetchUrl = remoteUrl.startsWith(CF_WORKER_BASE)
-      ? toProxyUrl(remoteUrl)
-      : remoteUrl;
-
-    const response = await fetch(fetchUrl);
+    const response = await fetch(remoteUrl);
     if (response.ok) {
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
       return blobUrl;
     }
 
-    // If fetch failed, return the proxy URL (browser will try again on use)
+    // If fetch failed, return the direct URL (browser will try again on use)
     console.warn(`Web pre-download returned ${response.status} for ${remoteUrl}`);
-    return fetchUrl;
+    return remoteUrl;
   } catch (e) {
-    console.warn("Web pre-download failed, using proxy URL:", e);
-    // Return proxy URL as fallback
-    if (remoteUrl.startsWith(CF_WORKER_BASE)) {
-      return toProxyUrl(remoteUrl);
-    }
+    console.warn("Web pre-download failed, using direct URL:", e);
     return remoteUrl;
   }
 }

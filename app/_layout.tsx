@@ -28,7 +28,7 @@ const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
 // Keep splash screen visible until album cover is pre-downloaded
 SplashScreen.preventAutoHideAsync();
 
-const ALBUM_COVER_URL = "http://streamingkeys.imaginaurium.workers.dev/Cover.png";
+const ALBUM_COVER_URL = "https://streamingkeys2.imaginaurium.workers.dev/cinemashow_cover.png";
 
 export const unstable_settings = {
   anchor: "(tabs)",

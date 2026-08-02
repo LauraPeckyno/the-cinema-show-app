@@ -143,9 +143,9 @@ if (Platform.OS !== "web") {
 import { getCachedUri, preDownloadAll } from "@/lib/audio-cache";
 import { TRACKS } from "@/constants/tracks";
 
-const ALBUM_COVER_REMOTE = "http://streamingkeys.imaginaurium.workers.dev/Cover.png";
+const ALBUM_COVER_URL = "https://streamingkeys2.imaginaurium.workers.dev/cinemashow_cover.png";
 // Use cached local URI if pre-downloaded, otherwise falls back to remote
-const getAlbumCoverUri = () => getCachedUri(ALBUM_COVER_REMOTE);
+const getAlbumCoverUri = () => getCachedUri(ALBUM_COVER_URL);
 
 export default function HomeScreen() {
   const router = useRouter();
