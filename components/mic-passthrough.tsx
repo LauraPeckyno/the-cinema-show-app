@@ -79,9 +79,9 @@ function buildEffectChainJS(): string {
     // Effect chain builder: creates Web Audio API effect chains with NO FEEDBACK LOOPS
     function buildEffectChain(ctx, source, trackId, bpm, intensity) {
       // MODERATE INPUT GAIN — sensitive but safe from speaker-to-mic feedback
-      // +15dB = ~5.6x linear gain (enough to hear light touches without runaway)
+      // +8dB = ~2.5x linear gain (enough to hear light touches without runaway)
       var inputBoost = ctx.createGain();
-      inputBoost.gain.value = 5.6;
+      inputBoost.gain.value = 2.5;
 
       var output = ctx.createGain();
       output.gain.value = 1.0;
@@ -744,9 +744,9 @@ function buildDryWetChainJS(): string {
       analyser.fftSize = 512;
       analyser.smoothingTimeConstant = 0.75;
 
-      // Moderate gain for dry path (matches the effect chain's 5.6x input boost)
+      // Moderate gain for dry path (matches the effect chain's 2.5x input boost)
       var dryBoost = ctx.createGain();
-      dryBoost.gain.value = 5.6; // same as effect chain inputBoost
+      dryBoost.gain.value = 2.5; // same as effect chain inputBoost
 
       // Dry path: source -> dryBoost -> dryGain -> merger
       source.connect(dryBoost);
@@ -817,7 +817,7 @@ function WebMicPassthrough({
     if (outputGainRef.current) {
       // Effects output = 30% of music volume (which is 90% of device volume)
       // This ensures effected mic never overwhelms the music
-      const effectsCeiling = (musicVolume / 100) * 0.30;
+      const effectsCeiling = (musicVolume / 100) * 0.50;
       outputGainRef.current.gain.value = effectsCeiling;
     }
   }, [musicVolume]);
@@ -851,7 +851,7 @@ function WebMicPassthrough({
 
       const outputGain = ctx.createGain();
       // Effects output = 30% of music volume — safe hearing level
-      const effectsCeiling = (musicVolume / 100) * 0.30;
+      const effectsCeiling = (musicVolume / 100) * 0.50;
       // Start at 0 and ramp up over 4 seconds for smooth transition
       outputGain.gain.value = 0;
       outputGain.gain.linearRampToValueAtTime(effectsCeiling, ctx.currentTime + 4.0);
@@ -979,8 +979,8 @@ function NativeMicPassthrough({
   }, []);
 
   const intensity = effectIntensity / 100;
-  // Effects output = 30% of music volume — safe hearing level, never overwhelms music
-  const vol = (musicVolume / 100) * 0.30;
+  // Effects output = 50% of music volume — audible but safe, never overwhelms music
+  const vol = (musicVolume / 100) * 0.50;
   const mix = dryWetMix / 100;
 
   const htmlContent = `

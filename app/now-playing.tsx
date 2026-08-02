@@ -61,6 +61,7 @@ export default function NowPlayingScreen() {
     setLoading,
     updateMicLevel,
     advanceToNextTrack,
+    stopPlayback,
   } = useAudioEngine();
 
   const {
@@ -243,7 +244,7 @@ export default function NowPlayingScreen() {
         <View style={styles.emptyContainer}>
           <Text style={[styles.emptyText, { color: colors.muted }]}>No track selected</Text>
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => { stopPlayback(); router.back(); }}
             style={({ pressed }) => [
               styles.backButtonEmpty,
               { borderColor: colors.primary },
@@ -286,9 +287,10 @@ export default function NowPlayingScreen() {
         onDuration={handleSCDuration}
       />
 
-      {/* Mic Audio Passthrough — effects at 30% of music volume, +15dB mic gain */}
+      {/* Mic Audio Passthrough — effects at 50% of music volume, +8dB mic gain */}
+      {/* Effects only start when track is actually playing */}
       <MicPassthrough
-        isActive={isMicActive}
+        isActive={isMicActive && isPlaying}
         trackId={currentTrack.id}
         bpm={currentTrack.bpm}
         effectIntensity={effectIntensity}
@@ -304,7 +306,7 @@ export default function NowPlayingScreen() {
         {/* Back Button */}
         <View style={styles.header}>
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => { stopPlayback(); router.back(); }}
             style={({ pressed }) => [
               styles.backButton,
               pressed && { opacity: 0.6 },

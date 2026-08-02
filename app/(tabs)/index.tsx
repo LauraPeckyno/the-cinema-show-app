@@ -199,8 +199,8 @@ export default function HomeScreen() {
     if (isTransitioning) return;
     setIsTransitioning(true);
 
-    // Play projector sound (soft volume)
-    projectorPlayer.volume = 0.3;
+    // Play projector sound (very soft volume — half of previous)
+    projectorPlayer.volume = 0.15;
     projectorPlayer.seekTo(0);
     projectorPlayer.play();
 
@@ -288,7 +288,7 @@ export default function HomeScreen() {
 
           <View style={styles.descriptionSection}>
             <Text style={[styles.description, { color: colors.muted }]}>
-              Step into a world where you become a part of the music. The Cinema Show captures ambient sounds and weaves them into the instrumental soundtrack - creating a unique listening experience that is different every time.
+              Step into a world where you become a part of the music. The Cinema Show captures ambient sounds and weaves them into the instrumental soundtrack - creating a unique listening experience every time.
             </Text>
           </View>
 

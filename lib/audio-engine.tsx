@@ -72,7 +72,8 @@ type AudioAction =
   | { type: "SET_ERROR"; error: string | null }
   | { type: "SET_ALBUM_QUEUE"; queue: Track[]; startIndex: number }
   | { type: "ADVANCE_ALBUM_QUEUE" }
-  | { type: "CLEAR_ALBUM_QUEUE" };
+  | { type: "CLEAR_ALBUM_QUEUE" }
+  | { type: "STOP_PLAYBACK" };
 
 function audioReducer(state: AudioEngineState, action: AudioAction): AudioEngineState {
   switch (action.type) {
@@ -184,6 +185,20 @@ function audioReducer(state: AudioEngineState, action: AudioAction): AudioEngine
         albumQueue: [],
         albumQueueIndex: -1,
       };
+    case "STOP_PLAYBACK":
+      return {
+        ...state,
+        isPlaying: false,
+        isMicActive: false,
+        isAlbumMode: false,
+        albumQueue: [],
+        albumQueueIndex: -1,
+        playbackProgress: 0,
+        playbackTime: 0,
+        micLevel: 0,
+        processedMicLevel: 0,
+        currentTrack: null,
+      };
     default:
       return state;
   }
@@ -215,6 +230,7 @@ interface AudioEngineContextType {
   startAlbumPlayback: (tracks: Track[]) => void;
   advanceToNextTrack: () => boolean; // returns true if advanced, false if queue exhausted
   clearAlbumQueue: () => void;
+  stopPlayback: () => void;
 }
 
 const AudioEngineContext = createContext<AudioEngineContextType | null>(null);
@@ -359,6 +375,10 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
     dispatch({ type: "CLEAR_ALBUM_QUEUE" });
   }, []);
 
+  const stopPlayback = useCallback(() => {
+    dispatch({ type: "STOP_PLAYBACK" });
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -387,6 +407,7 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
         startAlbumPlayback,
         advanceToNextTrack,
         clearAlbumQueue,
+        stopPlayback,
       }}
     >
       {children}

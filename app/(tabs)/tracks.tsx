@@ -269,7 +269,7 @@ export default function TracksScreen() {
             <Text style={styles.startShowText}>▶  Start the Show</Text>
           </Pressable>
           <Text style={[styles.instructionText, { color: colors.muted }]}>
-            Start the Show to play all or Select a Scene below
+            Start the Show to play all{"\n"}Select a Scene below
           </Text>
         </View>
 

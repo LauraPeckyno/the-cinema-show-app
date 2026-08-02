@@ -4,6 +4,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { ArtDecoDivider, ArtDecoHeader } from "@/components/art-deco";
+import { getCachedUri } from "@/lib/audio-cache";
+
+const ALBUM_COVER_URL = "https://streamingkeys2.imaginaurium.workers.dev/cinemashow_cover.png";
 
 export default function AboutScreen() {
   const colors = useColors();
@@ -22,7 +25,7 @@ export default function AboutScreen() {
         {/* Album Cover at top */}
         <View style={styles.albumCoverContainer}>
           <Image
-            source={require("@/assets/images/cinemashow.png")}
+            source={{ uri: getCachedUri(ALBUM_COVER_URL) }}
             style={styles.albumCover}
             contentFit="cover"
           />

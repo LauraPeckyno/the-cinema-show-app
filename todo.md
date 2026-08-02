@@ -146,3 +146,11 @@
 - [x] Update all audio URLs from WAV on streamingkeys to MP3 on streamingkeys2 (CORS-enabled)
 - [x] Update album cover URL to streamingkeys2/cinemashow_cover.png
 - [x] Remove backend proxy dependency (direct fetch now works with CORS)
+- [x] Stop audio when user navigates back from Now Playing to track selection
+- [x] Delay mic/effects until track begins playing (even if effects button tapped first)
+- [x] Reduce mic input gain from +15dB to +8dB on all tracks
+- [x] Increase effected output from 30% to 50% of song volume
+- [x] Reduce projector sound on homepage tap ticket by half
+- [x] Change About page album cover to match Homepage album cover
+- [x] Add line break between "play all" and "Select a Scene below" on tracks page
+- [x] Update Experience section ending text to "- creating a unique listening experience every time."
