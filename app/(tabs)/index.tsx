@@ -244,7 +244,7 @@ export default function HomeScreen() {
               Now Playing
             </Text>
             <Text style={[styles.title, { color: colors.foreground, fontFamily: fontsLoaded ? "PlayfairDisplay-Bold" : undefined }]}>
-              THE CINEMA{"\n"}SHOW
+              CINEMA{"\n"}SHOW
             </Text>
           </View>
 
@@ -283,30 +283,7 @@ export default function HomeScreen() {
             <View style={[styles.albumCoverGlow, { backgroundColor: colors.primary + "15" }]} />
           </View>
 
-          {/* ─── Description ─── */}
-          <ArtDecoHeader title="THE EXPERIENCE" color={colors.primary} textColor={colors.foreground} />
-
-          <View style={styles.descriptionSection}>
-            <Text style={[styles.description, { color: colors.muted }]}>
-              Step into a world where you become a part of the music. The Cinema Show captures ambient sounds and weaves them into the instrumental soundtrack - creating a unique listening experience every time.
-            </Text>
-          </View>
-
-          <ArtDecoDivider width={SCREEN_WIDTH * 0.5} color={colors.primary} />
-
-          {/* ─── Headphones Required Notice (text only, no icon) ─── */}
-          <View style={[styles.headphonesNotice, { borderColor: colors.primary + "40" }]}>
-            <Text style={[styles.headphonesTitle, { color: colors.primary }]}>
-              HEADPHONES REQUIRED
-            </Text>
-            <Text style={[styles.headphonesText, { color: colors.muted }]}>
-              To avoid audio feedback, please connect headphones or earbuds before starting.
-            </Text>
-          </View>
-
-          <ArtDecoDivider width={SCREEN_WIDTH * 0.6} color={colors.primary} />
-
-          {/* ─── Ticket Button ─── */}
+          {/* ─── Ticket Button (above The Experience) ─── */}
           <Pressable
             onPress={handleTicketPress}
             style={({ pressed }) => [
@@ -339,6 +316,40 @@ export default function HomeScreen() {
             <Text style={[styles.ticketTitle, { color: colors.primary }]}>Enter the Theatre</Text>
             <Text style={[styles.ticketLabel, { color: colors.muted }]}>{"\u2605"} {"\u2605"} {"\u2605"}</Text>
           </Pressable>
+
+          <ArtDecoDivider width={SCREEN_WIDTH * 0.6} color={colors.primary} />
+
+          {/* ─── The Experience ─── */}
+          <ArtDecoHeader title="THE EXPERIENCE" color={colors.primary} textColor={colors.foreground} />
+
+          <View style={styles.descriptionSection}>
+            <Text style={[styles.description, { color: colors.muted }]}>
+              Step into a world where you become a part of the music. The Cinema Show captures ambient sounds and weaves them into the instrumental soundtrack - creating a unique listening experience every time.
+            </Text>
+          </View>
+
+          <ArtDecoDivider width={SCREEN_WIDTH * 0.5} color={colors.primary} />
+
+          {/* ─── streamingkeys Section ─── */}
+          <ArtDecoHeader title="streamingkeys" color={colors.primary} textColor={colors.foreground} />
+
+          <View style={styles.descriptionSection}>
+            <Text style={[styles.description, { color: colors.muted }]}>
+              streamingkeys (aka Robert Peckyno) is a Pittsburgh-based composer, multimedia artist, and synth pioneer sitting somewhere between classical discipline and electronic rebellion…   Recognizable by his signature delayed-piano style, streamingkeys creates cinematic soundscapes that blur the lines between sweeping neoclassical, modern prog, and immersive ambient design.
+            </Text>
+          </View>
+
+          <ArtDecoDivider width={SCREEN_WIDTH * 0.5} color={colors.primary} />
+
+          {/* ─── Headphones Required Notice (text only, no icon) ─── */}
+          <View style={[styles.headphonesNotice, { borderColor: colors.primary + "40" }]}>
+            <Text style={[styles.headphonesTitle, { color: colors.primary }]}>
+              HEADPHONES REQUIRED
+            </Text>
+            <Text style={[styles.headphonesText, { color: colors.muted }]}>
+              To avoid audio feedback, please connect headphones or earbuds before starting.
+            </Text>
+          </View>
 
         </View>
       </ScrollView>

@@ -154,3 +154,10 @@
 - [x] Change About page album cover to match Homepage album cover
 - [x] Add line break between "play all" and "Select a Scene below" on tracks page
 - [x] Update Experience section ending text to "- creating a unique listening experience every time."
+- [x] Increase mic input gain to +10dB, change noise gate to reject below -25dB, increase effect output to 75% of music volume
+- [x] Add "streamingkeys" section under "The Experience" on homepage with bio text
+- [x] Move ticket button above "The Experience" but below album cover on homepage
+- [x] Remove bottom navigation bar completely and remove About page
+- [x] Remove "the" from "the Cinema Show" title on homepage
+- [x] Stop all playback and reset when navigating away from Now Playing; restart background music on home/tracks
+- [x] Move song title above image on Now Playing; update effects button text

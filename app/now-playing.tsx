@@ -81,6 +81,13 @@ export default function NowPlayingScreen() {
     isAlbumMode,
   } = state;
 
+  // Stop all playback when leaving this screen (unmount, hardware back, gesture dismiss)
+  useEffect(() => {
+    return () => {
+      stopPlayback();
+    };
+  }, []);
+
   const dispatchMicLevel = useCallback((level: number) => {
     const sensitivity = micSensitivity / 100;
     const adjustedLevel = Math.min(1, level * sensitivity * 2);
@@ -317,6 +324,13 @@ export default function NowPlayingScreen() {
           </Pressable>
         </View>
 
+        {/* Track Title (above artwork) */}
+        <View style={styles.titleArea}>
+          <Text style={[styles.trackTitle, { color: colors.foreground }]} numberOfLines={2}>
+            {currentTrack.title}
+          </Text>
+        </View>
+
         {/* Track Artwork with cinematic animation */}
         <View style={styles.artworkArea}>
           <Animated.View style={[styles.artworkGlowWrap, animatedGlowStyle]}>
@@ -332,13 +346,6 @@ export default function NowPlayingScreen() {
               />
             </View>
           </Animated.View>
-        </View>
-
-        {/* Track Title (centered) */}
-        <View style={styles.titleArea}>
-          <Text style={[styles.trackTitle, { color: colors.foreground }]} numberOfLines={2}>
-            {currentTrack.title}
-          </Text>
         </View>
 
         {/* Progress Bar with Times */}
@@ -414,7 +421,7 @@ export default function NowPlayingScreen() {
                 color={isMicActive ? effectColor : colors.muted}
               />
               <Text style={[styles.micToggleLabel, { color: isMicActive ? effectColor : colors.muted }]}>
-                {isMicActive ? "Effects Active" : "Tap to Activate Effects"}
+                {isMicActive ? "Tap to Deactivate" : "Listen Normally or Tap to Activate"}
               </Text>
             </Pressable>
           </Animated.View>
