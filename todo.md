@@ -164,3 +164,4 @@
 - [x] Reduce mic input gain to +3dB
 - [x] Add line break in effects toggle button text between "Listen Normally or" and "Tap to Activate"
 - [x] Restructure output mix: music at 100%, dry mic at 30%, effected mic at 70%
+- [x] Fix significant audio feedback on all 12 tracks caused by music bleed-through into mic — tighten noise gate, reduce delays/reverb, adjust parameters
