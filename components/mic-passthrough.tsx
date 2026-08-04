@@ -77,39 +77,61 @@ export function MicPassthrough({
 function buildEffectChainJS(): string {
   return `
     // Effect chain builder: creates Web Audio API effect chains with NO FEEDBACK LOOPS
-    // Anti-feedback: tight gate at -18dB + 200Hz HP filter rejects music bleed from speakers
+    // AGGRESSIVE anti-feedback: -10dB gate + multi-band filtering eliminates headphone leakage
+    // Only voice and loud environmental sounds pass through
     function buildEffectChain(ctx, source, trackId, bpm, intensity) {
-      // MODERATE INPUT GAIN — +3dB = ~1.41x (subtle boost, avoids feedback)
+      // ZERO INPUT GAIN — unity (0dB), no amplification of leakage
       var inputBoost = ctx.createGain();
-      inputBoost.gain.value = 1.41;
+      inputBoost.gain.value = 1.0; // 0dB = unity gain
 
       var output = ctx.createGain();
-      output.gain.value = 0.7; // reduced from 1.0 to limit overall effect output
+      output.gain.value = 0.6; // conservative output to prevent any feedback buildup
 
       // Analyser for level metering
       var analyser = ctx.createAnalyser();
       analyser.fftSize = 512;
       analyser.smoothingTimeConstant = 0.75;
 
-      // TIGHT noise gate: reject speaker bleed (music from speakers is typically -20 to -30dB at mic)
-      // Threshold at -18dB means only sounds louder than music bleed pass through
+      // VERY TIGHT noise gate at -10dB: only voice-level sounds pass through
+      // Headphone leakage is typically -20 to -40dB at the mic, so -10dB rejects it completely
       var inputGate = ctx.createDynamicsCompressor();
-      inputGate.threshold.value = -18;
-      inputGate.knee.value = 2;
-      inputGate.ratio.value = 20;
+      inputGate.threshold.value = -10;
+      inputGate.knee.value = 1;
+      inputGate.ratio.value = 40; // extreme ratio = hard gate
       inputGate.attack.value = 0.001;
-      inputGate.release.value = 0.05;
+      inputGate.release.value = 0.03; // fast release to cut quickly when voice stops
 
-      // High-pass filter: reject low-frequency speaker bleed (bass/kick from music)
-      // Music bass is the biggest contributor to feedback loops
+      // === MULTI-BAND ANTI-LEAKAGE FILTERING ===
+      // Headphone leakage has a characteristic frequency profile:
+      // - Bass leakage (20-300Hz): strongest from headphone drivers
+      // - Mid leakage (300-2000Hz): music fundamentals
+      // - Treble leakage (8000+Hz): hi-hats, cymbals
+      // Voice is primarily 300-3500Hz, so we use a bandpass to isolate it
+
+      // High-pass: aggressively cut everything below 300Hz (bass leakage)
       var antiBleedHP = ctx.createBiquadFilter();
       antiBleedHP.type = 'highpass';
-      antiBleedHP.frequency.value = 200;
-      antiBleedHP.Q.value = 0.7;
+      antiBleedHP.frequency.value = 300;
+      antiBleedHP.Q.value = 1.0; // steep rolloff
 
+      // Low-pass: cut above 6000Hz (treble leakage from hi-hats/cymbals)
+      var antiBleedLP = ctx.createBiquadFilter();
+      antiBleedLP.type = 'lowpass';
+      antiBleedLP.frequency.value = 6000;
+      antiBleedLP.Q.value = 0.7;
+
+      // Notch filter at ~150Hz to kill bass drum leakage specifically
+      var bassNotch = ctx.createBiquadFilter();
+      bassNotch.type = 'notch';
+      bassNotch.frequency.value = 150;
+      bassNotch.Q.value = 2.0;
+
+      // Signal chain: source -> gate -> HP -> LP -> notch -> inputBoost
       source.connect(inputGate);
       inputGate.connect(antiBleedHP);
-      antiBleedHP.connect(inputBoost);
+      antiBleedHP.connect(antiBleedLP);
+      antiBleedLP.connect(bassNotch);
+      bassNotch.connect(inputBoost);
 
       var beatSec = 60.0 / bpm;
       var t = ctx.currentTime;
@@ -753,9 +775,9 @@ function buildDryWetChainJS(): string {
       analyser.fftSize = 512;
       analyser.smoothingTimeConstant = 0.75;
 
-      // Moderate gain for dry path
+      // Dry path gain: below unity to suppress any residual leakage on the dry mic path
       var dryBoost = ctx.createGain();
-      dryBoost.gain.value = 1.0; // reduced from 1.41 to minimize bleed amplification
+      dryBoost.gain.value = 0.7; // below unity — voice still audible but leakage suppressed
 
       // Dry path: source -> dryBoost -> dryGain -> merger
       source.connect(dryBoost);
@@ -824,9 +846,9 @@ function WebMicPassthrough({
   // Update output volume — total mic output level relative to music
   useEffect(() => {
     if (outputGainRef.current) {
-      // Anti-feedback: reduced output multiplier from 1.0 to 0.6
-      // Combined with reduced dry/wet levels, this prevents speaker-to-mic feedback
-      const outputLevel = (musicVolume / 100) * 0.6;
+      // Aggressive anti-feedback: output at 0.5x music volume
+      // Combined with 0dB gain + -10dB gate, eliminates headphone leakage feedback
+      const outputLevel = (musicVolume / 100) * 0.5;
       outputGainRef.current.gain.value = outputLevel;
     }
   }, [musicVolume]);
@@ -858,8 +880,8 @@ function WebMicPassthrough({
       sourceRef.current = source;
 
       const outputGain = ctx.createGain();
-      // Anti-feedback: reduced output multiplier from 1.0 to 0.6
-      const outputLevel = (musicVolume / 100) * 0.6;
+      // Aggressive anti-feedback: output at 0.5x music volume
+      const outputLevel = (musicVolume / 100) * 0.5;
       // Start at 0 and ramp up over 4 seconds for smooth transition
       outputGain.gain.value = 0;
       outputGain.gain.linearRampToValueAtTime(outputLevel, ctx.currentTime + 4.0);
@@ -987,8 +1009,8 @@ function NativeMicPassthrough({
   }, []);
 
   const intensity = effectIntensity / 100;
-  // Anti-feedback: reduced output multiplier from 1.0 to 0.6
-  const vol = (musicVolume / 100) * 0.6;
+  // Aggressive anti-feedback: output at 0.5x music volume
+  const vol = (musicVolume / 100) * 0.5;
   const mix = 0.50; // not used for initial setup (buildDryWetChain uses fixed 15/50)
 
   const htmlContent = `
