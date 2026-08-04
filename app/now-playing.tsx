@@ -420,8 +420,8 @@ export default function NowPlayingScreen() {
                 size={32}
                 color={isMicActive ? effectColor : colors.muted}
               />
-              <Text style={[styles.micToggleLabel, { color: isMicActive ? effectColor : colors.muted }]}>
-                {isMicActive ? "Tap to Deactivate" : "Listen Normally or Tap to Activate"}
+              <Text style={[styles.micToggleLabel, { color: isMicActive ? effectColor : colors.muted, textAlign: 'center' }]}>
+                {isMicActive ? "Tap to Deactivate" : "Listen Normally or\nTap to Activate"}
               </Text>
             </Pressable>
           </Animated.View>

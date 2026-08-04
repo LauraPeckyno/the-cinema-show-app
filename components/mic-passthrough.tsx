@@ -79,9 +79,9 @@ function buildEffectChainJS(): string {
     // Effect chain builder: creates Web Audio API effect chains with NO FEEDBACK LOOPS
     function buildEffectChain(ctx, source, trackId, bpm, intensity) {
       // MODERATE INPUT GAIN — sensitive but safe from speaker-to-mic feedback
-      // +10dB = ~3.16x linear gain (enough to hear light touches without runaway)
+      // +3dB = ~1.41x linear gain (subtle boost, avoids feedback)
       var inputBoost = ctx.createGain();
-      inputBoost.gain.value = 3.16;
+      inputBoost.gain.value = 1.41;
 
       var output = ctx.createGain();
       output.gain.value = 1.0;
@@ -710,12 +710,12 @@ function buildDryWetChainJS(): string {
   return `
     // Build a dry/wet blended chain around the effect chain
     function buildDryWetChain(ctx, source, trackId, bpm, intensity, dryWetMix) {
-      // dryWetMix: 0 = fully dry, 1 = fully wet
+      // Fixed mix: dry mic at 30%, effected mic at 70%
       var dryGain = ctx.createGain();
-      dryGain.gain.value = 1.0 - dryWetMix;
+      dryGain.gain.value = 0.30;
 
       var wetGain = ctx.createGain();
-      wetGain.gain.value = dryWetMix;
+      wetGain.gain.value = 0.70;
 
       var merger = ctx.createGain();
       merger.gain.value = 1.0;
@@ -746,7 +746,7 @@ function buildDryWetChainJS(): string {
 
       // Moderate gain for dry path (matches the effect chain's 2.5x input boost)
       var dryBoost = ctx.createGain();
-      dryBoost.gain.value = 3.16; // same as effect chain inputBoost
+      dryBoost.gain.value = 1.41; // same as effect chain inputBoost (+3dB)
 
       // Dry path: source -> dryBoost -> dryGain -> merger
       source.connect(dryBoost);
@@ -812,21 +812,21 @@ function WebMicPassthrough({
     };
   }, [isActive, trackId]);
 
-  // Update output volume — effects capped at 30% of music volume, never exceeds safe levels
+  // Update output volume — total mic output level relative to music
   useEffect(() => {
     if (outputGainRef.current) {
-      // Effects output = 30% of music volume (which is 90% of device volume)
-      // This ensures effected mic never overwhelms the music
-      const effectsCeiling = (musicVolume / 100) * 0.75;
-      outputGainRef.current.gain.value = effectsCeiling;
+      // Music is at 100% (0.9 of device). Mic output mix:
+      // dry mic = 30% of music volume, effected mic = 70% of music volume
+      // outputGain controls the combined mic output level
+      const outputLevel = (musicVolume / 100) * 1.0;
+      outputGainRef.current.gain.value = outputLevel;
     }
   }, [musicVolume]);
 
-  // Update dry/wet mix
+  // Update dry/wet mix: dry mic at 30%, effected mic at 70%
   useEffect(() => {
-    const mix = dryWetMix / 100;
-    if (dryGainRef.current) dryGainRef.current.gain.value = 1.0 - mix;
-    if (wetGainRef.current) wetGainRef.current.gain.value = mix;
+    if (dryGainRef.current) dryGainRef.current.gain.value = 0.30;
+    if (wetGainRef.current) wetGainRef.current.gain.value = 0.70;
   }, [dryWetMix]);
 
   async function startWebPassthrough() {
@@ -850,11 +850,11 @@ function WebMicPassthrough({
       sourceRef.current = source;
 
       const outputGain = ctx.createGain();
-      // Effects output = 30% of music volume — safe hearing level
-      const effectsCeiling = (musicVolume / 100) * 0.75;
+      // Output level = music volume (dry 30% + wet 70% handled by dryGain/wetGain)
+      const outputLevel = (musicVolume / 100) * 1.0;
       // Start at 0 and ramp up over 4 seconds for smooth transition
       outputGain.gain.value = 0;
-      outputGain.gain.linearRampToValueAtTime(effectsCeiling, ctx.currentTime + 4.0);
+      outputGain.gain.linearRampToValueAtTime(outputLevel, ctx.currentTime + 4.0);
       outputGainRef.current = outputGain;
 
       // Build dry/wet chain
@@ -979,9 +979,9 @@ function NativeMicPassthrough({
   }, []);
 
   const intensity = effectIntensity / 100;
-  // Effects output = 75% of music volume — audible but safe, never overwhelms music
-  const vol = (musicVolume / 100) * 0.75;
-  const mix = dryWetMix / 100;
+  // Output level = music volume (dry 30% + wet 70% handled internally by buildDryWetChain)
+  const vol = (musicVolume / 100) * 1.0;
+  const mix = 0.70; // not used for initial setup (buildDryWetChain uses fixed 30/70)
 
   const htmlContent = `
 <!DOCTYPE html>
@@ -1117,8 +1117,9 @@ function setVolume(vol) {
 function setDryWet(mix) {
   if (chain && chain.dryGain && chain.wetGain && audioCtx) {
     var t = audioCtx.currentTime;
-    chain.dryGain.gain.setValueAtTime(1.0 - mix, t);
-    chain.wetGain.gain.setValueAtTime(mix, t);
+    // Fixed mix: dry mic at 30%, effected mic at 70%
+    chain.dryGain.gain.setValueAtTime(0.30, t);
+    chain.wetGain.gain.setValueAtTime(0.70, t);
   }
 }
 

@@ -161,3 +161,6 @@
 - [x] Remove "the" from "the Cinema Show" title on homepage
 - [x] Stop all playback and reset when navigating away from Now Playing; restart background music on home/tracks
 - [x] Move song title above image on Now Playing; update effects button text
+- [x] Reduce mic input gain to +3dB
+- [x] Add line break in effects toggle button text between "Listen Normally or" and "Tap to Activate"
+- [x] Restructure output mix: music at 100%, dry mic at 30%, effected mic at 70%
