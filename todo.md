@@ -169,5 +169,6 @@
 - [x] Relax noise gate threshold to -14dB and raise effected output by 20%
 - [x] Fix back button (< symbol) to stop playback when navigating away from Now Playing
 - [x] Add streamingkeys.com link in streamingkeys section on homepage
+- [x] Remove streamingkeys.com link (expo-linking import was causing APK build failure)
 - [x] Krampus Wishes: add reverse + slow stretch to output
 - [x] Corpse Parade: add whisper effect to voice return
