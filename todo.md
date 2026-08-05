@@ -166,3 +166,8 @@
 - [x] Restructure output mix: music at 100%, dry mic at 30%, effected mic at 70%
 - [x] Fix significant audio feedback on all 12 tracks caused by music bleed-through into mic — tighten noise gate, reduce delays/reverb, adjust parameters
 - [x] Eliminate music feedback completely: 0dB mic gain, -10dB noise gate, aggressive frequency filtering to reject headphone leakage
+- [x] Relax noise gate threshold to -14dB and raise effected output by 20%
+- [x] Fix back button (< symbol) to stop playback when navigating away from Now Playing
+- [x] Add streamingkeys.com link in streamingkeys section on homepage
+- [x] Krampus Wishes: add reverse + slow stretch to output
+- [x] Corpse Parade: add whisper effect to voice return
