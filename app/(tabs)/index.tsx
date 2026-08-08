@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { ScrollView, Text, View, Pressable, StyleSheet, Dimensions, Platform, Image, Linking } from "react-native";
+import { ScrollView, Text, View, Pressable, StyleSheet, Dimensions, Platform, Image } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useFonts } from "expo-font";
 import { useAudioPlayer } from "expo-audio";
@@ -337,14 +337,6 @@ export default function HomeScreen() {
             <Text style={[styles.description, { color: colors.muted }]}>
               streamingkeys (aka Robert Peckyno) is a Pittsburgh-based composer, multimedia artist, and synth pioneer sitting somewhere between classical discipline and electronic rebellion…   Recognizable by his signature delayed-piano style, streamingkeys creates cinematic soundscapes that blur the lines between sweeping neoclassical, modern prog, and immersive ambient design.
             </Text>
-            <Pressable
-              onPress={() => Linking.openURL('https://streamingkeys.com')}
-              style={({ pressed }) => [{ marginTop: 12, opacity: pressed ? 0.6 : 1 }]}
-            >
-              <Text style={{ color: colors.primary, fontSize: 15, textAlign: 'center', textDecorationLine: 'underline' }}>
-                streamingkeys.com
-              </Text>
-            </Pressable>
           </View>
 
           <ArtDecoDivider width={SCREEN_WIDTH * 0.5} color={colors.primary} />

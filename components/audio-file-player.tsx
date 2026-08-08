@@ -298,7 +298,6 @@ function NativeAudioFilePlayer({
         listenerSubRef.current = null;
       }
       if (playerRef.current) {
-        try { playerRef.current.pause(); } catch {} // explicitly pause before removing
         try { playerRef.current.remove(); } catch {}
         playerRef.current = null;
       }
