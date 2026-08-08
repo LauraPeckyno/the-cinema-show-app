@@ -136,53 +136,79 @@ function buildEffectChainJS(): string {
       var t = ctx.currentTime;
 
       switch (trackId) {
-        case 1: { // PHANTOM STUTTER — Corpse Parade (BPM 116): dual random delays, 16th-note repeat with pitch mod, 4-24 beat half-speed repeat
-          // Delay 1: random length 0.25-1s, repeats at 16th-note speed, pitch modulates downward, max 4 repeats
-          var randomLen1 = 0.25 + Math.random() * 0.75; // 0.25 to 1 second
-          var sixteenthSec = beatSec / 4; // 16th note duration
-          var del1a = ctx.createDelay(5.0); del1a.delayTime.value = sixteenthSec;
-          var del1b = ctx.createDelay(5.0); del1b.delayTime.value = sixteenthSec * 2;
-          var del1c = ctx.createDelay(5.0); del1c.delayTime.value = sixteenthSec * 3;
-          var del1d = ctx.createDelay(5.0); del1d.delayTime.value = sixteenthSec * 4;
-          var gain1a = ctx.createGain(); gain1a.gain.value = 0.4;
-          var gain1b = ctx.createGain(); gain1b.gain.value = 0.3;
-          var gain1c = ctx.createGain(); gain1c.gain.value = 0.2;
-          var gain1d = ctx.createGain(); gain1d.gain.value = 0.12;
-          // Pitch-lowering modulator on delay 1 (sawtooth = descending)
-          var pitchMod1 = ctx.createOscillator(); pitchMod1.type = 'sawtooth';
-          pitchMod1.frequency.value = 0.2; // slow descent
-          var pitchDepth1 = ctx.createGain(); pitchDepth1.gain.value = 0.005 + intensity * 0.01;
-          pitchMod1.connect(pitchDepth1);
-          pitchDepth1.connect(del1a.delayTime);
-          pitchDepth1.connect(del1b.delayTime);
-          pitchDepth1.connect(del1c.delayTime);
-          pitchDepth1.connect(del1d.delayTime);
-          pitchMod1.start();
+        case 1: { // GHOST WHISPER — Corpse Parade (BPM 116): returns voice as a whisper
+          // Whisper effect: remove low frequencies (body of voice), keep only breathy high-freq content,
+          // add shaped noise to simulate whisper breath, reduce volume dramatically
 
-          // Delay 2: random time 4-24 beats away, plays back at half speed (via pitch shift down)
-          var randomBeats2 = 4 + Math.floor(Math.random() * 21); // 4 to 24 beats
-          var del2 = ctx.createDelay(15.0); del2.delayTime.value = beatSec * randomBeats2;
-          var gain2 = ctx.createGain(); gain2.gain.value = 0.25;
-          // Half-speed via slow modulation of delay time (creates pitch-down effect)
-          var pitchMod2 = ctx.createOscillator(); pitchMod2.type = 'sawtooth';
-          pitchMod2.frequency.value = 0.08; // very slow for half-speed feel
-          var pitchDepth2 = ctx.createGain(); pitchDepth2.gain.value = 0.015 + intensity * 0.02;
-          pitchMod2.connect(pitchDepth2); pitchDepth2.connect(del2.delayTime);
-          pitchMod2.start();
+          // Step 1: High-pass filter to remove chest resonance (voice body)
+          // Whispers have almost no energy below 500Hz
+          var whisperHP1 = ctx.createBiquadFilter();
+          whisperHP1.type = 'highpass';
+          whisperHP1.frequency.value = 800; // aggressive HP removes voice body
+          whisperHP1.Q.value = 0.8;
 
-          // Signal chain
-          inputBoost.connect(del1a); del1a.connect(gain1a);
-          inputBoost.connect(del1b); del1b.connect(gain1b);
-          inputBoost.connect(del1c); del1c.connect(gain1c);
-          inputBoost.connect(del1d); del1d.connect(gain1d);
-          inputBoost.connect(del2); del2.connect(gain2);
+          // Step 2: Second HP for even more body removal
+          var whisperHP2 = ctx.createBiquadFilter();
+          whisperHP2.type = 'highpass';
+          whisperHP2.frequency.value = 1200;
+          whisperHP2.Q.value = 0.5;
 
-          // Mix all to output
-          var dry1 = ctx.createGain(); dry1.gain.value = 0.25;
-          inputBoost.connect(dry1); dry1.connect(analyser);
-          gain1a.connect(analyser); gain1b.connect(analyser);
-          gain1c.connect(analyser); gain1d.connect(analyser);
-          gain2.connect(analyser);
+          // Step 3: Boost the sibilant/breathy frequencies (2-6kHz) where whisper energy lives
+          var whisperPeak = ctx.createBiquadFilter();
+          whisperPeak.type = 'peaking';
+          whisperPeak.frequency.value = 3500;
+          whisperPeak.Q.value = 1.0;
+          whisperPeak.gain.value = 8; // boost the airy frequencies
+
+          // Step 4: Generate white noise shaped by the voice envelope (noise follows voice dynamics)
+          // This simulates the breathy turbulence of a whisper
+          var noiseSize1 = 4096;
+          var noiseNode1 = ctx.createScriptProcessor(noiseSize1, 1, 1);
+          var noiseEnvelope1 = 0;
+          noiseNode1.onaudioprocess = function(e) {
+            var inp = e.inputBuffer.getChannelData(0);
+            var out = e.outputBuffer.getChannelData(0);
+            // Track envelope of input (voice amplitude)
+            for (var ni = 0; ni < noiseSize1; ni++) {
+              var absVal = Math.abs(inp[ni]);
+              noiseEnvelope1 = noiseEnvelope1 * 0.995 + absVal * 0.005; // smooth envelope follower
+              // Generate noise shaped by envelope
+              var noise = (Math.random() * 2 - 1) * noiseEnvelope1 * 2.5;
+              // Mix: filtered voice (quiet) + shaped noise (breathy)
+              out[ni] = inp[ni] * 0.3 + noise * 0.5;
+            }
+          };
+
+          // Step 5: Low-pass the output to avoid harshness
+          var whisperLP = ctx.createBiquadFilter();
+          whisperLP.type = 'lowpass';
+          whisperLP.frequency.value = 7000;
+          whisperLP.Q.value = 0.5;
+
+          // Step 6: Reduce overall volume (whispers are quiet)
+          var whisperVol = ctx.createGain();
+          whisperVol.gain.value = 0.4;
+
+          // Step 7: Add a short delay for ghostly effect (single tap, no feedback)
+          var whisperDel = ctx.createDelay(2.0);
+          whisperDel.delayTime.value = beatSec * 2; // 2-beat delayed whisper echo
+          var whisperDelGain = ctx.createGain();
+          whisperDelGain.gain.value = 0.2;
+
+          // Signal chain: input -> HP1 -> HP2 -> peak boost -> noise shaper -> LP -> volume -> output
+          inputBoost.connect(whisperHP1);
+          whisperHP1.connect(whisperHP2);
+          whisperHP2.connect(whisperPeak);
+          whisperPeak.connect(noiseNode1);
+          noiseNode1.connect(whisperLP);
+          whisperLP.connect(whisperVol);
+          whisperVol.connect(analyser);
+
+          // Delayed whisper ghost
+          whisperVol.connect(whisperDel);
+          whisperDel.connect(whisperDelGain);
+          whisperDelGain.connect(analyser);
+
           analyser.connect(output);
           break;
         }
@@ -270,53 +296,54 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 4: { // REVERSE ECHO — Krampus Wishes (BPM 120): 8-beat delay, reversed half-speed playback, very large reverb
-          // 8-beat delay
+        case 4: { // REVERSE ECHO — Krampus Wishes (BPM 120): 8-beat delay, reversed + slowed (1/3 speed) playback, large reverb
+          // 8-beat delay before reverse processing
           var eightBeats4 = beatSec * 8;
           var del4 = ctx.createDelay(15.0); del4.delayTime.value = eightBeats4;
           var del4Gain = ctx.createGain(); del4Gain.gain.value = 0.4;
 
-          // Reverse + half-speed via ScriptProcessor
+          // Reverse + stretched (1/3 speed) via ScriptProcessor
+          // Reads buffer backwards at 1/3 rate = dramatically slowed reverse playback
           var bufSize4 = 8192;
           var reverseNode4 = ctx.createScriptProcessor(bufSize4, 1, 1);
-          var revBuf4 = new Float32Array(bufSize4 * 2);
+          var revBuf4 = new Float32Array(bufSize4 * 3); // larger buffer for slower read
           var revWriteIdx4 = 0;
-          var revPlayBuf4 = new Float32Array(bufSize4 * 2);
+          var revPlayBuf4 = new Float32Array(bufSize4 * 3);
           reverseNode4.onaudioprocess = function(e) {
             var inp = e.inputBuffer.getChannelData(0);
             var out = e.outputBuffer.getChannelData(0);
             for (var wi = 0; wi < bufSize4; wi++) {
               revBuf4[revWriteIdx4] = inp[wi];
               revWriteIdx4++;
-              if (revWriteIdx4 >= bufSize4 * 2) {
-                for (var ci = 0; ci < bufSize4 * 2; ci++) revPlayBuf4[ci] = revBuf4[ci];
+              if (revWriteIdx4 >= bufSize4 * 3) {
+                for (var ci = 0; ci < bufSize4 * 3; ci++) revPlayBuf4[ci] = revBuf4[ci];
                 revWriteIdx4 = 0;
               }
             }
-            // Read in reverse at half speed
+            // Read in REVERSE at 1/3 speed (stretched + backwards)
             for (var ro = 0; ro < bufSize4; ro++) {
-              var readPos = (bufSize4 * 2 - 1) - Math.floor(ro * 0.5);
-              out[ro] = (readPos >= 0 && readPos < bufSize4 * 2) ? revPlayBuf4[readPos] * 0.7 : 0;
+              var readPos = (bufSize4 * 3 - 1) - Math.floor(ro * 0.33);
+              out[ro] = (readPos >= 0 && readPos < bufSize4 * 3) ? revPlayBuf4[readPos] * 0.6 : 0;
             }
           };
 
-          // Very large reverb — NO FEEDBACK, parallel decaying taps for density
+          // Large reverb on the reversed output — NO FEEDBACK, parallel decaying taps
           var revMerge4 = ctx.createGain(); revMerge4.gain.value = 0.2;
           var revTimes4 = [0.071, 0.113, 0.167, 0.223, 0.293, 0.367, 0.449, 0.541];
           for (var ri4 = 0; ri4 < revTimes4.length; ri4++) {
             var rvd4 = ctx.createDelay(4.0);
-            rvd4.delayTime.value = revTimes4[ri4] * (2.5 + intensity * 1.5);
+            rvd4.delayTime.value = revTimes4[ri4] * (3.0 + intensity * 1.5);
             var rvlp4 = ctx.createBiquadFilter();
-            rvlp4.type = 'lowpass'; rvlp4.frequency.value = 3000 - ri4 * 200;
-            var rvGain4 = ctx.createGain(); rvGain4.gain.value = 0.25 - ri4 * 0.03;
+            rvlp4.type = 'lowpass'; rvlp4.frequency.value = 2500 - ri4 * 200;
+            var rvGain4 = ctx.createGain(); rvGain4.gain.value = 0.2 - ri4 * 0.02;
             reverseNode4.connect(rvd4);
             rvd4.connect(rvlp4); rvlp4.connect(rvGain4); rvGain4.connect(revMerge4);
           }
 
-          // Signal chain: input -> 8-beat delay -> reverse/half-speed -> reverb -> output
+          // Signal chain: input -> 8-beat delay -> reverse/1/3-speed -> reverb -> output
           inputBoost.connect(del4); del4.connect(del4Gain);
           del4Gain.connect(reverseNode4);
-          var dry4g = ctx.createGain(); dry4g.gain.value = 0.15;
+          var dry4g = ctx.createGain(); dry4g.gain.value = 0.12;
           reverseNode4.connect(dry4g); dry4g.connect(analyser);
           revMerge4.connect(analyser);
           analyser.connect(output);
@@ -845,8 +872,7 @@ function WebMicPassthrough({
   // Update output volume — total mic output level relative to music
   useEffect(() => {
     if (outputGainRef.current) {
-      // Output at 0.6x music volume (raised 20% for more audible effects)
-      
+      // Output at 0.6x music volume (raised 20% from 0.5 for more audible effects)
       const outputLevel = (musicVolume / 100) * 0.6;
       outputGainRef.current.gain.value = outputLevel;
     }
