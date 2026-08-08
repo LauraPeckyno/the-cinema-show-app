@@ -92,14 +92,13 @@ function buildEffectChainJS(): string {
       analyser.fftSize = 512;
       analyser.smoothingTimeConstant = 0.75;
 
-      // VERY TIGHT noise gate at -10dB: only voice-level sounds pass through
-      // Headphone leakage is typically -20 to -40dB at the mic, so -10dB rejects it completely
+      // Noise gate at -14dB: voice triggers easily, headphone leakage (-20 to -40dB) still rejected
       var inputGate = ctx.createDynamicsCompressor();
-      inputGate.threshold.value = -10;
-      inputGate.knee.value = 1;
+      inputGate.threshold.value = -14;
+      inputGate.knee.value = 2;
       inputGate.ratio.value = 40; // extreme ratio = hard gate
       inputGate.attack.value = 0.001;
-      inputGate.release.value = 0.03; // fast release to cut quickly when voice stops
+      inputGate.release.value = 0.04; // fast release to cut quickly when voice stops
 
       // === MULTI-BAND ANTI-LEAKAGE FILTERING ===
       // Headphone leakage has a characteristic frequency profile:
@@ -740,13 +739,13 @@ function buildDryWetChainJS(): string {
   return `
     // Build a dry/wet blended chain around the effect chain
     function buildDryWetChain(ctx, source, trackId, bpm, intensity, dryWetMix) {
-      // Anti-feedback mix: dry mic at 15%, effected mic at 50%
-      // Reduced from 30/70 to minimize speaker-to-mic feedback accumulation
+      // Anti-feedback mix: dry mic at 15%, effected mic at 60%
+      // Wet raised 20% from 0.50 for more audible effects without feedback
       var dryGain = ctx.createGain();
       dryGain.gain.value = 0.15;
 
       var wetGain = ctx.createGain();
-      wetGain.gain.value = 0.50;
+      wetGain.gain.value = 0.60;
 
       var merger = ctx.createGain();
       merger.gain.value = 1.0;
@@ -846,17 +845,17 @@ function WebMicPassthrough({
   // Update output volume — total mic output level relative to music
   useEffect(() => {
     if (outputGainRef.current) {
-      // Aggressive anti-feedback: output at 0.5x music volume
-      // Combined with 0dB gain + -10dB gate, eliminates headphone leakage feedback
-      const outputLevel = (musicVolume / 100) * 0.5;
+      // Output at 0.6x music volume (raised 20% for more audible effects)
+      
+      const outputLevel = (musicVolume / 100) * 0.6;
       outputGainRef.current.gain.value = outputLevel;
     }
   }, [musicVolume]);
 
-  // Update dry/wet mix: anti-feedback levels (dry 15%, wet 50%)
+  // Update dry/wet mix: dry 15%, wet 60% (raised 20% for more audible effects)
   useEffect(() => {
     if (dryGainRef.current) dryGainRef.current.gain.value = 0.15;
-    if (wetGainRef.current) wetGainRef.current.gain.value = 0.50;
+    if (wetGainRef.current) wetGainRef.current.gain.value = 0.60;
   }, [dryWetMix]);
 
   async function startWebPassthrough() {
@@ -880,8 +879,8 @@ function WebMicPassthrough({
       sourceRef.current = source;
 
       const outputGain = ctx.createGain();
-      // Aggressive anti-feedback: output at 0.5x music volume
-      const outputLevel = (musicVolume / 100) * 0.5;
+      // Output at 0.6x music volume (raised 20% for more audible effects)
+      const outputLevel = (musicVolume / 100) * 0.6;
       // Start at 0 and ramp up over 4 seconds for smooth transition
       outputGain.gain.value = 0;
       outputGain.gain.linearRampToValueAtTime(outputLevel, ctx.currentTime + 4.0);
@@ -1009,9 +1008,9 @@ function NativeMicPassthrough({
   }, []);
 
   const intensity = effectIntensity / 100;
-  // Aggressive anti-feedback: output at 0.5x music volume
-  const vol = (musicVolume / 100) * 0.5;
-  const mix = 0.50; // not used for initial setup (buildDryWetChain uses fixed 15/50)
+  // Output at 0.6x music volume (raised 20% for more audible effects)
+  const vol = (musicVolume / 100) * 0.6;
+  const mix = 0.60; // not used for initial setup (buildDryWetChain uses fixed 15/60)
 
   const htmlContent = `
 <!DOCTYPE html>
@@ -1147,9 +1146,9 @@ function setVolume(vol) {
 function setDryWet(mix) {
   if (chain && chain.dryGain && chain.wetGain && audioCtx) {
     var t = audioCtx.currentTime;
-    // Anti-feedback mix: dry 15%, wet 50%
+    // Anti-feedback mix: dry 15%, wet 60%
     chain.dryGain.gain.setValueAtTime(0.15, t);
-    chain.wetGain.gain.setValueAtTime(0.50, t);
+    chain.wetGain.gain.setValueAtTime(0.60, t);
   }
 }
 
