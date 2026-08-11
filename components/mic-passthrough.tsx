@@ -158,7 +158,7 @@ function buildEffectChainJS(): string {
           whisperPeak.type = 'peaking';
           whisperPeak.frequency.value = 3500;
           whisperPeak.Q.value = 1.0;
-          whisperPeak.gain.value = 8; // boost the airy frequencies
+          whisperPeak.gain.value = 10; // boost the airy frequencies
 
           // Step 4: Generate white noise shaped by the voice envelope (noise follows voice dynamics)
           // This simulates the breathy turbulence of a whisper
@@ -175,7 +175,7 @@ function buildEffectChainJS(): string {
               // Generate noise shaped by envelope
               var noise = (Math.random() * 2 - 1) * noiseEnvelope1 * 2.5;
               // Mix: filtered voice (quiet) + shaped noise (breathy)
-              out[ni] = inp[ni] * 0.3 + noise * 0.5;
+              out[ni] = inp[ni] * 0.3 + noise * 1.0;
             }
           };
 
@@ -187,13 +187,13 @@ function buildEffectChainJS(): string {
 
           // Step 6: Reduce overall volume (whispers are quiet)
           var whisperVol = ctx.createGain();
-          whisperVol.gain.value = 0.4;
+          whisperVol.gain.value = 1.0;
 
           // Step 7: Add a short delay for ghostly effect (single tap, no feedback)
           var whisperDel = ctx.createDelay(2.0);
-          whisperDel.delayTime.value = beatSec * 2; // 2-beat delayed whisper echo
+          whisperDel.delayTime.value = beatSec * 4; // 2-beat delayed whisper echo
           var whisperDelGain = ctx.createGain();
-          whisperDelGain.gain.value = 0.2;
+          whisperDelGain.gain.value = 0.5;
 
           // Signal chain: input -> HP1 -> HP2 -> peak boost -> noise shaper -> LP -> volume -> output
           inputBoost.connect(whisperHP1);
@@ -222,10 +222,10 @@ function buildEffectChainJS(): string {
           // Delay at twice the rate of music (half a beat) — NO FEEDBACK, finite taps only
           var halfBeat2 = beatSec / 2; // 2x rate = half beat duration
           var del2a = ctx.createDelay(5.0); del2a.delayTime.value = halfBeat2;
-          var del2Gain = ctx.createGain(); del2Gain.gain.value = 0.3;
+          var del2Gain = ctx.createGain(); del2Gain.gain.value = 0.5;
           // Second tap at 2x the delay (decaying)
-          var del2b = ctx.createDelay(5.0); del2b.delayTime.value = halfBeat2 * 2;
-          var del2bGain = ctx.createGain(); del2bGain.gain.value = 0.15;
+          var del2b = ctx.createDelay(5.0); del2b.delayTime.value = halfBeat2 * 4;
+          var del2bGain = ctx.createGain(); del2bGain.gain.value = 0.3;
 
           // Large room reverb (multi-tap delays, NO FEEDBACK — just parallel taps for density)
           var revMerge2 = ctx.createGain(); revMerge2.gain.value = 0.2;
@@ -244,7 +244,7 @@ function buildEffectChainJS(): string {
           inputBoost.connect(hp2);
           hp2.connect(del2a); del2a.connect(del2Gain);
           hp2.connect(del2b); del2b.connect(del2bGain);
-          var dry2g = ctx.createGain(); dry2g.gain.value = 0.25;
+          var dry2g = ctx.createGain(); dry2g.gain.value = 0.50;
           hp2.connect(dry2g); dry2g.connect(analyser);
           del2Gain.connect(analyser);
           del2bGain.connect(analyser);
@@ -289,7 +289,7 @@ function buildEffectChainJS(): string {
           cbWs.connect(cbBp2);
           cbBp2.connect(del3); del3.connect(del3Gain);
           // Mix: distorted + delayed
-          var dry3g = ctx.createGain(); dry3g.gain.value = 0.3;
+          var dry3g = ctx.createGain(); dry3g.gain.value = 0.7;
           cbBp2.connect(dry3g); dry3g.connect(analyser);
           del3Gain.connect(analyser);
           analyser.connect(output);
@@ -322,13 +322,13 @@ function buildEffectChainJS(): string {
             }
             // Read in REVERSE at 1/3 speed (stretched + backwards)
             for (var ro = 0; ro < bufSize4; ro++) {
-              var readPos = (bufSize4 * 3 - 1) - Math.floor(ro * 0.33);
-              out[ro] = (readPos >= 0 && readPos < bufSize4 * 3) ? revPlayBuf4[readPos] * 0.6 : 0;
+              var readPos = (bufSize4 * 3 - 1) - Math.floor(ro * 0.5);
+              out[ro] = (readPos >= 0 && readPos < bufSize4 * 3) ? revPlayBuf4[readPos] * 1.6 : 0;
             }
           };
 
           // Large reverb on the reversed output — NO FEEDBACK, parallel decaying taps
-          var revMerge4 = ctx.createGain(); revMerge4.gain.value = 0.2;
+          var revMerge4 = ctx.createGain(); revMerge4.gain.value = 0.4;
           var revTimes4 = [0.071, 0.113, 0.167, 0.223, 0.293, 0.367, 0.449, 0.541];
           for (var ri4 = 0; ri4 < revTimes4.length; ri4++) {
             var rvd4 = ctx.createDelay(4.0);
@@ -343,7 +343,7 @@ function buildEffectChainJS(): string {
           // Signal chain: input -> 8-beat delay -> reverse/1/3-speed -> reverb -> output
           inputBoost.connect(del4); del4.connect(del4Gain);
           del4Gain.connect(reverseNode4);
-          var dry4g = ctx.createGain(); dry4g.gain.value = 0.12;
+          var dry4g = ctx.createGain(); dry4g.gain.value = 0.3;
           reverseNode4.connect(dry4g); dry4g.connect(analyser);
           revMerge4.connect(analyser);
           analyser.connect(output);
@@ -422,15 +422,15 @@ function buildEffectChainJS(): string {
 
           // Beat-synced delay (one beat) — NO FEEDBACK, finite taps
           var del6 = ctx.createDelay(5.0); del6.delayTime.value = beatSec;
-          var del6Gain = ctx.createGain(); del6Gain.gain.value = 0.3;
+          var del6Gain = ctx.createGain(); del6Gain.gain.value = 0.6;
           // Second tap at 2 beats (decaying)
           var del6b = ctx.createDelay(5.0); del6b.delayTime.value = beatSec * 2;
-          var del6bGain = ctx.createGain(); del6bGain.gain.value = 0.15;
+          var del6bGain = ctx.createGain(); del6bGain.gain.value = 0.3;
 
           // 2/3 rate playback via pitch-shifting modulation (slows perceived playback)
           var slowLfo6 = ctx.createOscillator(); slowLfo6.type = 'sawtooth';
           slowLfo6.frequency.value = 0.12; // slow modulation for pitch-down feel
-          var slowDepth6 = ctx.createGain(); slowDepth6.gain.value = 0.012 + intensity * 0.015;
+          var slowDepth6 = ctx.createGain(); slowDepth6.gain.value = 0.03 + intensity * 0.015;
           slowLfo6.connect(slowDepth6); slowDepth6.connect(del6.delayTime);
           slowLfo6.start();
 
@@ -439,7 +439,7 @@ function buildEffectChainJS(): string {
           gate6.connect(lp6);
           lp6.connect(del6); del6.connect(del6Gain);
           lp6.connect(del6b); del6b.connect(del6bGain);
-          var dry6g = ctx.createGain(); dry6g.gain.value = 0.25;
+          var dry6g = ctx.createGain(); dry6g.gain.value = 0.4;
           lp6.connect(dry6g); dry6g.connect(analyser);
           del6Gain.connect(analyser);
           del6bGain.connect(analyser);
@@ -452,11 +452,11 @@ function buildEffectChainJS(): string {
           // Implemented as a gain node that the ScriptProcessor/worklet would control
           // For Web Audio: use compressor as gate (fast attack, high ratio below threshold)
           var gate7 = ctx.createDynamicsCompressor();
-          gate7.threshold.value = -50; // signals below -50dB are gated (approx 10dB above typical noise floor at -60dB)
+          gate7.threshold.value = -20; // signals below -50dB are gated (approx 10dB above typical noise floor at -60dB)
           gate7.knee.value = 1;
           gate7.ratio.value = 20; // heavy compression below threshold = gate
           gate7.attack.value = 0.001;
-          gate7.release.value = 0.05;
+          gate7.release.value = 0.1;
 
           // Long church reverb — NO FEEDBACK, parallel decaying taps for cathedral density
           var reverbMerge7 = ctx.createGain(); reverbMerge7.gain.value = 0.25;
@@ -477,16 +477,16 @@ function buildEffectChainJS(): string {
           var del7a = ctx.createDelay(5.0); del7a.delayTime.value = halfRate7;
           var del7b = ctx.createDelay(5.0); del7b.delayTime.value = halfRate7 * 2;
           var del7c = ctx.createDelay(5.0); del7c.delayTime.value = halfRate7 * 3;
-          var delGain7a = ctx.createGain(); delGain7a.gain.value = 0.3;
-          var delGain7b = ctx.createGain(); delGain7b.gain.value = 0.18;
-          var delGain7c = ctx.createGain(); delGain7c.gain.value = 0.08;
+          var delGain7a = ctx.createGain(); delGain7a.gain.value = 0.6;
+          var delGain7b = ctx.createGain(); delGain7b.gain.value = 0.4;
+          var delGain7c = ctx.createGain(); delGain7c.gain.value = 0.2;
 
           gate7.connect(del7a); del7a.connect(delGain7a); delGain7a.connect(analyser);
           gate7.connect(del7b); del7b.connect(delGain7b); delGain7b.connect(analyser);
           gate7.connect(del7c); del7c.connect(delGain7c); delGain7c.connect(analyser);
 
           // Dry (gated) signal + reverb
-          var dry7 = ctx.createGain(); dry7.gain.value = 0.35;
+          var dry7 = ctx.createGain(); dry7.gain.value = 0.5;
           gate7.connect(dry7); dry7.connect(analyser);
           reverbMerge7.connect(analyser);
           analyser.connect(output);
