@@ -82,10 +82,10 @@ function buildEffectChainJS(): string {
     function buildEffectChain(ctx, source, trackId, bpm, intensity) {
       // ZERO INPUT GAIN — unity (0dB), no amplification of leakage
       var inputBoost = ctx.createGain();
-      inputBoost.gain.value = 1.1; // 0dB = unity gain
+      inputBoost.gain.value = 1.0; // 0dB = unity gain
 
       var output = ctx.createGain();
-      output.gain.value = 0.8; // conservative output to prevent any feedback buildup
+      output.gain.value = 1.8; // conservative output to prevent any feedback buildup
 
       // Analyser for level metering
       var analyser = ctx.createAnalyser();
