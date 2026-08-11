@@ -766,13 +766,13 @@ function buildDryWetChainJS(): string {
   return `
     // Build a dry/wet blended chain around the effect chain
     function buildDryWetChain(ctx, source, trackId, bpm, intensity, dryWetMix) {
-      // Anti-feedback mix: dry mic at 15%, effected mic at 60%
-      // Wet raised 20% from 0.50 for more audible effects without feedback
+      // Balanced anti-feedback mix: stronger dry and effected returns
+      // Gate, frequency filters, compressor, and limiter remain in place to control leakage and peaks
       var dryGain = ctx.createGain();
-      dryGain.gain.value = 0.15;
+      dryGain.gain.value = 0.20;
 
       var wetGain = ctx.createGain();
-      wetGain.gain.value = 0.60;
+      wetGain.gain.value = 0.70;
 
       var merger = ctx.createGain();
       merger.gain.value = 1.0;
@@ -801,9 +801,9 @@ function buildDryWetChainJS(): string {
       analyser.fftSize = 512;
       analyser.smoothingTimeConstant = 0.75;
 
-      // Dry path gain: below unity to suppress any residual leakage on the dry mic path
+      // Dry path gain stays below unity to suppress residual leakage while improving vocal audibility
       var dryBoost = ctx.createGain();
-      dryBoost.gain.value = 0.7; // below unity — voice still audible but leakage suppressed
+      dryBoost.gain.value = 0.75; // below unity — stronger voice return with leakage suppression retained
 
       // Dry path: source -> dryBoost -> dryGain -> merger
       source.connect(dryBoost);
@@ -872,16 +872,16 @@ function WebMicPassthrough({
   // Update output volume — total mic output level relative to music
   useEffect(() => {
     if (outputGainRef.current) {
-      // Output at 0.6x music volume (raised 20% from 0.5 for more audible effects)
-      const outputLevel = (musicVolume / 100) * 0.6;
+      // Mic-output master at 0.65x music volume; safety processing remains post-mix
+      const outputLevel = (musicVolume / 100) * 0.65;
       outputGainRef.current.gain.value = outputLevel;
     }
   }, [musicVolume]);
 
-  // Update dry/wet mix: dry 15%, wet 60% (raised 20% for more audible effects)
+  // Update fixed mix: dry 20%, wet 70% for stronger mic returns
   useEffect(() => {
-    if (dryGainRef.current) dryGainRef.current.gain.value = 0.15;
-    if (wetGainRef.current) wetGainRef.current.gain.value = 0.60;
+    if (dryGainRef.current) dryGainRef.current.gain.value = 0.20;
+    if (wetGainRef.current) wetGainRef.current.gain.value = 0.70;
   }, [dryWetMix]);
 
   async function startWebPassthrough() {
@@ -905,8 +905,8 @@ function WebMicPassthrough({
       sourceRef.current = source;
 
       const outputGain = ctx.createGain();
-      // Output at 0.6x music volume (raised 20% for more audible effects)
-      const outputLevel = (musicVolume / 100) * 0.6;
+      // Mic-output master at 0.65x music volume; safety processing remains post-mix
+      const outputLevel = (musicVolume / 100) * 0.65;
       // Start at 0 and ramp up over 4 seconds for smooth transition
       outputGain.gain.value = 0;
       outputGain.gain.linearRampToValueAtTime(outputLevel, ctx.currentTime + 4.0);
@@ -1034,9 +1034,9 @@ function NativeMicPassthrough({
   }, []);
 
   const intensity = effectIntensity / 100;
-  // Output at 0.6x music volume (raised 20% for more audible effects)
-  const vol = (musicVolume / 100) * 0.6;
-  const mix = 0.60; // not used for initial setup (buildDryWetChain uses fixed 15/60)
+  // Mic-output master at 0.65x music volume; native path matches web
+  const vol = (musicVolume / 100) * 0.65;
+  const mix = 0.70; // not used for initial setup (buildDryWetChain uses fixed 20/70)
 
   const htmlContent = `
 <!DOCTYPE html>
@@ -1172,9 +1172,9 @@ function setVolume(vol) {
 function setDryWet(mix) {
   if (chain && chain.dryGain && chain.wetGain && audioCtx) {
     var t = audioCtx.currentTime;
-    // Anti-feedback mix: dry 15%, wet 60%
-    chain.dryGain.gain.setValueAtTime(0.15, t);
-    chain.wetGain.gain.setValueAtTime(0.60, t);
+    // Stronger fixed mix: dry 20%, wet 70%; anti-feedback processors remain after the merger
+    chain.dryGain.gain.setValueAtTime(0.20, t);
+    chain.wetGain.gain.setValueAtTime(0.70, t);
   }
 }
 

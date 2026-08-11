@@ -173,3 +173,4 @@
 - [x] Re-add streamingkeys.com link using React Native built-in Linking module (no expo-linking)
 - [x] Krampus Wishes: add reverse + slow stretch to output
 - [x] Corpse Parade: add whisper effect to voice return
+- [x] Increase dry and effected microphone returns in the final mix while maintaining anti-feedback safeguards
