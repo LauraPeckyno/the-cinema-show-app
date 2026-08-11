@@ -82,10 +82,10 @@ function buildEffectChainJS(): string {
     function buildEffectChain(ctx, source, trackId, bpm, intensity) {
       // ZERO INPUT GAIN — unity (0dB), no amplification of leakage
       var inputBoost = ctx.createGain();
-      inputBoost.gain.value = 1.5; // 0dB = unity gain
+      inputBoost.gain.value = 1.2; // 0dB = unity gain
 
       var output = ctx.createGain();
-      output.gain.value = 0.8; // conservative output to prevent any feedback buildup
+      output.gain.value = 0.7; // conservative output to prevent any feedback buildup
 
       // Analyser for level metering
       var analyser = ctx.createAnalyser();
@@ -94,7 +94,7 @@ function buildEffectChainJS(): string {
 
       // Noise gate at -14dB: voice triggers easily, headphone leakage (-20 to -40dB) still rejected
       var inputGate = ctx.createDynamicsCompressor();
-      inputGate.threshold.value = -20;
+      inputGate.threshold.value = -10;
       inputGate.knee.value = 2;
       inputGate.ratio.value = 40; // extreme ratio = hard gate
       inputGate.attack.value = 0.001;
