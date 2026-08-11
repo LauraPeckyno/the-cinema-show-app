@@ -85,7 +85,7 @@ function buildEffectChainJS(): string {
       inputBoost.gain.value = 1.0; // 0dB = unity gain
 
       var output = ctx.createGain();
-      output.gain.value = 1.8; // conservative output to prevent any feedback buildup
+      output.gain.value = 0.6; // conservative output to prevent any feedback buildup
 
       // Analyser for level metering
       var analyser = ctx.createAnalyser();
@@ -94,11 +94,11 @@ function buildEffectChainJS(): string {
 
       // Noise gate at -14dB: voice triggers easily, headphone leakage (-20 to -40dB) still rejected
       var inputGate = ctx.createDynamicsCompressor();
-      inputGate.threshold.value = -10;
+      inputGate.threshold.value = -14;
       inputGate.knee.value = 2;
       inputGate.ratio.value = 40; // extreme ratio = hard gate
       inputGate.attack.value = 0.001;
-      inputGate.release.value = 0.06; // fast release to cut quickly when voice stops
+      inputGate.release.value = 0.04; // fast release to cut quickly when voice stops
 
       // === MULTI-BAND ANTI-LEAKAGE FILTERING ===
       // Headphone leakage has a characteristic frequency profile:
@@ -111,13 +111,13 @@ function buildEffectChainJS(): string {
       var antiBleedHP = ctx.createBiquadFilter();
       antiBleedHP.type = 'highpass';
       antiBleedHP.frequency.value = 300;
-      antiBleedHP.Q.value = 1.2; // steep rolloff
+      antiBleedHP.Q.value = 1.0; // steep rolloff
 
       // Low-pass: cut above 6000Hz (treble leakage from hi-hats/cymbals)
       var antiBleedLP = ctx.createBiquadFilter();
       antiBleedLP.type = 'lowpass';
       antiBleedLP.frequency.value = 6000;
-      antiBleedLP.Q.value = 1.0;
+      antiBleedLP.Q.value = 0.7;
 
       // Notch filter at ~150Hz to kill bass drum leakage specifically
       var bassNotch = ctx.createBiquadFilter();
@@ -452,14 +452,14 @@ function buildEffectChainJS(): string {
           // Implemented as a gain node that the ScriptProcessor/worklet would control
           // For Web Audio: use compressor as gate (fast attack, high ratio below threshold)
           var gate7 = ctx.createDynamicsCompressor();
-          gate7.threshold.value = -20; // signals below -50dB are gated (approx 10dB above typical noise floor at -60dB)
+          gate7.threshold.value = -50; // signals below -50dB are gated (approx 10dB above typical noise floor at -60dB)
           gate7.knee.value = 1;
           gate7.ratio.value = 20; // heavy compression below threshold = gate
           gate7.attack.value = 0.001;
           gate7.release.value = 0.05;
 
           // Long church reverb — NO FEEDBACK, parallel decaying taps for cathedral density
-          var reverbMerge7 = ctx.createGain(); reverbMerge7.gain.value = 0.50;
+          var reverbMerge7 = ctx.createGain(); reverbMerge7.gain.value = 0.25;
           var reverbTimes7 = [0.023, 0.047, 0.083, 0.127, 0.179, 0.241, 0.317, 0.401, 0.503, 0.617, 0.743, 0.881];
           inputBoost.connect(gate7);
           for (var ri = 0; ri < reverbTimes7.length; ri++) {
@@ -472,8 +472,8 @@ function buildEffectChainJS(): string {
             rvDel7.connect(rvLp7); rvLp7.connect(rvGain7); rvGain7.connect(reverbMerge7);
           }
 
-          // Half-rate delay (half the tempo = 4 beats per echo), max 3 echoes
-          var halfRate7 = beatSec * 4; // half the rate of music
+          // Half-rate delay (half the tempo = 2 beats per echo), max 3 echoes
+          var halfRate7 = beatSec * 2; // half the rate of music
           var del7a = ctx.createDelay(5.0); del7a.delayTime.value = halfRate7;
           var del7b = ctx.createDelay(5.0); del7b.delayTime.value = halfRate7 * 2;
           var del7c = ctx.createDelay(5.0); del7c.delayTime.value = halfRate7 * 3;
@@ -486,7 +486,7 @@ function buildEffectChainJS(): string {
           gate7.connect(del7c); del7c.connect(delGain7c); delGain7c.connect(analyser);
 
           // Dry (gated) signal + reverb
-          var dry7 = ctx.createGain(); dry7.gain.value = 0.55;
+          var dry7 = ctx.createGain(); dry7.gain.value = 0.35;
           gate7.connect(dry7); dry7.connect(analyser);
           reverbMerge7.connect(analyser);
           analyser.connect(output);
