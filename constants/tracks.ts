@@ -193,10 +193,10 @@ export const TRACKS: Track[] = [
   },
   {
     id: 12,
-    title: "Brothers",
+    title: "Theme for New Beginnings",
     side: "light",
     bpm: 84,
-    audioUrl: "https://streamingkeys2.imaginaurium.workers.dev/Brothers.mp3",
+    audioUrl: "https://streamingkeys2.imaginaurium.workers.dev/ThemeforNewBeginnings.mp3",
     effect: {
       name: "Chipmunk",
       description: "1-second delay with sped-up chipmunk playback",
@@ -210,3 +210,7 @@ export const TRACKS: Track[] = [
 
 export const DARK_TRACKS = TRACKS.filter((t) => t.side === "dark");
 export const LIGHT_TRACKS = TRACKS.filter((t) => t.side === "light");
+
+// Start the album on the Light Side, beginning with Recessional.
+// Keeping track ID 12 preserves its existing ID-keyed artwork and effect chain.
+export const ALBUM_PLAYBACK_QUEUE = [...LIGHT_TRACKS, ...DARK_TRACKS];

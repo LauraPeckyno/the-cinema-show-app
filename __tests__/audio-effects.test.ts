@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { getEffectProcessor } from "../lib/audio-effects";
-import { TRACKS, DARK_TRACKS, LIGHT_TRACKS } from "../constants/tracks";
+import { ALBUM_PLAYBACK_QUEUE, TRACKS, DARK_TRACKS, LIGHT_TRACKS } from "../constants/tracks";
 
 describe("Track Data", () => {
   it("should have exactly 12 tracks total", () => {
@@ -41,6 +41,24 @@ describe("Track Data", () => {
     for (const track of TRACKS) {
       expect(track.audioUrl).toMatch(/^https?:\/\/.+\.(wav|mp3|ogg|m4a)$/);
     }
+  });
+
+  it("should replace Brothers with Theme for New Beginnings while retaining track ID 12", () => {
+    const replacement = TRACKS.find((track) => track.id === 12);
+    expect(replacement).toMatchObject({
+      id: 12,
+      title: "Theme for New Beginnings",
+      side: "light",
+      audioUrl: "https://streamingkeys2.imaginaurium.workers.dev/ThemeforNewBeginnings.mp3",
+      effect: { name: "Chipmunk" },
+    });
+  });
+
+  it("should queue the Light Side before the Dark Side for Start the Show", () => {
+    expect(ALBUM_PLAYBACK_QUEUE.map((track) => track.id)).toEqual([
+      7, 8, 9, 10, 11, 12,
+      1, 2, 3, 4, 5, 6,
+    ]);
   });
 
   it("should have durationEstimate for all tracks", () => {

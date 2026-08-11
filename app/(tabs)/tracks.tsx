@@ -6,7 +6,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useAudioEngine } from "@/lib/audio-engine";
-import { DARK_TRACKS, LIGHT_TRACKS, TRACKS, Track } from "@/constants/tracks";
+import { ALBUM_PLAYBACK_QUEUE, DARK_TRACKS, LIGHT_TRACKS, Track } from "@/constants/tracks";
 import { TRACK_ARTWORK } from "@/constants/track-artwork";
 import { preDownload, preDownloadAll } from "@/lib/audio-cache";
 
@@ -223,13 +223,13 @@ export default function TracksScreen() {
   const handleStartTheShow = async () => {
     // Stop album background music and start continuous album playback
     setMusicStopped(true);
-    // Pre-download all tracks (first track blocks, rest download in background)
-    const firstTrack = TRACKS[0];
+    // Light Side begins the album (Recessional); Dark Side follows after it.
+    const firstTrack = ALBUM_PLAYBACK_QUEUE[0];
     await preDownload(firstTrack.audioUrl);
-    startAlbumPlayback(TRACKS);
+    startAlbumPlayback(ALBUM_PLAYBACK_QUEUE);
     router.push("/now-playing" as any);
     // Continue downloading remaining tracks in background
-    const remainingUrls = TRACKS.slice(1).map((t) => t.audioUrl);
+    const remainingUrls = ALBUM_PLAYBACK_QUEUE.slice(1).map((t) => t.audioUrl);
     preDownloadAll(remainingUrls).catch((e) => console.warn("Background pre-download error:", e));
   };
 

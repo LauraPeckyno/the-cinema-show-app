@@ -174,3 +174,5 @@
 - [x] Krampus Wishes: add reverse + slow stretch to output
 - [x] Corpse Parade: add whisper effect to voice return
 - [x] Increase dry and effected microphone returns in the final mix while maintaining anti-feedback safeguards
+- [x] Replace Brothers with Theme for New Beginnings using the new Cloudflare MP3 while retaining its artwork and effects
+- [x] Update Start the Show playback order so Light Side plays before Dark Side
