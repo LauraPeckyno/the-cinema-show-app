@@ -302,28 +302,45 @@ function buildEffectChainJS(): string {
           var del4 = ctx.createDelay(15.0); del4.delayTime.value = eightBeats4;
           var del4Gain = ctx.createGain(); del4Gain.gain.value = 0.4;
 
-          // Reverse + stretched (1/3 speed) via ScriptProcessor
-          // Reads buffer backwards at 1/3 rate = dramatically slowed reverse playback
+          // Reverse + stretched (1/3 speed) via ScriptProcessor.
+          // A queued, forward-capture/reverse-read buffer prevents each callback
+          // from resetting the read position and accidentally sounding forward.
           var bufSize4 = 8192;
           var reverseNode4 = ctx.createScriptProcessor(bufSize4, 1, 1);
-          var revBuf4 = new Float32Array(bufSize4 * 3); // larger buffer for slower read
+          var reverseLength4 = bufSize4 * 3;
+          var revBuf4 = new Float32Array(reverseLength4);
+          var revPlayBuf4 = new Float32Array(reverseLength4);
+          var revQueuedBuf4 = new Float32Array(reverseLength4);
           var revWriteIdx4 = 0;
-          var revPlayBuf4 = new Float32Array(bufSize4 * 3);
+          var revReadPos4 = -1;
+          var queuedReverse4 = false;
           reverseNode4.onaudioprocess = function(e) {
             var inp = e.inputBuffer.getChannelData(0);
             var out = e.outputBuffer.getChannelData(0);
             for (var wi = 0; wi < bufSize4; wi++) {
               revBuf4[revWriteIdx4] = inp[wi];
               revWriteIdx4++;
-              if (revWriteIdx4 >= bufSize4 * 3) {
-                for (var ci = 0; ci < bufSize4 * 3; ci++) revPlayBuf4[ci] = revBuf4[ci];
+              if (revWriteIdx4 >= reverseLength4) {
+                if (revReadPos4 < 0) {
+                  for (var ci = 0; ci < reverseLength4; ci++) revPlayBuf4[ci] = revBuf4[ci];
+                  revReadPos4 = reverseLength4 - 1;
+                } else {
+                  for (var qi = 0; qi < reverseLength4; qi++) revQueuedBuf4[qi] = revBuf4[qi];
+                  queuedReverse4 = true;
+                }
                 revWriteIdx4 = 0;
               }
             }
-            // Read in REVERSE at 1/3 speed (stretched + backwards)
+            // Read strictly backwards at 1/3 speed. There is no forward wet path.
             for (var ro = 0; ro < bufSize4; ro++) {
-              var readPos = (bufSize4 * 3 - 1) - Math.floor(ro * 0.5);
-              out[ro] = (readPos >= 0 && readPos < bufSize4 * 3) ? revPlayBuf4[readPos] * 1.6 : 0;
+              if (revReadPos4 < 0 && queuedReverse4) {
+                for (var si = 0; si < reverseLength4; si++) revPlayBuf4[si] = revQueuedBuf4[si];
+                revReadPos4 = reverseLength4 - 1;
+                queuedReverse4 = false;
+              }
+              var readPos4 = Math.floor(revReadPos4);
+              out[ro] = readPos4 >= 0 ? revPlayBuf4[readPos4] : 0;
+              revReadPos4 -= 1 / 3;
             }
           };
 
@@ -766,13 +783,13 @@ function buildDryWetChainJS(): string {
   return `
     // Build a dry/wet blended chain around the effect chain
     function buildDryWetChain(ctx, source, trackId, bpm, intensity, dryWetMix) {
-      // Balanced anti-feedback mix: stronger dry and effected returns
+      // Higher fixed mix: dry return +5 points and effected return +10 points.
       // Gate, frequency filters, compressor, and limiter remain in place to control leakage and peaks
       var dryGain = ctx.createGain();
-      dryGain.gain.value = 0.20;
+      dryGain.gain.value = 0.25;
 
       var wetGain = ctx.createGain();
-      wetGain.gain.value = 0.70;
+      wetGain.gain.value = 0.80;
 
       var merger = ctx.createGain();
       merger.gain.value = 1.0;
@@ -872,16 +889,16 @@ function WebMicPassthrough({
   // Update output volume — total mic output level relative to music
   useEffect(() => {
     if (outputGainRef.current) {
-      // Mic-output master at 0.65x music volume; safety processing remains post-mix
-      const outputLevel = (musicVolume / 100) * 0.65;
+      // Mic-output master at 0.80x music volume; safety processing remains post-mix
+      const outputLevel = (musicVolume / 100) * 0.80;
       outputGainRef.current.gain.value = outputLevel;
     }
   }, [musicVolume]);
 
-  // Update fixed mix: dry 20%, wet 70% for stronger mic returns
+  // Update fixed mix: dry 25%, wet 80% for the requested stronger mic returns
   useEffect(() => {
-    if (dryGainRef.current) dryGainRef.current.gain.value = 0.20;
-    if (wetGainRef.current) wetGainRef.current.gain.value = 0.70;
+    if (dryGainRef.current) dryGainRef.current.gain.value = 0.25;
+    if (wetGainRef.current) wetGainRef.current.gain.value = 0.80;
   }, [dryWetMix]);
 
   async function startWebPassthrough() {
@@ -905,8 +922,8 @@ function WebMicPassthrough({
       sourceRef.current = source;
 
       const outputGain = ctx.createGain();
-      // Mic-output master at 0.65x music volume; safety processing remains post-mix
-      const outputLevel = (musicVolume / 100) * 0.65;
+      // Mic-output master at 0.80x music volume; safety processing remains post-mix
+      const outputLevel = (musicVolume / 100) * 0.80;
       // Start at 0 and ramp up over 4 seconds for smooth transition
       outputGain.gain.value = 0;
       outputGain.gain.linearRampToValueAtTime(outputLevel, ctx.currentTime + 4.0);
@@ -1034,9 +1051,9 @@ function NativeMicPassthrough({
   }, []);
 
   const intensity = effectIntensity / 100;
-  // Mic-output master at 0.65x music volume; native path matches web
-  const vol = (musicVolume / 100) * 0.65;
-  const mix = 0.70; // not used for initial setup (buildDryWetChain uses fixed 20/70)
+  // Mic-output master at 0.80x music volume; native path matches web
+  const vol = (musicVolume / 100) * 0.80;
+  const mix = 0.80; // not used for initial setup (buildDryWetChain uses fixed 25/80)
 
   const htmlContent = `
 <!DOCTYPE html>
@@ -1172,9 +1189,9 @@ function setVolume(vol) {
 function setDryWet(mix) {
   if (chain && chain.dryGain && chain.wetGain && audioCtx) {
     var t = audioCtx.currentTime;
-    // Stronger fixed mix: dry 20%, wet 70%; anti-feedback processors remain after the merger
-    chain.dryGain.gain.setValueAtTime(0.20, t);
-    chain.wetGain.gain.setValueAtTime(0.70, t);
+    // Higher fixed mix: dry 25%, wet 80%; anti-feedback processors remain after the merger
+    chain.dryGain.gain.setValueAtTime(0.25, t);
+    chain.wetGain.gain.setValueAtTime(0.80, t);
   }
 }
 

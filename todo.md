@@ -176,3 +176,5 @@
 - [x] Increase dry and effected microphone returns in the final mix while maintaining anti-feedback safeguards
 - [x] Replace Brothers with Theme for New Beginnings using the new Cloudflare MP3 while retaining its artwork and effects
 - [x] Update Start the Show playback order so Light Side plays before Dark Side
+- [x] Raise fixed dry return by 5 points, effected return by 10 points, and final mic output to 0.80× music volume
+- [x] Fix Krampus Wishes so its effected microphone return is audibly reversed
