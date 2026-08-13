@@ -10,6 +10,7 @@ interface MicPassthroughProps {
   masterVolume: number; // 0-100 — overall output volume (device-controlled)
   musicVolume: number; // 0-100 — music track volume (effects capped at 30% of this)
   dryWetMix: number; // 0-100 — 0=fully dry (raw ambient), 100=fully wet (effected)
+  shouldFadeOut?: boolean; // fades all mic output over the final two seconds of music playback
   onLevelUpdate?: (level: number) => void;
   onError?: (error: string) => void;
 }
@@ -35,6 +36,7 @@ export function MicPassthrough({
   masterVolume,
   musicVolume,
   dryWetMix,
+  shouldFadeOut = false,
   onLevelUpdate,
   onError,
 }: MicPassthroughProps) {
@@ -49,6 +51,7 @@ export function MicPassthrough({
         masterVolume={masterVolume}
         musicVolume={musicVolume}
         dryWetMix={dryWetMix}
+        shouldFadeOut={shouldFadeOut}
         onLevelUpdate={onLevelUpdate}
         onError={onError}
       />
@@ -65,6 +68,7 @@ export function MicPassthrough({
       masterVolume={masterVolume}
       musicVolume={musicVolume}
       dryWetMix={dryWetMix}
+      shouldFadeOut={shouldFadeOut}
       onLevelUpdate={onLevelUpdate}
       onError={onError}
     />
@@ -209,30 +213,22 @@ function buildEffectChainJS(): string {
           whisperDel.connect(whisperDelGain);
           // The legacy whisper echo remains silent because whisperVol is zero.
 
-          // Auto-tuned vocoder: quantizes detected vocal pitch to a C natural-minor carrier bank.
+          // D-minor vocoder: selects a singable random carrier note instead of matching input pitch.
           var vocoderSize1 = 2048;
           var vocoderNode1 = ctx.createScriptProcessor(vocoderSize1, 1, 1);
           var vocoderEnvelope1 = 0;
           var vocoderPhase1 = 0;
-          var vocoderFrequency1 = 130.81;
-          var vocoderScale1 = [98.00, 110.00, 116.54, 130.81, 146.83, 155.56, 174.61, 196.00, 220.00, 233.08, 261.63, 293.66, 311.13, 349.23, 392.00, 440.00];
+          var vocoderFrequency1 = 146.83;
+          var vocoderScale1 = [146.83, 174.61, 196.00, 220.00, 233.08, 261.63, 293.66, 349.23, 392.00, 440.00];
+          var vocoderNoteCountdown1 = 0;
           vocoderNode1.onaudioprocess = function(e) {
             var inp = e.inputBuffer.getChannelData(0);
             var out = e.outputBuffer.getChannelData(0);
-            var crossings1 = 0;
-            for (var vi1 = 1; vi1 < vocoderSize1; vi1++) {
-              if (inp[vi1 - 1] <= 0 && inp[vi1] > 0) crossings1++;
+            if (vocoderNoteCountdown1 <= 0) {
+              vocoderFrequency1 = vocoderScale1[Math.floor(Math.random() * vocoderScale1.length)];
+              vocoderNoteCountdown1 = Math.floor(ctx.sampleRate * 0.35);
             }
-            var estimatedFreq1 = crossings1 * ctx.sampleRate / vocoderSize1;
-            if (estimatedFreq1 >= 75 && estimatedFreq1 <= 500) {
-              var nearestIndex1 = 0;
-              var nearestDistance1 = Math.abs(vocoderScale1[0] - estimatedFreq1);
-              for (var si1 = 1; si1 < vocoderScale1.length; si1++) {
-                var distance1 = Math.abs(vocoderScale1[si1] - estimatedFreq1);
-                if (distance1 < nearestDistance1) { nearestDistance1 = distance1; nearestIndex1 = si1; }
-              }
-              vocoderFrequency1 = vocoderScale1[nearestIndex1];
-            }
+            vocoderNoteCountdown1 -= vocoderSize1;
             for (var vo1 = 0; vo1 < vocoderSize1; vo1++) {
               vocoderEnvelope1 = vocoderEnvelope1 * 0.992 + Math.abs(inp[vo1]) * 0.008;
               vocoderPhase1 += (2 * Math.PI * vocoderFrequency1) / ctx.sampleRate;
@@ -242,7 +238,7 @@ function buildEffectChainJS(): string {
           };
           var vocoderTone1 = ctx.createBiquadFilter();
           vocoderTone1.type = 'bandpass'; vocoderTone1.frequency.value = 1800; vocoderTone1.Q.value = 0.9;
-          var vocoderReturn1 = ctx.createGain(); vocoderReturn1.gain.value = 0.85;
+          var vocoderReturn1 = ctx.createGain(); vocoderReturn1.gain.value = 1.02;
           inputBoost.connect(vocoderNode1);
           vocoderNode1.connect(vocoderTone1); vocoderTone1.connect(vocoderReturn1); vocoderReturn1.connect(analyser);
 
@@ -256,13 +252,20 @@ function buildEffectChainJS(): string {
           hp2.type = 'highpass'; hp2.frequency.value = 1000;
           hp2.Q.value = 1.0; // steep cutoff
 
-          // Full-beat delay — NO FEEDBACK, finite taps only.
-          var fullBeat2 = beatSec;
-          var del2a = ctx.createDelay(5.0); del2a.delayTime.value = fullBeat2;
+          // Two finite taps select new 1, 2, 4, or 12-beat values every sixteen beats.
+          var sleepDelayChoices2 = [1, 2, 4, 12];
+          var del2a = ctx.createDelay(15.0); del2a.delayTime.value = beatSec;
           var del2Gain = ctx.createGain(); del2Gain.gain.value = 0.5;
-          // Second decaying tap at four beats.
-          var del2b = ctx.createDelay(5.0); del2b.delayTime.value = fullBeat2 * 4;
+          var del2b = ctx.createDelay(15.0); del2b.delayTime.value = beatSec * 2;
           var del2bGain = ctx.createGain(); del2bGain.gain.value = 0.3;
+          var sleepDelaySection2 = beatSec * 16;
+          for (var sleepSchedule2 = 0; sleepSchedule2 < 48; sleepSchedule2++) {
+            var sleepTime2 = t + sleepSchedule2 * sleepDelaySection2;
+            var sleepChoiceA2 = sleepDelayChoices2[Math.floor(Math.random() * sleepDelayChoices2.length)];
+            var sleepChoiceB2 = sleepDelayChoices2[Math.floor(Math.random() * sleepDelayChoices2.length)];
+            del2a.delayTime.setValueAtTime(beatSec * sleepChoiceA2, sleepTime2);
+            del2b.delayTime.setValueAtTime(beatSec * sleepChoiceB2, sleepTime2);
+          }
 
           // Large room reverb (multi-tap delays, NO FEEDBACK — just parallel taps for density)
           var revMerge2 = ctx.createGain(); revMerge2.gain.value = 0.23;
@@ -336,8 +339,8 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 4: { // REVERSE RETURN — Krampus Wishes: immediate reverse playback at 2/3 speed
-          // Reverse + stretched (2/3 speed) via ScriptProcessor.
+        case 4: { // REVERSE RETURN — Krampus Wishes: immediate reverse playback at 1/3 speed
+          // Reverse + stretched (1/3 speed) via ScriptProcessor.
           // A queued, forward-capture/reverse-read buffer prevents each callback
           // from resetting the read position and accidentally sounding forward.
           var bufSize4 = 8192;
@@ -366,7 +369,7 @@ function buildEffectChainJS(): string {
                 revWriteIdx4 = 0;
               }
             }
-            // Read strictly backwards at 2/3 speed. There is no forward wet path.
+            // Read strictly backwards at 1/3 speed. There is no forward wet path.
             for (var ro = 0; ro < bufSize4; ro++) {
               if (revReadPos4 < 0 && queuedReverse4) {
                 for (var si = 0; si < reverseLength4; si++) revPlayBuf4[si] = revQueuedBuf4[si];
@@ -375,13 +378,13 @@ function buildEffectChainJS(): string {
               }
               var readPos4 = Math.floor(revReadPos4);
               out[ro] = readPos4 >= 0 ? revPlayBuf4[readPos4] : 0;
-              revReadPos4 -= 2 / 3;
+              revReadPos4 -= 1 / 3;
             }
           };
 
-          // Signal chain: input -> immediate reverse/2/3-speed return. No pre-delay or reverb.
+          // Signal chain: input -> immediate reverse/1/3-speed return. No pre-delay or reverb.
           inputBoost.connect(reverseNode4);
-          var dry4g = ctx.createGain(); dry4g.gain.value = 0.75;
+          var dry4g = ctx.createGain(); dry4g.gain.value = 0.0;
           reverseNode4.connect(dry4g); dry4g.connect(analyser);
           analyser.connect(output);
           break;
@@ -468,44 +471,42 @@ function buildEffectChainJS(): string {
           lp6.type = 'lowpass'; lp6.frequency.value = 5000;
           lp6.Q.value = 0.7;
 
-          // Beat-synced delay (one beat) — NO FEEDBACK, finite taps
-          var del6 = ctx.createDelay(5.0); del6.delayTime.value = beatSec;
-          var del6Gain = ctx.createGain(); del6Gain.gain.value = 0.5;
-          // Second tap at 2 beats (decaying)
-          var del6b = ctx.createDelay(5.0); del6b.delayTime.value = beatSec * 2;
-          var del6bGain = ctx.createGain(); del6bGain.gain.value = 0.25;
+          // First tap: two beats, unshifted. Second: four beats, reduced two octaves.
+          var del6 = ctx.createDelay(10.0); del6.delayTime.value = beatSec * 2;
+          var del6Gain = ctx.createGain(); del6Gain.gain.value = 0.60;
+          var del6b = ctx.createDelay(10.0); del6b.delayTime.value = beatSec * 4;
+          var del6bGain = ctx.createGain(); del6bGain.gain.value = 0.30;
 
-          // Each delay return receives a repeatable octave-down resampling stage.
-          function makeOctaveDown6() {
+          // The second delay return receives a repeatable two-octave-down resampling stage.
+          function makeTwoOctaveDown6() {
             var octaveSize6 = 4096;
             var octaveNode6 = ctx.createScriptProcessor(octaveSize6, 1, 1);
-            var octaveBuf6 = new Float32Array(octaveSize6 * 2);
-            var octavePlay6 = new Float32Array(octaveSize6 * 2);
+            var octaveBuf6 = new Float32Array(octaveSize6 * 4);
+            var octavePlay6 = new Float32Array(octaveSize6 * 4);
             var octaveWrite6 = 0;
             octaveNode6.onaudioprocess = function(e) {
               var inp = e.inputBuffer.getChannelData(0);
               var out = e.outputBuffer.getChannelData(0);
               for (var oi6 = 0; oi6 < octaveSize6; oi6++) {
                 octaveBuf6[octaveWrite6++] = inp[oi6];
-                if (octaveWrite6 >= octaveSize6 * 2) {
-                  for (var oc6 = 0; oc6 < octaveSize6 * 2; oc6++) octavePlay6[oc6] = octaveBuf6[oc6];
+                if (octaveWrite6 >= octaveSize6 * 4) {
+                  for (var oc6 = 0; oc6 < octaveSize6 * 4; oc6++) octavePlay6[oc6] = octaveBuf6[oc6];
                   octaveWrite6 = 0;
                 }
               }
               for (var oo6 = 0; oo6 < octaveSize6; oo6++) {
-                var octaveRead6 = Math.floor(oo6 / 2);
+                var octaveRead6 = Math.floor(oo6 / 4);
                 out[oo6] = octavePlay6[octaveRead6] * 0.8;
               }
             };
             return octaveNode6;
           }
-          var octaveDown6a = makeOctaveDown6();
-          var octaveDown6b = makeOctaveDown6();
+          var octaveDown6b = makeTwoOctaveDown6();
 
-          // Signal chain: input -> gate -> LP filter -> beat delays -> octave-down returns.
+          // Signal chain: input -> gate -> LP filter -> two-beat clean tap + four-beat two-octave tap.
           inputBoost.connect(gate6);
           gate6.connect(lp6);
-          lp6.connect(del6); del6.connect(octaveDown6a); octaveDown6a.connect(del6Gain);
+          lp6.connect(del6); del6.connect(del6Gain);
           lp6.connect(del6b); del6b.connect(octaveDown6b); octaveDown6b.connect(del6bGain);
           var dry6g = ctx.createGain(); dry6g.gain.value = 0.4;
           lp6.connect(dry6g); dry6g.connect(analyser);
@@ -538,10 +539,10 @@ function buildEffectChainJS(): string {
             rvDel7.connect(rvLp7); rvLp7.connect(rvGain7); rvGain7.connect(reverbMerge7);
           }
 
-          // Three finite echoes; each is independently randomized between one and six beats.
-          var echoBeats7a = 1 + Math.floor(Math.random() * 6);
-          var echoBeats7b = 1 + Math.floor(Math.random() * 6);
-          var echoBeats7c = 1 + Math.floor(Math.random() * 6);
+          // Three finite echoes; each is independently randomized between one and twelve beats.
+          var echoBeats7a = 1 + Math.floor(Math.random() * 12);
+          var echoBeats7b = 1 + Math.floor(Math.random() * 12);
+          var echoBeats7c = 1 + Math.floor(Math.random() * 12);
           var del7a = ctx.createDelay(5.0); del7a.delayTime.value = beatSec * echoBeats7a;
           var del7b = ctx.createDelay(5.0); del7b.delayTime.value = beatSec * echoBeats7b;
           var del7c = ctx.createDelay(5.0); del7c.delayTime.value = beatSec * echoBeats7c;
@@ -564,29 +565,37 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 8: { // GATED STUTTER — Road Show: 16th-note gated samples and extreme pitch-drop stutter
-          // BPM 140, beatSec = 60/140 ≈ 0.4286s
-          // 16th-note gate: four times faster than the previous quarter-note pulse.
-          var gateFreq8 = (bpm / 60) * 4;
+        case 8: { // GATED STUTTER — Road Show: randomized eighth-to-whole-note stutter
+          // Every sixteen beats, choose a new stutter length between an eighth and a whole note.
+          var gateFreq8 = 1 / beatSec;
           var gateOsc8 = ctx.createOscillator(); gateOsc8.type = 'square';
           gateOsc8.frequency.value = gateFreq8;
           var gateGain8 = ctx.createGain(); gateGain8.gain.value = 0;
           gateOsc8.connect(gateGain8.gain);
           gateOsc8.start();
 
-          // Primary delay: plays back at quarter-note rate
+          // Primary delay mirrors the selected stutter length.
           var primaryDel8 = ctx.createDelay(5.0);
-          primaryDel8.delayTime.value = beatSec; // one beat delay
+          primaryDel8.delayTime.value = beatSec;
           var primaryGain8 = ctx.createGain(); primaryGain8.gain.value = 0.35;
+
+          var stutterChoices8 = [beatSec / 2, beatSec, beatSec * 2, beatSec * 4];
+          var stutterSection8 = beatSec * 16;
+          for (var stutterSchedule8 = 0; stutterSchedule8 < 32; stutterSchedule8++) {
+            var stutterDuration8 = stutterChoices8[Math.floor(Math.random() * stutterChoices8.length)];
+            var stutterTime8 = t + stutterSchedule8 * stutterSection8;
+            gateOsc8.frequency.setValueAtTime(1 / stutterDuration8, stutterTime8);
+            primaryDel8.delayTime.setValueAtTime(stutterDuration8, stutterTime8);
+          }
 
           // 12-beat repeat delay
           var repeatDel8 = ctx.createDelay(10.0);
           repeatDel8.delayTime.value = beatSec * 12; // repeat after 12 beats
           var repeatGain8 = ctx.createGain(); repeatGain8.gain.value = 0.8;
 
-          // Extreme octave-down-style glide on the stutter delay via a large downward delay-time sweep.
+          // Extended octave-down-style glide on the changing stutter delay.
           var pitchLfo8 = ctx.createOscillator(); pitchLfo8.type = 'sawtooth';
-          pitchLfo8.frequency.value = 1 / beatSec;
+          pitchLfo8.frequency.value = (1 / beatSec) * 12;
           var pitchDepth8 = ctx.createGain(); pitchDepth8.gain.value = beatSec * (0.50 + intensity * 0.20);
           pitchLfo8.connect(pitchDepth8); pitchDepth8.connect(primaryDel8.delayTime);
           pitchLfo8.start();
@@ -598,8 +607,7 @@ function buildEffectChainJS(): string {
           primaryGain8.connect(repeatDel8);
           repeatDel8.connect(repeatGain8);
 
-          // Mix: dry gated + primary delay + 12-beat repeat
-          gateGain8.connect(analyser);
+          // Mix: wet stutter + fixed 12-beat repeat. Road Show has no dry return.
           primaryGain8.connect(analyser);
           repeatGain8.connect(analyser);
           analyser.connect(output);
@@ -608,9 +616,9 @@ function buildEffectChainJS(): string {
 
         case 9: { // PING PONG PHASER — Excitement and Elimination: ping-pong delay, 20dB gate, 2x speed, random phaser, max 2 delays
           // BPM 152, beatSec = 60/152 ≈ 0.395s
-          // 20dB noise gate: only process sounds significantly above background
+          // Tight -15dB gate: only strong foreground sounds reach the delays.
           var gate9 = ctx.createDynamicsCompressor();
-          gate9.threshold.value = -40; // 20dB above typical -60dB noise floor
+          gate9.threshold.value = -15;
           gate9.knee.value = 1;
           gate9.ratio.value = 20;
           gate9.attack.value = 0.001;
@@ -635,18 +643,18 @@ function buildEffectChainJS(): string {
           // Phaser varies tone randomly on each successive hit
           var allpass9a = ctx.createBiquadFilter();
           allpass9a.type = 'allpass'; allpass9a.frequency.value = 1000;
-          allpass9a.Q.value = 12;
+          allpass9a.Q.value = 24;
           var allpass9b = ctx.createBiquadFilter();
           allpass9b.type = 'allpass'; allpass9b.frequency.value = 2500;
-          allpass9b.Q.value = 12;
+          allpass9b.Q.value = 24;
           var allpass9c = ctx.createBiquadFilter();
           allpass9c.type = 'allpass'; allpass9c.frequency.value = 4000;
-          allpass9c.Q.value = 8;
+          allpass9c.Q.value = 18;
 
           // Random-ish LFO for phaser sweep (uses non-harmonic frequency for pseudo-random feel)
           var phaserLfo9 = ctx.createOscillator(); phaserLfo9.type = 'sine';
-          phaserLfo9.frequency.value = 1.2 + intensity * 4.5;
-          var phaserDepth9 = ctx.createGain(); phaserDepth9.gain.value = 4500 + intensity * 6500;
+          phaserLfo9.frequency.value = 2.5 + intensity * 7.5;
+          var phaserDepth9 = ctx.createGain(); phaserDepth9.gain.value = 9000 + intensity * 12000;
           phaserLfo9.connect(phaserDepth9);
           phaserDepth9.connect(allpass9a.frequency);
           phaserDepth9.connect(allpass9b.frequency);
@@ -656,7 +664,7 @@ function buildEffectChainJS(): string {
           // Second LFO at irrational ratio for more random variation
           var phaserLfo9b = ctx.createOscillator(); phaserLfo9b.type = 'triangle';
           phaserLfo9b.frequency.value = 1.37; // irrational ratio to first LFO
-          var phaserDepth9b = ctx.createGain(); phaserDepth9b.gain.value = 3500;
+          var phaserDepth9b = ctx.createGain(); phaserDepth9b.gain.value = 7000;
           phaserLfo9b.connect(phaserDepth9b);
           phaserDepth9b.connect(allpass9a.frequency);
           phaserLfo9b.start();
@@ -684,7 +692,7 @@ function buildEffectChainJS(): string {
           var measuresSec10 = 16 * 4 * beatSec; // ~36.2s per rate change
 
           // Chorus: 3 modulated delay voices
-          var chorusMerge10 = ctx.createGain(); chorusMerge10.gain.value = 0.35;
+          var chorusMerge10 = ctx.createGain(); chorusMerge10.gain.value = 0.75;
           var chorusVoices10 = 3;
           var chorusBaseDelays10 = [0.015, 0.025, 0.035];
           for (var cv10 = 0; cv10 < chorusVoices10; cv10++) {
@@ -716,52 +724,25 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 11: { // TIME STRETCH — Much Ado (BPM 120): louder stretch plus gated triplet gallop
-          // 3x time-stretch via ScriptProcessor (reads 1 sample for every 3 output samples)
-          var bufSize11 = 4096;
-          var stretchNode11 = ctx.createScriptProcessor(bufSize11, 1, 1);
-          var stretchBuf11 = new Float32Array(bufSize11 * 3);
-          var stretchWriteIdx11 = 0;
-          var stretchPlayBuf11 = new Float32Array(bufSize11 * 3);
-          stretchNode11.onaudioprocess = function(e) {
-            var inp = e.inputBuffer.getChannelData(0);
-            var out = e.outputBuffer.getChannelData(0);
-            // Write input to buffer
-            for (var wi = 0; wi < bufSize11; wi++) {
-              stretchBuf11[stretchWriteIdx11] = inp[wi];
-              stretchWriteIdx11++;
-              if (stretchWriteIdx11 >= bufSize11 * 3) {
-                for (var ci = 0; ci < bufSize11 * 3; ci++) stretchPlayBuf11[ci] = stretchBuf11[ci];
-                stretchWriteIdx11 = 0;
-              }
-            }
-            // Read at 1/3 speed (3x stretch)
-            for (var ro = 0; ro < bufSize11; ro++) {
-              var readPos = Math.floor(ro / 3);
-              out[ro] = (readPos < bufSize11 * 3) ? stretchPlayBuf11[readPos] * 1.0 : 0;
-            }
-          };
-
-          // Gate at -10dB, then create three galloping triplet taps within one beat.
+        case 11: { // QUARTER-NOTE TRIPLET — Much Ado (BPM 120)
+          // Gate at -10dB, then create three taps within one quarter-note span.
           var gate11 = ctx.createDynamicsCompressor();
           gate11.threshold.value = -10;
           gate11.knee.value = 1; gate11.ratio.value = 20;
           gate11.attack.value = 0.001; gate11.release.value = 0.03;
-          var triplet11a = ctx.createDelay(5.0); triplet11a.delayTime.value = beatSec / 3;
-          var triplet11b = ctx.createDelay(5.0); triplet11b.delayTime.value = (beatSec * 2) / 3;
-          var triplet11c = ctx.createDelay(5.0); triplet11c.delayTime.value = beatSec;
+          var quarterTriplet11 = beatSec;
+          var triplet11a = ctx.createDelay(5.0); triplet11a.delayTime.value = quarterTriplet11 / 3;
+          var triplet11b = ctx.createDelay(5.0); triplet11b.delayTime.value = (quarterTriplet11 * 2) / 3;
+          var triplet11c = ctx.createDelay(5.0); triplet11c.delayTime.value = quarterTriplet11;
           var tripletGain11a = ctx.createGain(); tripletGain11a.gain.value = 0.55;
           var tripletGain11b = ctx.createGain(); tripletGain11b.gain.value = 0.40;
           var tripletGain11c = ctx.createGain(); tripletGain11c.gain.value = 0.28;
 
-          // Signal chain: input -> louder stretch; input above -10dB -> finite triplet taps.
-          inputBoost.connect(stretchNode11);
+          // Signal chain: input above -10dB -> finite quarter-note triplet taps.
           inputBoost.connect(gate11);
           gate11.connect(triplet11a); triplet11a.connect(tripletGain11a); tripletGain11a.connect(analyser);
           gate11.connect(triplet11b); triplet11b.connect(tripletGain11b); tripletGain11b.connect(analyser);
           gate11.connect(triplet11c); triplet11c.connect(tripletGain11c); tripletGain11c.connect(analyser);
-          var stretchReturn11 = ctx.createGain(); stretchReturn11.gain.value = 0.70;
-          stretchNode11.connect(stretchReturn11); stretchReturn11.connect(analyser);
           analyser.connect(output);
           break;
         }
@@ -903,6 +884,7 @@ function WebMicPassthrough({
   masterVolume,
   musicVolume,
   dryWetMix,
+  shouldFadeOut = false,
   onLevelUpdate,
   onError,
 }: MicPassthroughProps) {
@@ -928,14 +910,21 @@ function WebMicPassthrough({
     };
   }, [isActive, trackId]);
 
-  // Update output volume — total mic output level relative to music
+  // Update total mic output. During the final two seconds, dry and wet paths fade together.
   useEffect(() => {
-    if (outputGainRef.current) {
-      // Mic-output master at 0.80x music volume; safety processing remains post-mix
-      const outputLevel = (musicVolume / 100) * 0.80;
-      outputGainRef.current.gain.value = outputLevel;
+    const outputGain = outputGainRef.current;
+    const audioCtx = audioCtxRef.current;
+    if (!outputGain || !audioCtx) return;
+    const now = audioCtx.currentTime;
+    const outputLevel = (musicVolume / 100) * 0.80;
+    outputGain.gain.cancelScheduledValues(now);
+    outputGain.gain.setValueAtTime(outputGain.gain.value, now);
+    if (shouldFadeOut) {
+      outputGain.gain.linearRampToValueAtTime(0, now + 2.0);
+    } else {
+      outputGain.gain.linearRampToValueAtTime(outputLevel, now + 0.08);
     }
-  }, [musicVolume]);
+  }, [musicVolume, shouldFadeOut]);
 
   // Update fixed mix: dry 25% except Theme for New Beginnings, which is fully wet.
   useEffect(() => {
@@ -1046,6 +1035,7 @@ function NativeMicPassthrough({
   masterVolume,
   musicVolume,
   dryWetMix,
+  shouldFadeOut = false,
   onLevelUpdate,
   onError,
 }: MicPassthroughProps) {
@@ -1228,6 +1218,19 @@ function setVolume(vol) {
   }
 }
 
+function fadeMicOutput(shouldFadeOut, vol) {
+  if (outputGain && audioCtx) {
+    var now = audioCtx.currentTime;
+    outputGain.gain.cancelScheduledValues(now);
+    outputGain.gain.setValueAtTime(outputGain.gain.value, now);
+    if (shouldFadeOut) {
+      outputGain.gain.linearRampToValueAtTime(0, now + 2.0);
+    } else {
+      outputGain.gain.linearRampToValueAtTime(vol, now + 0.08);
+    }
+  }
+}
+
 function setDryWet(mix, trackId) {
   if (chain && chain.dryGain && chain.wetGain && audioCtx) {
     var t = audioCtx.currentTime;
@@ -1279,11 +1282,11 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
     }
   }, [isActive, isReady, permissionGranted, trackId, bpm, intensity, vol, mix]);
 
-  // Update volume dynamically
+  // Update volume and the shared pre-finish fade dynamically.
   useEffect(() => {
     if (!webViewRef.current || !isReady || !isActive) return;
-    webViewRef.current.injectJavaScript(`setVolume(${vol}); true;`);
-  }, [vol, isReady, isActive]);
+    webViewRef.current.injectJavaScript(`fadeMicOutput(${shouldFadeOut}, ${vol}); true;`);
+  }, [vol, shouldFadeOut, isReady, isActive]);
 
   // Update dry/wet mix dynamically
   useEffect(() => {

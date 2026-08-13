@@ -273,6 +273,7 @@ export default function NowPlayingScreen() {
       ? currentTrack.durationMs / 1000
       : currentTrack.durationEstimate;
   const artworkUrl = TRACK_ARTWORK[currentTrack.id];
+  const shouldFadeMicOutput = isPlaying && trackDuration > 0 && playbackTime >= Math.max(0, trackDuration - 2);
 
   return (
     <ScreenContainer edges={["top", "bottom", "left", "right"]} containerClassName="bg-background">
@@ -305,6 +306,7 @@ export default function NowPlayingScreen() {
         masterVolume={masterVolume}
         musicVolume={musicVolume}
         dryWetMix={dryWetMix}
+        shouldFadeOut={shouldFadeMicOutput}
         onLevelUpdate={dispatchMicLevel}
         onError={(err) => setMicError(err)}
       />

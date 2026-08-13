@@ -6,6 +6,10 @@ const micPassthroughSource = readFileSync(
   resolve(process.cwd(), "components/mic-passthrough.tsx"),
   "utf8",
 );
+const nowPlayingSource = readFileSync(
+  resolve(process.cwd(), "app/now-playing.tsx"),
+  "utf8",
+);
 
 function branch(startCase: number, endCase: number | "default") {
   const start = micPassthroughSource.indexOf(`case ${startCase}:`);
@@ -31,69 +35,77 @@ describe("Microphone passthrough fixed mix", () => {
 });
 
 describe("Requested per-track DSP refinements", () => {
-  it("gates Recessional at -15dB with randomized stereo echoes", () => {
+  it("uses 1–12 beat independently panned Recessional echoes", () => {
     const recessional = branch(7, 8);
-    expect(recessional).toContain("gate7.threshold.value = -15");
-    expect(recessional).toContain("echoBeats7a = 1 + Math.floor(Math.random() * 6)");
+    expect(recessional).toContain("Math.random() * 12");
     expect(recessional).toContain("ctx.createStereoPanner()");
   });
 
-  it("uses 16th-note Road Show gating and a 0.8-gain fixed 12-beat repeat", () => {
+  it("uses randomized Road Show stutters with zero dry return and the requested glide rate", () => {
     const roadShow = branch(8, 9);
-    expect(roadShow).toContain("var gateFreq8 = (bpm / 60) * 4");
+    expect(roadShow).toContain("var stutterChoices8 = [beatSec / 2, beatSec, beatSec * 2, beatSec * 4]");
+    expect(roadShow).toContain("var stutterSection8 = beatSec * 16");
+    expect(roadShow).toContain("pitchLfo8.frequency.value = (1 / beatSec) * 12");
     expect(roadShow).toContain("repeatGain8.gain.value = 0.8");
-    expect(roadShow).not.toContain("pitchLfo8b");
+    expect(roadShow).not.toContain("gateGain8.connect(analyser)");
   });
 
-  it("uses louder hard-panned Excitement returns and a centered dry signal", () => {
+  it("tightens Excitement’s gate and increases its phaser depth", () => {
     const excitement = branch(9, 10);
-    expect(excitement).toContain("gainL9.gain.value = 0.60");
-    expect(excitement).toContain("gainR9.gain.value = 0.50");
-    expect(excitement).toContain("dryPan9.pan.value = 0");
-    expect(excitement).toContain("panL9.pan.value = -1");
-    expect(excitement).toContain("panR9.pan.value = 1");
+    expect(excitement).toContain("gate9.threshold.value = -15");
+    expect(excitement).toContain("phaserDepth9.gain.value = 9000 + intensity * 12000");
+    expect(excitement).toContain("phaserDepth9b.gain.value = 7000");
   });
 
-  it("uses a -10dB gated triplet for Much Ado without the hall reverb", () => {
+  it("raises Piano Fandango chorus gain and removes Much Ado time stretching", () => {
+    const piano = branch(10, 11);
     const muchAdo = branch(11, 12);
-    expect(muchAdo).toContain("gate11.threshold.value = -10");
-    expect(muchAdo).toContain("triplet11a.delayTime.value = beatSec / 3");
-    expect(muchAdo).toContain("stretchReturn11.gain.value = 0.70");
-    expect(muchAdo).not.toContain("revMerge11");
+    expect(piano).toContain("chorusMerge10.gain.value = 0.75");
+    expect(muchAdo).toContain("var quarterTriplet11 = beatSec");
+    expect(muchAdo).toContain("triplet11a.delayTime.value = quarterTriplet11 / 3");
+    expect(muchAdo).not.toContain("stretchNode11");
   });
 
-  it("replaces Corpse Parade whisper processing with an auto-tuned vocoder", () => {
+  it("uses a human-range random D-minor vocoder without a Corpse Parade dry return", () => {
     const corpseParade = branch(1, 2);
+    expect(corpseParade).toContain("vocoderScale1 = [146.83, 174.61, 196.00, 220.00, 233.08, 261.63, 293.66, 349.23, 392.00, 440.00]");
+    expect(corpseParade).toContain("vocoderScale1[Math.floor(Math.random() * vocoderScale1.length)]");
+    expect(corpseParade).toContain("vocoderReturn1.gain.value = 1.02");
     expect(corpseParade).toContain("whisperVol.gain.value = 0.0");
-    expect(corpseParade).toContain("vocoderScale1");
-    expect(corpseParade).toContain("vocoderReturn1.gain.value = 0.85");
   });
 
-  it("updates Sleep Deprivation and Mutation and Madness returns", () => {
+  it("randomizes Sleep Deprivation delay values every sixteen beats", () => {
     const sleep = branch(2, 3);
-    const mutation = branch(3, 4);
-    expect(sleep).toContain("var fullBeat2 = beatSec");
-    expect(sleep).toContain("revMerge2.gain.value = 0.23");
-    expect(mutation).toContain("cbInputGain3.gain.value = 1.6");
-    expect(mutation).toContain("dry3g.gain.value = 1.4");
+    expect(sleep).toContain("var sleepDelayChoices2 = [1, 2, 4, 12]");
+    expect(sleep).toContain("var sleepDelaySection2 = beatSec * 16");
+    expect(sleep).toContain("del2a.delayTime.setValueAtTime(beatSec * sleepChoiceA2, sleepTime2)");
+    expect(sleep).toContain("del2b.delayTime.setValueAtTime(beatSec * sleepChoiceB2, sleepTime2)");
   });
 
-  it("runs Krampus Wishes immediately in reverse at two-thirds speed without reverb", () => {
+  it("uses a dry-free one-third-speed Krampus reverse return", () => {
     const krampus = branch(4, 5);
-    expect(krampus).toContain("inputBoost.connect(reverseNode4)");
-    expect(krampus).toContain("revReadPos4 -= 2 / 3");
+    expect(krampus).toContain("revReadPos4 -= 1 / 3");
+    expect(krampus).toContain("dry4g.gain.value = 0.0");
     expect(krampus).not.toContain("del4");
     expect(krampus).not.toContain("revMerge4");
   });
 
-  it("randomizes Investigation Station and tightens octave-down Expiation returns", () => {
-    const investigation = branch(5, 6);
+  it("uses the requested Expiation timing, two-octave second return, and louder gains", () => {
     const expiation = branch(6, 7);
-    expect(investigation).toContain("var rotaryMultipliers5 = [2, 3, 4, 1 / 3, 10]");
-    expect(investigation).toContain("switch5 * 5");
-    expect(expiation).toContain("gate6.threshold.value = -15");
-    expect(expiation).toContain("function makeOctaveDown6()");
-    expect(expiation).toContain("del6Gain.gain.value = 0.5");
-    expect(expiation).toContain("del6bGain.gain.value = 0.25");
+    expect(expiation).toContain("del6.delayTime.value = beatSec * 2");
+    expect(expiation).toContain("del6b.delayTime.value = beatSec * 4");
+    expect(expiation).toContain("function makeTwoOctaveDown6()");
+    expect(expiation).toContain("del6Gain.gain.value = 0.60");
+    expect(expiation).toContain("del6bGain.gain.value = 0.30");
+  });
+});
+
+describe("Universal pre-finish microphone fade", () => {
+  it("detects the final two seconds in Now Playing and ramps all mic output down on both platforms", () => {
+    expect(nowPlayingSource).toContain("trackDuration - 2");
+    expect(nowPlayingSource).toContain("shouldFadeOut={shouldFadeMicOutput}");
+    expect(micPassthroughSource).toContain("shouldFadeOut?: boolean");
+    expect(micPassthroughSource).toContain("linearRampToValueAtTime(0, now + 2.0)");
+    expect(micPassthroughSource).toContain("function fadeMicOutput(shouldFadeOut, vol)");
   });
 });

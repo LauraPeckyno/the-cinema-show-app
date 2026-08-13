@@ -192,3 +192,13 @@
 - [x] Fade the homepage projector sound out after two seconds
 - [x] Restart Home background music whenever the homepage regains focus
 - [x] Restart Tracks background music whenever the track selection screen regains focus
+- [x] Recessional: extend randomized finite stereo echoes to 1–12 beats
+- [x] Road Show: remove dry return, randomize stutter interval every 16 beats, and slow the glide modulation
+- [x] Excitement and Elimination: raise gate to -15dB and intensify phaser returns
+- [x] Piano Fandango: raise chorus return gain
+- [x] Much Ado: remove time stretch and use three delays within one quarter-note triplet
+- [x] Corpse Parade: use a human-range random D-minor vocal note bank, no dry return, and 20% stronger effect return
+- [x] Sleep Deprivation: randomize both delay multipliers from 1, 2, 4, and 12 every 16 beats
+- [x] Krampus Wishes: return to one-third-speed reverse playback with dry return disabled
+- [x] Expiation: raise delay returns by 20%, move first tap to two beats without octave shift, and move second tap to four beats with two-octave reduction
+- [x] Fade all dry and effected mic output over the final two seconds of every music track
