@@ -189,3 +189,6 @@
 - [x] Krampus Wishes: remove pre-reverse delay and reverb, then set reverse return to 2/3 speed
 - [x] Investigation Station: randomize rotary rates every five seconds across the requested BPM multipliers
 - [x] Expiation: add -15dB gate, octave-down beat delays, and 0.5/0.25 delay returns
+- [x] Fade the homepage projector sound out after two seconds
+- [x] Restart Home background music whenever the homepage regains focus
+- [x] Restart Tracks background music whenever the track selection screen regains focus

@@ -27,7 +27,7 @@ const BG_MUSIC_VOLUME = 25;
 const projectorSound = require("@/assets/sounds/projector-start.mp3");
 
 // ─── Web Background Music (iframe-based) ────────────────────────────────────
-function WebBgMusic({ volume, muted, stopped }: { volume: number; muted: boolean; stopped: boolean }) {
+function WebBgMusic({ volume, muted, stopped, restartKey }: { volume: number; muted: boolean; stopped: boolean; restartKey: number }) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const widgetRef = useRef<any>(null);
   const [loaded, setLoaded] = useState(false);
@@ -55,12 +55,16 @@ function WebBgMusic({ volume, muted, stopped }: { volume: number; muted: boolean
   }, [loaded]);
 
   useEffect(() => {
+    const widget = widgetRef.current;
+    if (!widget) return;
     if (stopped) {
-      widgetRef.current?.pause?.();
-    } else {
-      widgetRef.current?.setVolume?.(muted ? 0 : volume);
+      widget.pause?.();
+      return;
     }
-  }, [volume, muted, stopped]);
+    widget.setVolume?.(muted ? 0 : volume);
+    widget.seekTo?.(0);
+    widget.play?.();
+  }, [volume, muted, stopped, restartKey]);
 
   if (Platform.OS !== "web") return null;
 
@@ -82,12 +86,12 @@ function WebBgMusic({ volume, muted, stopped }: { volume: number; muted: boolean
 }
 
 // ─── Native Background Music (WebView-based) ────────────────────────────────
-let NativeBgMusic: React.ComponentType<{ volume: number; muted: boolean; stopped: boolean }> = () => null;
+let NativeBgMusic: React.ComponentType<{ volume: number; muted: boolean; stopped: boolean; restartKey: number }> = () => null;
 if (Platform.OS !== "web") {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { WebView } = require("react-native-webview");
 
-  NativeBgMusic = ({ volume, muted, stopped }: { volume: number; muted: boolean; stopped: boolean }) => {
+  NativeBgMusic = ({ volume, muted, stopped, restartKey }: { volume: number; muted: boolean; stopped: boolean; restartKey: number }) => {
     const webViewRef = useRef<any>(null);
 
     useEffect(() => {
@@ -99,11 +103,11 @@ if (Platform.OS !== "web") {
       } else {
         const v = muted ? 0 : volume;
         webViewRef.current?.injectJavaScript?.(`
-          if (window.__widget) { window.__widget.setVolume(${v}); }
+          if (window.__widget) { window.__widget.setVolume(${v}); window.__widget.seekTo(0); window.__widget.play(); }
           true;
         `);
       }
-    }, [volume, muted, stopped]);
+    }, [volume, muted, stopped, restartKey]);
 
     const html = `<!DOCTYPE html><html><head>
       <script src="https://w.soundcloud.com/player/api.js"></script>
@@ -152,6 +156,7 @@ export default function HomeScreen() {
   const colors = useColors();
   const [isMuted, setIsMuted] = useState(false);
   const [musicStopped, setMusicStopped] = useState(false);
+  const [musicRestartKey, setMusicRestartKey] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   const [fontsLoaded] = useFonts({
@@ -160,6 +165,17 @@ export default function HomeScreen() {
 
   // Projector sound player
   const projectorPlayer = useAudioPlayer(projectorSound);
+  const projectorFadeDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const projectorFadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearProjectorFade = useCallback(() => {
+    if (projectorFadeDelayRef.current) clearTimeout(projectorFadeDelayRef.current);
+    if (projectorFadeIntervalRef.current) clearInterval(projectorFadeIntervalRef.current);
+    projectorFadeDelayRef.current = null;
+    projectorFadeIntervalRef.current = null;
+  }, []);
+
+  useEffect(() => () => clearProjectorFade(), [clearProjectorFade]);
 
   // Gold shimmer animation for ticket button
   const shimmerX = useSharedValue(-1);
@@ -199,10 +215,24 @@ export default function HomeScreen() {
     if (isTransitioning) return;
     setIsTransitioning(true);
 
-    // Play projector sound (very soft volume — half of previous)
+    // Play a short projector accent. Fade begins at 1.4s and reaches silence at 2s.
+    clearProjectorFade();
     projectorPlayer.volume = 0.15;
     projectorPlayer.seekTo(0);
     projectorPlayer.play();
+    projectorFadeDelayRef.current = setTimeout(() => {
+      let fadeStep = 0;
+      const fadeSteps = 6;
+      projectorFadeIntervalRef.current = setInterval(() => {
+        fadeStep += 1;
+        projectorPlayer.volume = Math.max(0, 0.15 * (1 - fadeStep / fadeSteps));
+        if (fadeStep >= fadeSteps) {
+          clearProjectorFade();
+          projectorPlayer.pause();
+          projectorPlayer.seekTo(0);
+        }
+      }, 100);
+    }, 1400);
 
     // Stop background music
     setMusicStopped(true);
@@ -213,13 +243,14 @@ export default function HomeScreen() {
         runOnJS(navigateToTracks)();
       }
     });
-  }, [isTransitioning, projectorPlayer, fadeOpacity, navigateToTracks]);
+  }, [isTransitioning, projectorPlayer, fadeOpacity, navigateToTracks, clearProjectorFade]);
 
   // Reset transition state when screen regains focus (e.g. tapping Home tab)
   useFocusEffect(
     useCallback(() => {
       setIsTransitioning(false);
       setMusicStopped(false);
+      setMusicRestartKey((previous) => previous + 1);
       fadeOpacity.value = 0;
     }, [])
   );
@@ -228,9 +259,9 @@ export default function HomeScreen() {
     <ScreenContainer containerClassName="bg-background">
       {/* Background music — soft loop */}
       {Platform.OS === "web" ? (
-        <WebBgMusic volume={BG_MUSIC_VOLUME} muted={isMuted} stopped={musicStopped} />
+        <WebBgMusic volume={BG_MUSIC_VOLUME} muted={isMuted} stopped={musicStopped} restartKey={musicRestartKey} />
       ) : (
-        <NativeBgMusic volume={BG_MUSIC_VOLUME} muted={isMuted} stopped={musicStopped} />
+        <NativeBgMusic volume={BG_MUSIC_VOLUME} muted={isMuted} stopped={musicStopped} restartKey={musicRestartKey} />
       )}
 
       <ScrollView

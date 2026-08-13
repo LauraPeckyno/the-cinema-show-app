@@ -18,7 +18,7 @@ const ALBUM_MUSIC_SC_URL = "https://soundcloud.com/imaginaurium/space-horrors-3"
 const ALBUM_MUSIC_VOLUME = 25;
 
 // ─── Web Album Music (iframe-based) ────────────────────────────────────────
-function WebAlbumMusic({ volume, stopped }: { volume: number; stopped: boolean }) {
+function WebAlbumMusic({ volume, stopped, restartKey }: { volume: number; stopped: boolean; restartKey: number }) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const widgetRef = useRef<any>(null);
   const [loaded, setLoaded] = useState(false);
@@ -46,10 +46,16 @@ function WebAlbumMusic({ volume, stopped }: { volume: number; stopped: boolean }
   }, [loaded]);
 
   useEffect(() => {
+    const widget = widgetRef.current;
+    if (!widget) return;
     if (stopped) {
-      widgetRef.current?.pause?.();
+      widget.pause?.();
+      return;
     }
-  }, [stopped]);
+    widget.setVolume?.(volume);
+    widget.seekTo?.(0);
+    widget.play?.();
+  }, [volume, stopped, restartKey]);
 
   if (Platform.OS !== "web") return null;
 
@@ -71,12 +77,12 @@ function WebAlbumMusic({ volume, stopped }: { volume: number; stopped: boolean }
 }
 
 // ─── Native Album Music (WebView-based) ────────────────────────────────────
-let NativeAlbumMusic: React.ComponentType<{ volume: number; stopped: boolean }> = () => null;
+let NativeAlbumMusic: React.ComponentType<{ volume: number; stopped: boolean; restartKey: number }> = () => null;
 if (Platform.OS !== "web") {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { WebView } = require("react-native-webview");
 
-  NativeAlbumMusic = ({ volume, stopped }: { volume: number; stopped: boolean }) => {
+  NativeAlbumMusic = ({ volume, stopped, restartKey }: { volume: number; stopped: boolean; restartKey: number }) => {
     const webViewRef = useRef<any>(null);
 
     useEffect(() => {
@@ -85,8 +91,13 @@ if (Platform.OS !== "web") {
           if (window.__widget) { window.__widget.pause(); }
           true;
         `);
+      } else {
+        webViewRef.current?.injectJavaScript?.(`
+          if (window.__widget) { window.__widget.setVolume(${volume}); window.__widget.seekTo(0); window.__widget.play(); }
+          true;
+        `);
       }
-    }, [stopped]);
+    }, [volume, stopped, restartKey]);
 
     const html = `<!DOCTYPE html><html><head>
       <script src="https://w.soundcloud.com/player/api.js"></script>
@@ -209,6 +220,7 @@ export default function TracksScreen() {
   const colors = useColors();
   const { selectTrack, startAlbumPlayback } = useAudioEngine();
   const [musicStopped, setMusicStopped] = useState(false);
+  const [musicRestartKey, setMusicRestartKey] = useState(0);
 
   const handleTrackPress = async (track: Track) => {
     // Stop album background music
@@ -237,6 +249,7 @@ export default function TracksScreen() {
   useFocusEffect(
     useCallback(() => {
       setMusicStopped(false);
+      setMusicRestartKey((previous) => previous + 1);
     }, [])
   );
 
@@ -244,9 +257,9 @@ export default function TracksScreen() {
     <ScreenContainer containerClassName="bg-background">
       {/* Album browse background music */}
       {Platform.OS === "web" ? (
-        <WebAlbumMusic volume={ALBUM_MUSIC_VOLUME} stopped={musicStopped} />
+        <WebAlbumMusic volume={ALBUM_MUSIC_VOLUME} stopped={musicStopped} restartKey={musicRestartKey} />
       ) : (
-        <NativeAlbumMusic volume={ALBUM_MUSIC_VOLUME} stopped={musicStopped} />
+        <NativeAlbumMusic volume={ALBUM_MUSIC_VOLUME} stopped={musicStopped} restartKey={musicRestartKey} />
       )}
 
       <LinearGradient
