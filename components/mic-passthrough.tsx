@@ -187,7 +187,7 @@ function buildEffectChainJS(): string {
 
           // Step 6: Reduce overall volume (whispers are quiet)
           var whisperVol = ctx.createGain();
-          whisperVol.gain.value = 1.0;
+          whisperVol.gain.value = 0.0; // retired whisper path is intentionally silent
 
           // Step 7: Add a short delay for ghostly effect (single tap, no feedback)
           var whisperDel = ctx.createDelay(2.0);
@@ -202,12 +202,49 @@ function buildEffectChainJS(): string {
           whisperPeak.connect(noiseNode1);
           noiseNode1.connect(whisperLP);
           whisperLP.connect(whisperVol);
-          whisperVol.connect(analyser);
+          // The legacy whisper path remains disconnected from the audible return.
 
           // Delayed whisper ghost
           whisperVol.connect(whisperDel);
           whisperDel.connect(whisperDelGain);
-          whisperDelGain.connect(analyser);
+          // The legacy whisper echo remains silent because whisperVol is zero.
+
+          // Auto-tuned vocoder: quantizes detected vocal pitch to a C natural-minor carrier bank.
+          var vocoderSize1 = 2048;
+          var vocoderNode1 = ctx.createScriptProcessor(vocoderSize1, 1, 1);
+          var vocoderEnvelope1 = 0;
+          var vocoderPhase1 = 0;
+          var vocoderFrequency1 = 130.81;
+          var vocoderScale1 = [98.00, 110.00, 116.54, 130.81, 146.83, 155.56, 174.61, 196.00, 220.00, 233.08, 261.63, 293.66, 311.13, 349.23, 392.00, 440.00];
+          vocoderNode1.onaudioprocess = function(e) {
+            var inp = e.inputBuffer.getChannelData(0);
+            var out = e.outputBuffer.getChannelData(0);
+            var crossings1 = 0;
+            for (var vi1 = 1; vi1 < vocoderSize1; vi1++) {
+              if (inp[vi1 - 1] <= 0 && inp[vi1] > 0) crossings1++;
+            }
+            var estimatedFreq1 = crossings1 * ctx.sampleRate / vocoderSize1;
+            if (estimatedFreq1 >= 75 && estimatedFreq1 <= 500) {
+              var nearestIndex1 = 0;
+              var nearestDistance1 = Math.abs(vocoderScale1[0] - estimatedFreq1);
+              for (var si1 = 1; si1 < vocoderScale1.length; si1++) {
+                var distance1 = Math.abs(vocoderScale1[si1] - estimatedFreq1);
+                if (distance1 < nearestDistance1) { nearestDistance1 = distance1; nearestIndex1 = si1; }
+              }
+              vocoderFrequency1 = vocoderScale1[nearestIndex1];
+            }
+            for (var vo1 = 0; vo1 < vocoderSize1; vo1++) {
+              vocoderEnvelope1 = vocoderEnvelope1 * 0.992 + Math.abs(inp[vo1]) * 0.008;
+              vocoderPhase1 += (2 * Math.PI * vocoderFrequency1) / ctx.sampleRate;
+              if (vocoderPhase1 > 2 * Math.PI) vocoderPhase1 -= 2 * Math.PI;
+              out[vo1] = (Math.sin(vocoderPhase1) * 0.75 + Math.sin(vocoderPhase1 * 2) * 0.25) * vocoderEnvelope1 * 2.2;
+            }
+          };
+          var vocoderTone1 = ctx.createBiquadFilter();
+          vocoderTone1.type = 'bandpass'; vocoderTone1.frequency.value = 1800; vocoderTone1.Q.value = 0.9;
+          var vocoderReturn1 = ctx.createGain(); vocoderReturn1.gain.value = 0.85;
+          inputBoost.connect(vocoderNode1);
+          vocoderNode1.connect(vocoderTone1); vocoderTone1.connect(vocoderReturn1); vocoderReturn1.connect(analyser);
 
           analyser.connect(output);
           break;
@@ -219,16 +256,16 @@ function buildEffectChainJS(): string {
           hp2.type = 'highpass'; hp2.frequency.value = 1000;
           hp2.Q.value = 1.0; // steep cutoff
 
-          // Delay at twice the rate of music (half a beat) — NO FEEDBACK, finite taps only
-          var halfBeat2 = beatSec / 2; // 2x rate = half beat duration
-          var del2a = ctx.createDelay(5.0); del2a.delayTime.value = halfBeat2;
+          // Full-beat delay — NO FEEDBACK, finite taps only.
+          var fullBeat2 = beatSec;
+          var del2a = ctx.createDelay(5.0); del2a.delayTime.value = fullBeat2;
           var del2Gain = ctx.createGain(); del2Gain.gain.value = 0.5;
-          // Second tap at 2x the delay (decaying)
-          var del2b = ctx.createDelay(5.0); del2b.delayTime.value = halfBeat2 * 4;
+          // Second decaying tap at four beats.
+          var del2b = ctx.createDelay(5.0); del2b.delayTime.value = fullBeat2 * 4;
           var del2bGain = ctx.createGain(); del2bGain.gain.value = 0.3;
 
           // Large room reverb (multi-tap delays, NO FEEDBACK — just parallel taps for density)
-          var revMerge2 = ctx.createGain(); revMerge2.gain.value = 0.2;
+          var revMerge2 = ctx.createGain(); revMerge2.gain.value = 0.23;
           var revTimes2 = [0.043, 0.089, 0.137, 0.191, 0.253, 0.317, 0.389];
           for (var ri2 = 0; ri2 < revTimes2.length; ri2++) {
             var rvd2 = ctx.createDelay(3.0);
@@ -282,32 +319,30 @@ function buildEffectChainJS(): string {
           var del3 = ctx.createDelay(5.0); del3.delayTime.value = halfBeat3;
           var del3Gain = ctx.createGain(); del3Gain.gain.value = 0.3;
 
-          // Signal chain: input -> gate -> bandpass -> distortion -> bandpass2 -> delay -> output
-          inputBoost.connect(sampleGate3);
+          // Voice-focused +4dB input lift before the CB chain.
+          var cbInputGain3 = ctx.createGain(); cbInputGain3.gain.value = 1.6;
+          // Signal chain: input -> voice lift -> gate -> bandpass -> distortion -> bandpass2 -> delay -> output
+          inputBoost.connect(cbInputGain3);
+          cbInputGain3.connect(sampleGate3);
           sampleGate3.connect(cbBp);
           cbBp.connect(cbWs);
           cbWs.connect(cbBp2);
           cbBp2.connect(del3); del3.connect(del3Gain);
           // Mix: distorted + delayed
-          var dry3g = ctx.createGain(); dry3g.gain.value = 0.7;
+          var dry3g = ctx.createGain(); dry3g.gain.value = 1.4;
           cbBp2.connect(dry3g); dry3g.connect(analyser);
           del3Gain.connect(analyser);
           analyser.connect(output);
           break;
         }
 
-        case 4: { // REVERSE ECHO — Krampus Wishes (BPM 120): 8-beat delay, reversed + slowed (1/3 speed) playback, large reverb
-          // 8-beat delay before reverse processing
-          var eightBeats4 = beatSec * 8;
-          var del4 = ctx.createDelay(15.0); del4.delayTime.value = eightBeats4;
-          var del4Gain = ctx.createGain(); del4Gain.gain.value = 0.4;
-
-          // Reverse + stretched (1/3 speed) via ScriptProcessor.
+        case 4: { // REVERSE RETURN — Krampus Wishes: immediate reverse playback at 2/3 speed
+          // Reverse + stretched (2/3 speed) via ScriptProcessor.
           // A queued, forward-capture/reverse-read buffer prevents each callback
           // from resetting the read position and accidentally sounding forward.
           var bufSize4 = 8192;
           var reverseNode4 = ctx.createScriptProcessor(bufSize4, 1, 1);
-          var reverseLength4 = bufSize4 * 3;
+          var reverseLength4 = bufSize4 * 2;
           var revBuf4 = new Float32Array(reverseLength4);
           var revPlayBuf4 = new Float32Array(reverseLength4);
           var revQueuedBuf4 = new Float32Array(reverseLength4);
@@ -331,7 +366,7 @@ function buildEffectChainJS(): string {
                 revWriteIdx4 = 0;
               }
             }
-            // Read strictly backwards at 1/3 speed. There is no forward wet path.
+            // Read strictly backwards at 2/3 speed. There is no forward wet path.
             for (var ro = 0; ro < bufSize4; ro++) {
               if (revReadPos4 < 0 && queuedReverse4) {
                 for (var si = 0; si < reverseLength4; si++) revPlayBuf4[si] = revQueuedBuf4[si];
@@ -340,29 +375,14 @@ function buildEffectChainJS(): string {
               }
               var readPos4 = Math.floor(revReadPos4);
               out[ro] = readPos4 >= 0 ? revPlayBuf4[readPos4] : 0;
-              revReadPos4 -= 1 / 3;
+              revReadPos4 -= 2 / 3;
             }
           };
 
-          // Large reverb on the reversed output — NO FEEDBACK, parallel decaying taps
-          var revMerge4 = ctx.createGain(); revMerge4.gain.value = 0.4;
-          var revTimes4 = [0.071, 0.113, 0.167, 0.223, 0.293, 0.367, 0.449, 0.541];
-          for (var ri4 = 0; ri4 < revTimes4.length; ri4++) {
-            var rvd4 = ctx.createDelay(4.0);
-            rvd4.delayTime.value = revTimes4[ri4] * (3.0 + intensity * 1.5);
-            var rvlp4 = ctx.createBiquadFilter();
-            rvlp4.type = 'lowpass'; rvlp4.frequency.value = 2500 - ri4 * 200;
-            var rvGain4 = ctx.createGain(); rvGain4.gain.value = 0.2 - ri4 * 0.02;
-            reverseNode4.connect(rvd4);
-            rvd4.connect(rvlp4); rvlp4.connect(rvGain4); rvGain4.connect(revMerge4);
-          }
-
-          // Signal chain: input -> 8-beat delay -> reverse/1/3-speed -> reverb -> output
-          inputBoost.connect(del4); del4.connect(del4Gain);
-          del4Gain.connect(reverseNode4);
-          var dry4g = ctx.createGain(); dry4g.gain.value = 0.3;
+          // Signal chain: input -> immediate reverse/2/3-speed return. No pre-delay or reverb.
+          inputBoost.connect(reverseNode4);
+          var dry4g = ctx.createGain(); dry4g.gain.value = 0.75;
           reverseNode4.connect(dry4g); dry4g.connect(analyser);
-          revMerge4.connect(analyser);
           analyser.connect(output);
           break;
         }
@@ -404,6 +424,17 @@ function buildEffectChainJS(): string {
           rotaryDelDepth5b.connect(rotaryDel5b.delayTime);
           rotaryDelLfo5b.start();
 
+          // Switch among requested multipliers every five seconds without a persistent timer.
+          var rotaryMultipliers5 = [2, 3, 4, 1 / 3, 10];
+          for (var switch5 = 0; switch5 < 120; switch5++) {
+            var multiplier5 = rotaryMultipliers5[Math.floor(Math.random() * rotaryMultipliers5.length)];
+            var switchHz5 = (bpm * multiplier5) / 60;
+            var switchTime5 = t + switch5 * 5;
+            rotaryAmpLfo5.frequency.setValueAtTime(switchHz5, switchTime5);
+            rotaryDelLfo5.frequency.setValueAtTime(switchHz5, switchTime5);
+            rotaryDelLfo5b.frequency.setValueAtTime(switchHz5 * 1.1, switchTime5);
+          }
+
           // Crossover: low frequencies to one rotor, highs to another
           var loPass5 = ctx.createBiquadFilter();
           loPass5.type = 'lowpass'; loPass5.frequency.value = 800;
@@ -423,14 +454,14 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 6: { // DARK DELAY — Expiation (BPM 90): 20dB gate, beat-synced delay, treble cut >5kHz, 2/3 rate playback
-          // 20dB noise gate
+        case 6: { // DARK DELAY — Expiation: -15dB gate, octave-down beat delays, treble cut
+          // Strict -15dB gate eliminates low-level high-frequency feedback before effects.
           var gate6 = ctx.createDynamicsCompressor();
-          gate6.threshold.value = -40; // 20dB above -60dB noise floor
+          gate6.threshold.value = -15;
           gate6.knee.value = 1;
-          gate6.ratio.value = 20;
+          gate6.ratio.value = 40;
           gate6.attack.value = 0.001;
-          gate6.release.value = 0.03;
+          gate6.release.value = 0.04;
 
           // Treble cut: remove everything above 5kHz
           var lp6 = ctx.createBiquadFilter();
@@ -439,23 +470,43 @@ function buildEffectChainJS(): string {
 
           // Beat-synced delay (one beat) — NO FEEDBACK, finite taps
           var del6 = ctx.createDelay(5.0); del6.delayTime.value = beatSec;
-          var del6Gain = ctx.createGain(); del6Gain.gain.value = 0.6;
+          var del6Gain = ctx.createGain(); del6Gain.gain.value = 0.5;
           // Second tap at 2 beats (decaying)
           var del6b = ctx.createDelay(5.0); del6b.delayTime.value = beatSec * 2;
-          var del6bGain = ctx.createGain(); del6bGain.gain.value = 0.3;
+          var del6bGain = ctx.createGain(); del6bGain.gain.value = 0.25;
 
-          // 2/3 rate playback via pitch-shifting modulation (slows perceived playback)
-          var slowLfo6 = ctx.createOscillator(); slowLfo6.type = 'sawtooth';
-          slowLfo6.frequency.value = 0.12; // slow modulation for pitch-down feel
-          var slowDepth6 = ctx.createGain(); slowDepth6.gain.value = 0.03 + intensity * 0.015;
-          slowLfo6.connect(slowDepth6); slowDepth6.connect(del6.delayTime);
-          slowLfo6.start();
+          // Each delay return receives a repeatable octave-down resampling stage.
+          function makeOctaveDown6() {
+            var octaveSize6 = 4096;
+            var octaveNode6 = ctx.createScriptProcessor(octaveSize6, 1, 1);
+            var octaveBuf6 = new Float32Array(octaveSize6 * 2);
+            var octavePlay6 = new Float32Array(octaveSize6 * 2);
+            var octaveWrite6 = 0;
+            octaveNode6.onaudioprocess = function(e) {
+              var inp = e.inputBuffer.getChannelData(0);
+              var out = e.outputBuffer.getChannelData(0);
+              for (var oi6 = 0; oi6 < octaveSize6; oi6++) {
+                octaveBuf6[octaveWrite6++] = inp[oi6];
+                if (octaveWrite6 >= octaveSize6 * 2) {
+                  for (var oc6 = 0; oc6 < octaveSize6 * 2; oc6++) octavePlay6[oc6] = octaveBuf6[oc6];
+                  octaveWrite6 = 0;
+                }
+              }
+              for (var oo6 = 0; oo6 < octaveSize6; oo6++) {
+                var octaveRead6 = Math.floor(oo6 / 2);
+                out[oo6] = octavePlay6[octaveRead6] * 0.8;
+              }
+            };
+            return octaveNode6;
+          }
+          var octaveDown6a = makeOctaveDown6();
+          var octaveDown6b = makeOctaveDown6();
 
-          // Signal chain: input -> gate -> LP filter -> delays (finite taps, with slow mod) -> output
+          // Signal chain: input -> gate -> LP filter -> beat delays -> octave-down returns.
           inputBoost.connect(gate6);
           gate6.connect(lp6);
-          lp6.connect(del6); del6.connect(del6Gain);
-          lp6.connect(del6b); del6b.connect(del6bGain);
+          lp6.connect(del6); del6.connect(octaveDown6a); octaveDown6a.connect(del6Gain);
+          lp6.connect(del6b); del6b.connect(octaveDown6b); octaveDown6b.connect(del6bGain);
           var dry6g = ctx.createGain(); dry6g.gain.value = 0.4;
           lp6.connect(dry6g); dry6g.connect(analyser);
           del6Gain.connect(analyser);
@@ -464,43 +515,46 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 7: { // CATHEDRAL — Recessional: long church reverb, 10dB noise gate, half-rate delay, max 3 echoes
-          // Noise gate: only pass signals >10dB above floor
-          // Implemented as a gain node that the ScriptProcessor/worklet would control
-          // For Web Audio: use compressor as gate (fast attack, high ratio below threshold)
+        case 7: { // CATHEDRAL — Recessional: -15dB gate, faster cathedral, randomized stereo echoes
+          // Only voices and louder events cross the -15dB gate.
           var gate7 = ctx.createDynamicsCompressor();
-          gate7.threshold.value = -20; // signals below -50dB are gated (approx 10dB above typical noise floor at -60dB)
+          gate7.threshold.value = -15;
           gate7.knee.value = 1;
-          gate7.ratio.value = 20; // heavy compression below threshold = gate
+          gate7.ratio.value = 40;
           gate7.attack.value = 0.001;
-          gate7.release.value = 0.1;
+          gate7.release.value = 0.06;
 
-          // Long church reverb — NO FEEDBACK, parallel decaying taps for cathedral density
-          var reverbMerge7 = ctx.createGain(); reverbMerge7.gain.value = 0.25;
-          var reverbTimes7 = [0.023, 0.047, 0.083, 0.127, 0.179, 0.241, 0.317, 0.401, 0.503, 0.617, 0.743, 0.881];
+          // Faster cathedral decay — gated source only, finite parallel reflections, no feedback loop.
+          var reverbMerge7 = ctx.createGain(); reverbMerge7.gain.value = 0.22;
+          var reverbTimes7 = [0.019, 0.041, 0.071, 0.109, 0.151, 0.199, 0.257, 0.331];
           inputBoost.connect(gate7);
           for (var ri = 0; ri < reverbTimes7.length; ri++) {
             var rvDel7 = ctx.createDelay(5.0);
-            rvDel7.delayTime.value = reverbTimes7[ri] * (3.0 + intensity * 1.5);
+            rvDel7.delayTime.value = reverbTimes7[ri] * (1.6 + intensity * 0.6);
             var rvLp7 = ctx.createBiquadFilter();
             rvLp7.type = 'lowpass'; rvLp7.frequency.value = 2500 - ri * 100; // darker with each reflection
-            var rvGain7 = ctx.createGain(); rvGain7.gain.value = 0.25 - ri * 0.02; // natural decay
+            var rvGain7 = ctx.createGain(); rvGain7.gain.value = 0.20 - ri * 0.02;
             gate7.connect(rvDel7);
             rvDel7.connect(rvLp7); rvLp7.connect(rvGain7); rvGain7.connect(reverbMerge7);
           }
 
-          // Half-rate delay (half the tempo = 2 beats per echo), max 3 echoes
-          var halfRate7 = beatSec * 2; // half the rate of music
-          var del7a = ctx.createDelay(5.0); del7a.delayTime.value = halfRate7;
-          var del7b = ctx.createDelay(5.0); del7b.delayTime.value = halfRate7 * 2;
-          var del7c = ctx.createDelay(5.0); del7c.delayTime.value = halfRate7 * 3;
+          // Three finite echoes; each is independently randomized between one and six beats.
+          var echoBeats7a = 1 + Math.floor(Math.random() * 6);
+          var echoBeats7b = 1 + Math.floor(Math.random() * 6);
+          var echoBeats7c = 1 + Math.floor(Math.random() * 6);
+          var del7a = ctx.createDelay(5.0); del7a.delayTime.value = beatSec * echoBeats7a;
+          var del7b = ctx.createDelay(5.0); del7b.delayTime.value = beatSec * echoBeats7b;
+          var del7c = ctx.createDelay(5.0); del7c.delayTime.value = beatSec * echoBeats7c;
           var delGain7a = ctx.createGain(); delGain7a.gain.value = 0.6;
           var delGain7b = ctx.createGain(); delGain7b.gain.value = 0.4;
           var delGain7c = ctx.createGain(); delGain7c.gain.value = 0.2;
+          var pan7a = ctx.createStereoPanner(); pan7a.pan.value = -1 + Math.random() * 2;
+          var pan7b = ctx.createStereoPanner(); pan7b.pan.value = -1 + Math.random() * 2;
+          var pan7c = ctx.createStereoPanner(); pan7c.pan.value = -1 + Math.random() * 2;
 
-          gate7.connect(del7a); del7a.connect(delGain7a); delGain7a.connect(analyser);
-          gate7.connect(del7b); del7b.connect(delGain7b); delGain7b.connect(analyser);
-          gate7.connect(del7c); del7c.connect(delGain7c); delGain7c.connect(analyser);
+          gate7.connect(del7a); del7a.connect(delGain7a); delGain7a.connect(pan7a); pan7a.connect(analyser);
+          gate7.connect(del7b); del7b.connect(delGain7b); delGain7b.connect(pan7b); pan7b.connect(analyser);
+          gate7.connect(del7c); del7c.connect(delGain7c); delGain7c.connect(pan7c); pan7c.connect(analyser);
 
           // Dry (gated) signal + reverb
           var dry7 = ctx.createGain(); dry7.gain.value = 0.5;
@@ -510,10 +564,10 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 8: { // GATED STUTTER — Road Show: quarter-note gated 0.25s samples, 12-beat repeat, pitch-lowering modulator
+        case 8: { // GATED STUTTER — Road Show: 16th-note gated samples and extreme pitch-drop stutter
           // BPM 140, beatSec = 60/140 ≈ 0.4286s
-          // Quarter note gate: chop mic into 0.25s samples at quarter-note intervals
-          var gateFreq8 = bpm / 60; // quarter notes per second
+          // 16th-note gate: four times faster than the previous quarter-note pulse.
+          var gateFreq8 = (bpm / 60) * 4;
           var gateOsc8 = ctx.createOscillator(); gateOsc8.type = 'square';
           gateOsc8.frequency.value = gateFreq8;
           var gateGain8 = ctx.createGain(); gateGain8.gain.value = 0;
@@ -528,21 +582,14 @@ function buildEffectChainJS(): string {
           // 12-beat repeat delay
           var repeatDel8 = ctx.createDelay(10.0);
           repeatDel8.delayTime.value = beatSec * 12; // repeat after 12 beats
-          var repeatGain8 = ctx.createGain(); repeatGain8.gain.value = 0.2;
+          var repeatGain8 = ctx.createGain(); repeatGain8.gain.value = 0.8;
 
-          // Pitch-lowering modulator on primary delay (slow downward LFO on delay time)
+          // Extreme octave-down-style glide on the stutter delay via a large downward delay-time sweep.
           var pitchLfo8 = ctx.createOscillator(); pitchLfo8.type = 'sawtooth';
-          pitchLfo8.frequency.value = 0.15; // slow descent
-          var pitchDepth8 = ctx.createGain(); pitchDepth8.gain.value = 0.008 + intensity * 0.012; // subtle pitch drop
+          pitchLfo8.frequency.value = 1 / beatSec;
+          var pitchDepth8 = ctx.createGain(); pitchDepth8.gain.value = beatSec * (0.50 + intensity * 0.20);
           pitchLfo8.connect(pitchDepth8); pitchDepth8.connect(primaryDel8.delayTime);
           pitchLfo8.start();
-
-          // Pitch-lowering modulator on repeat delay
-          var pitchLfo8b = ctx.createOscillator(); pitchLfo8b.type = 'sawtooth';
-          pitchLfo8b.frequency.value = 0.08; // even slower for the repeat
-          var pitchDepth8b = ctx.createGain(); pitchDepth8b.gain.value = 0.012 + intensity * 0.018;
-          pitchLfo8b.connect(pitchDepth8b); pitchDepth8b.connect(repeatDel8.delayTime);
-          pitchLfo8b.start();
 
           // Signal chain: input -> gate -> primary delay -> repeat delay
           inputBoost.connect(gateGain8);
@@ -575,29 +622,31 @@ function buildEffectChainJS(): string {
           // Left delay (first echo)
           var delL9 = ctx.createDelay(5.0);
           delL9.delayTime.value = halfBeat9;
-          var gainL9 = ctx.createGain(); gainL9.gain.value = 0.35;
+          var gainL9 = ctx.createGain(); gainL9.gain.value = 0.60;
+          var panL9 = ctx.createStereoPanner(); panL9.pan.value = -1;
 
           // Right delay (second echo, panned opposite)
           var delR9 = ctx.createDelay(5.0);
           delR9.delayTime.value = halfBeat9 * 2; // second ping
-          var gainR9 = ctx.createGain(); gainR9.gain.value = 0.2;
+          var gainR9 = ctx.createGain(); gainR9.gain.value = 0.50;
+          var panR9 = ctx.createStereoPanner(); panR9.pan.value = 1;
 
           // Random phaser via allpass filters with LFO modulation
           // Phaser varies tone randomly on each successive hit
           var allpass9a = ctx.createBiquadFilter();
           allpass9a.type = 'allpass'; allpass9a.frequency.value = 1000;
-          allpass9a.Q.value = 5;
+          allpass9a.Q.value = 12;
           var allpass9b = ctx.createBiquadFilter();
           allpass9b.type = 'allpass'; allpass9b.frequency.value = 2500;
-          allpass9b.Q.value = 5;
+          allpass9b.Q.value = 12;
           var allpass9c = ctx.createBiquadFilter();
           allpass9c.type = 'allpass'; allpass9c.frequency.value = 4000;
-          allpass9c.Q.value = 3;
+          allpass9c.Q.value = 8;
 
           // Random-ish LFO for phaser sweep (uses non-harmonic frequency for pseudo-random feel)
           var phaserLfo9 = ctx.createOscillator(); phaserLfo9.type = 'sine';
-          phaserLfo9.frequency.value = 0.7 + intensity * 2.3; // varies 0.7-3 Hz for randomness
-          var phaserDepth9 = ctx.createGain(); phaserDepth9.gain.value = 2000 + intensity * 3000;
+          phaserLfo9.frequency.value = 1.2 + intensity * 4.5;
+          var phaserDepth9 = ctx.createGain(); phaserDepth9.gain.value = 4500 + intensity * 6500;
           phaserLfo9.connect(phaserDepth9);
           phaserDepth9.connect(allpass9a.frequency);
           phaserDepth9.connect(allpass9b.frequency);
@@ -607,7 +656,7 @@ function buildEffectChainJS(): string {
           // Second LFO at irrational ratio for more random variation
           var phaserLfo9b = ctx.createOscillator(); phaserLfo9b.type = 'triangle';
           phaserLfo9b.frequency.value = 1.37; // irrational ratio to first LFO
-          var phaserDepth9b = ctx.createGain(); phaserDepth9b.gain.value = 1500;
+          var phaserDepth9b = ctx.createGain(); phaserDepth9b.gain.value = 3500;
           phaserLfo9b.connect(phaserDepth9b);
           phaserDepth9b.connect(allpass9a.frequency);
           phaserLfo9b.start();
@@ -620,11 +669,12 @@ function buildEffectChainJS(): string {
           allpass9c.connect(delR9);
           delR9.connect(gainR9);
 
-          // Mix: dry gated + 2 delay taps (no feedback = max 2 delays)
+          // Mix: centered dry path plus emphatic hard-left and hard-right returns.
           var dry9 = ctx.createGain(); dry9.gain.value = 0.25;
-          gate9.connect(dry9); dry9.connect(analyser);
-          gainL9.connect(analyser);
-          gainR9.connect(analyser);
+          var dryPan9 = ctx.createStereoPanner(); dryPan9.pan.value = 0;
+          gate9.connect(dry9); dry9.connect(dryPan9); dryPan9.connect(analyser);
+          gainL9.connect(panL9); panL9.connect(analyser);
+          gainR9.connect(panR9); panR9.connect(analyser);
           analyser.connect(output);
           break;
         }
@@ -666,7 +716,7 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 11: { // TIME STRETCH — Much Ado (BPM 120): 3x time-stretch, hall reverb, 20dB gate delay
+        case 11: { // TIME STRETCH — Much Ado (BPM 120): louder stretch plus gated triplet gallop
           // 3x time-stretch via ScriptProcessor (reads 1 sample for every 3 output samples)
           var bufSize11 = 4096;
           var stretchNode11 = ctx.createScriptProcessor(bufSize11, 1, 1);
@@ -688,39 +738,30 @@ function buildEffectChainJS(): string {
             // Read at 1/3 speed (3x stretch)
             for (var ro = 0; ro < bufSize11; ro++) {
               var readPos = Math.floor(ro / 3);
-              out[ro] = (readPos < bufSize11 * 3) ? stretchPlayBuf11[readPos] * 0.7 : 0;
+              out[ro] = (readPos < bufSize11 * 3) ? stretchPlayBuf11[readPos] * 1.0 : 0;
             }
           };
 
-          // Large hall reverb — NO FEEDBACK, parallel decaying taps
-          var revMerge11 = ctx.createGain(); revMerge11.gain.value = 0.2;
-          var revTimes11 = [0.053, 0.097, 0.149, 0.211, 0.277, 0.353, 0.431];
-          for (var ri11 = 0; ri11 < revTimes11.length; ri11++) {
-            var rvd11 = ctx.createDelay(4.0);
-            rvd11.delayTime.value = revTimes11[ri11] * (2.0 + intensity * 1.5);
-            var rvlp11 = ctx.createBiquadFilter();
-            rvlp11.type = 'lowpass'; rvlp11.frequency.value = 4000 - ri11 * 300;
-            var rvGain11 = ctx.createGain(); rvGain11.gain.value = 0.25 - ri11 * 0.03;
-            stretchNode11.connect(rvd11);
-            rvd11.connect(rvlp11); rvlp11.connect(rvGain11); rvGain11.connect(revMerge11);
-          }
-
-          // 20dB noise gate + beat-synced delay — NO FEEDBACK, single tap
+          // Gate at -10dB, then create three galloping triplet taps within one beat.
           var gate11 = ctx.createDynamicsCompressor();
-          gate11.threshold.value = -40; // 20dB above -60dB noise floor
+          gate11.threshold.value = -10;
           gate11.knee.value = 1; gate11.ratio.value = 20;
           gate11.attack.value = 0.001; gate11.release.value = 0.03;
-          var del11 = ctx.createDelay(5.0); del11.delayTime.value = beatSec;
-          var del11Gain = ctx.createGain(); del11Gain.gain.value = 0.2;
+          var triplet11a = ctx.createDelay(5.0); triplet11a.delayTime.value = beatSec / 3;
+          var triplet11b = ctx.createDelay(5.0); triplet11b.delayTime.value = (beatSec * 2) / 3;
+          var triplet11c = ctx.createDelay(5.0); triplet11c.delayTime.value = beatSec;
+          var tripletGain11a = ctx.createGain(); tripletGain11a.gain.value = 0.55;
+          var tripletGain11b = ctx.createGain(); tripletGain11b.gain.value = 0.40;
+          var tripletGain11c = ctx.createGain(); tripletGain11c.gain.value = 0.28;
 
-          // Signal chain: input -> stretch -> reverb; input -> gate -> delay (no feedback)
+          // Signal chain: input -> louder stretch; input above -10dB -> finite triplet taps.
           inputBoost.connect(stretchNode11);
           inputBoost.connect(gate11);
-          gate11.connect(del11); del11.connect(del11Gain);
-          var dry11 = ctx.createGain(); dry11.gain.value = 0.2;
-          stretchNode11.connect(dry11); dry11.connect(analyser);
-          revMerge11.connect(analyser);
-          del11Gain.connect(analyser);
+          gate11.connect(triplet11a); triplet11a.connect(tripletGain11a); tripletGain11a.connect(analyser);
+          gate11.connect(triplet11b); triplet11b.connect(tripletGain11b); tripletGain11b.connect(analyser);
+          gate11.connect(triplet11c); triplet11c.connect(tripletGain11c); tripletGain11c.connect(analyser);
+          var stretchReturn11 = ctx.createGain(); stretchReturn11.gain.value = 0.70;
+          stretchNode11.connect(stretchReturn11); stretchReturn11.connect(analyser);
           analyser.connect(output);
           break;
         }
@@ -758,7 +799,7 @@ function buildEffectChainJS(): string {
           // Signal chain: input -> 1s delay -> chipmunk speed-up -> output
           inputBoost.connect(del12); del12.connect(del12Gain);
           del12Gain.connect(chipmunkNode12);
-          var dry12 = ctx.createGain(); dry12.gain.value = 0.2;
+          var dry12 = ctx.createGain(); dry12.gain.value = 0.0; // Theme for New Beginnings has no effect-chain dry return
           inputBoost.connect(dry12); dry12.connect(analyser);
           chipmunkNode12.connect(analyser);
           analyser.connect(output);
@@ -786,7 +827,8 @@ function buildDryWetChainJS(): string {
       // Higher fixed mix: dry return +5 points and effected return +10 points.
       // Gate, frequency filters, compressor, and limiter remain in place to control leakage and peaks
       var dryGain = ctx.createGain();
-      dryGain.gain.value = 0.25;
+      // Theme for New Beginnings (track 12) intentionally has no global dry mic return.
+      dryGain.gain.value = trackId === 12 ? 0 : 0.25;
 
       var wetGain = ctx.createGain();
       wetGain.gain.value = 0.80;
@@ -895,11 +937,11 @@ function WebMicPassthrough({
     }
   }, [musicVolume]);
 
-  // Update fixed mix: dry 25%, wet 80% for the requested stronger mic returns
+  // Update fixed mix: dry 25% except Theme for New Beginnings, which is fully wet.
   useEffect(() => {
-    if (dryGainRef.current) dryGainRef.current.gain.value = 0.25;
+    if (dryGainRef.current) dryGainRef.current.gain.value = trackId === 12 ? 0 : 0.25;
     if (wetGainRef.current) wetGainRef.current.gain.value = 0.80;
-  }, [dryWetMix]);
+  }, [dryWetMix, trackId]);
 
   async function startWebPassthrough() {
     try {
@@ -1186,11 +1228,11 @@ function setVolume(vol) {
   }
 }
 
-function setDryWet(mix) {
+function setDryWet(mix, trackId) {
   if (chain && chain.dryGain && chain.wetGain && audioCtx) {
     var t = audioCtx.currentTime;
-    // Higher fixed mix: dry 25%, wet 80%; anti-feedback processors remain after the merger
-    chain.dryGain.gain.setValueAtTime(0.25, t);
+    // Theme for New Beginnings (track 12) is fully wet; all other tracks retain the fixed dry return.
+    chain.dryGain.gain.setValueAtTime(trackId === 12 ? 0 : 0.25, t);
     chain.wetGain.gain.setValueAtTime(0.80, t);
   }
 }
@@ -1246,8 +1288,8 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
   // Update dry/wet mix dynamically
   useEffect(() => {
     if (!webViewRef.current || !isReady || !isActive) return;
-    webViewRef.current.injectJavaScript(`setDryWet(${mix}); true;`);
-  }, [mix, isReady, isActive]);
+    webViewRef.current.injectJavaScript(`setDryWet(${mix}, ${trackId}); true;`);
+  }, [mix, trackId, isReady, isActive]);
 
   // Don't render WebView until we have permission and the component
   if (!WebViewComponent || !permissionGranted) return null;

@@ -178,3 +178,14 @@
 - [x] Update Start the Show playback order so Light Side plays before Dark Side
 - [x] Raise fixed dry return by 5 points, effected return by 10 points, and final mic output to 0.80× music volume
 - [x] Fix Krampus Wishes so its effected microphone return is audibly reversed
+- [x] Recessional: gate at -15dB, faster gated cathedral reverb, and randomized 1–6 beat stereo echoes
+- [x] Road Show: 16th-note stutter, octave-down delay pitch shifts, and 0.8-gain 12-beat repeat
+- [x] Excitement and Elimination: louder stereo returns, centered dry path, and deeper phaser
+- [x] Much Ado: louder time stretch, remove hall reverb, and add gated triplet delay above -10dB
+- [x] Theme for New Beginnings: remove the track-specific dry return
+- [x] Corpse Parade: replace whisper processing with an auto-tuned vocoder return
+- [x] Sleep Deprivation: use a full-beat delay and raise large-room reverb return by 15%
+- [x] Mutation and Madness: add voice-focused input gain and double the CB return
+- [x] Krampus Wishes: remove pre-reverse delay and reverb, then set reverse return to 2/3 speed
+- [x] Investigation Station: randomize rotary rates every five seconds across the requested BPM multipliers
+- [x] Expiation: add -15dB gate, octave-down beat delays, and 0.5/0.25 delay returns
