@@ -39,10 +39,19 @@ describe("Now Playing wet slider and artwork composition", () => {
     expect(nowPlayingSource).toContain("1.5×");
   });
 
-  it("uses the track image as a full background and removes the fading toggle circle", () => {
-    expect(nowPlayingSource).toContain("style={styles.backgroundArtwork}");
+  it("uses 75% track art as a full background and removes the fading toggle circle", () => {
+    expect(nowPlayingSource).toContain("style={[styles.backgroundArtwork, { opacity: 0.75 }]}");
+    expect(nowPlayingSource).toContain("opacity: 0.75");
     expect(nowPlayingSource).toContain("effectVolumeMultiplier={effectVolumeMultiplier}");
     expect(nowPlayingSource).not.toContain("micToggleGlow");
     expect(nowPlayingSource).not.toContain("animatedMicGlowStyle");
+  });
+
+  it("adds two BPM-synced bright-pixel border chasers to play and effects controls", () => {
+    expect(nowPlayingSource).toContain("function BPMBorderChaser");
+    expect(nowPlayingSource).toContain("duration: Math.max(120, 60000 / bpm)");
+    expect(nowPlayingSource).toContain("<BPMBorderChaser bpm={currentTrack.bpm} isPlaying={isPlaying} borderRadius={36} />");
+    expect(nowPlayingSource).toContain("<BPMBorderChaser bpm={currentTrack.bpm} isPlaying={isPlaying} borderRadius={32} />");
+    expect(nowPlayingSource).toContain("backgroundColor: \"#FFF7C0\"");
   });
 });

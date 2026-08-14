@@ -36,12 +36,12 @@ describe("Latest requested per-track DSP refinements", () => {
     expect(recessional).toContain("pan7a.pan.setValueAtTime");
   });
 
-  it("uses the requested slow Road Show base rate and randomly scheduled full on/off gate", () => {
+  it("uses Road Show eighth-note on/off syllable chopping and finite randomized BPM delays", () => {
     const roadShow = branch(8, 9);
-    expect(roadShow).toContain("var gateFreq8 = 0.01 / beatSec");
-    expect(roadShow).toContain("var outputOnChoices8 = [0.25 * bpm, 0.33 * bpm, 0.5 * bpm, 4.0 * bpm, 10 * bpm]");
-    expect(roadShow).toContain("outputGateCursor8 += outputOnDuration8 + bpm * 4");
-    expect(roadShow).toContain("outputGate8.connect(analyser)");
+    expect(roadShow).toContain("syllableLfo8.frequency.value = 1 / beatSec");
+    expect(roadShow).toContain("var sampleDelayChoices8 = [beatSec * 2, beatSec * 4, beatSec * 0.33, beatSec * 12]");
+    expect(roadShow).toContain("sampleSchedule8 * 20");
+    expect(roadShow).toContain("sampleReturn8.connect(analyser)");
   });
 
   it("re-randomizes Excitement ping-pong timing every twenty-two seconds", () => {
@@ -51,10 +51,14 @@ describe("Latest requested per-track DSP refinements", () => {
     expect(excitement).toContain("delL9.delayTime.setValueAtTime(pingChoice9, pingTime9)");
   });
 
-  it("raises Piano Fandango chorus and uses de-essed eighth-note Much Ado triplets", () => {
+  it("pans Piano Fandango chorus voices every sixteen beats and retains de-essed eighth-note Much Ado triplets", () => {
     const piano = branch(10, 11);
     const muchAdo = branch(11, 12);
     expect(piano).toContain("chorusMerge10.gain.value = 1.0");
+    expect(piano).toContain("var chorusPanSection10 = beatSec * 16");
+    expect(piano).toContain("chorusPan10.pan.setValueAtTime");
+    expect(piano).toContain("dry10.gain.value = 0.5");
+    expect(piano).toContain("dryPan10.pan.value = 0");
     expect(muchAdo).toContain("var eighthTriplet11 = beatSec / 2");
     expect(muchAdo).toContain("tripletGain11a.gain.value = 0.32");
     expect(muchAdo).toContain("tripletGain11b.gain.value = 0.32");
@@ -62,30 +66,36 @@ describe("Latest requested per-track DSP refinements", () => {
     expect(muchAdo).toContain("deEss11a.type = 'notch'");
   });
 
-  it("uses a stronger D-minor Corpse Parade vocoder without a global dry return", () => {
+  it("uses a stronger, intelligible pop-style Corpse Parade pitch shimmer without a global dry return", () => {
     const corpseParade = branch(1, 2);
-    expect(corpseParade).toContain("vocoderReturn1.gain.value = 1.5");
-    expect(corpseParade).toContain("vocoderScale1 = [146.83, 174.61, 196.00, 220.00, 233.08, 261.63, 293.66, 349.23, 392.00, 440.00]");
+    expect(corpseParade).toContain("var popPitchRatios1 = [0.8909, 0.9439, 1.0, 1.0595, 1.1225]");
+    expect(corpseParade).toContain("out[pp1] = inp[pp1] * 0.72 + inp[shiftedIndex1] * 0.48");
+    expect(corpseParade).toContain("vocoderReturn1.gain.value = 1.8");
     expect(micPassthroughSource).toContain("trackId === 1 || trackId === 6 || trackId === 12");
   });
 
-  it("uses a normal-speed dry-free Krampus reverse return", () => {
+  it("uses a quarter-note delayed reverse demon chorus with finite reverb", () => {
     const krampus = branch(4, 5);
     expect(krampus).toContain("revReadPos4 -= 1");
-    expect(krampus).toContain("dry4g.gain.value = 0.0");
+    expect(krampus).toContain("quarterDelay4.delayTime.value = beatSec");
+    expect(krampus).toContain("demonDoubleDelay4.delayTime.value = 0.028");
+    expect(krampus).toContain("demonReverbTimes4 = [0.14, 0.27, 0.43, 0.68, 0.96]");
   });
 
   it("uses dual randomized-speed chipmunk taps for Theme for New Beginnings", () => {
     const theme = branch(12, "default");
-    expect(theme).toContain("del12b.delayTime.value = 1.5");
+    expect(theme).toContain("del12Gain.gain.value = 0.42");
+    expect(theme).toContain("del12b.delayTime.value = 3.0");
     expect(theme).toContain("del12bGain.gain.value = 0.25");
     expect(theme).toContain("var chipmunkSpeeds12 = [2.0, 1.8, 1.5, 1.3]");
     expect(theme).toContain("beatSec * 128");
   });
 
-  it("uses dry-free hard-panned one-octave Expiation returns", () => {
+  it("uses dry-free hard-panned randomized, slower half-octave Expiation returns", () => {
     const expiation = branch(6, 7);
-    expect(expiation).toContain("function makeOctaveDown6()");
+    expect(expiation).toContain("expiationDelayChoices6.push(expiationBeat6)");
+    expect(expiation).toContain("function makeHalfOctaveSlow6()");
+    expect(expiation).toContain("Math.floor(oo6 * 0.75)");
     expect(expiation).toContain("pan6a.pan.value = -1");
     expect(expiation).toContain("pan6b.pan.value = 1");
     expect(expiation).toContain("dry6g.gain.value = 0.0");

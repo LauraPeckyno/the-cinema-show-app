@@ -214,3 +214,12 @@
 - [x] Add a touch-drag wet-effect volume slider with a 0.5×–1.5× range and 1.0× default
 - [x] Remove the fading-circle portion of the Now Playing effects-button animation
 - [x] Use the existing track artwork as proportionally scaled Now Playing background imagery behind controls
+- [x] Increase Now Playing artwork visibility to 75% opacity and remove unused image animation
+- [x] Add BPM-synced bright-pixel border chasers to the play and effects buttons
+- [x] Road Show: replace all effects with eighth-note on/off mic gating and 20-second randomized sample delays
+- [x] Piano Fandango: add re-randomized chorus pans every 16 beats and centered 0.5 dry return
+- [x] Theme for New Beginnings: increase chipmunk volume by 20% and double the second-return delay
+- [x] Corpse Parade: improve word intelligibility with pop-style pitch shifting and add 20% wet return
+- [x] Mutation and Madness: use BPM-based eighth-note random sampling
+- [x] Krampus Wishes: replace all effects with quarter-note delayed reverse, reverb, and doubled demon chorus
+- [x] Expiation: randomize both delays between 1–30 beats and use slower half-octave-down returns

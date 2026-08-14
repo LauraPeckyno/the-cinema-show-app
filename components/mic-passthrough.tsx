@@ -217,34 +217,31 @@ function buildEffectChainJS(): string {
           whisperDel.connect(whisperDelGain);
           // The legacy whisper echo remains silent because whisperVol is zero.
 
-          // D-minor vocoder: selects a singable random carrier note instead of matching input pitch.
-          var vocoderSize1 = 2048;
-          var vocoderNode1 = ctx.createScriptProcessor(vocoderSize1, 1, 1);
-          var vocoderEnvelope1 = 0;
-          var vocoderPhase1 = 0;
-          var vocoderFrequency1 = 146.83;
-          var vocoderScale1 = [146.83, 174.61, 196.00, 220.00, 233.08, 261.63, 293.66, 349.23, 392.00, 440.00];
-          var vocoderNoteCountdown1 = 0;
-          vocoderNode1.onaudioprocess = function(e) {
+          // Pop-style pitch shimmer: preserve the lead voice for intelligible words,
+          // while a restrained, singable D-minor resample layer shifts the color.
+          var popPitchSize1 = 2048;
+          var popPitchNode1 = ctx.createScriptProcessor(popPitchSize1, 1, 1);
+          var popPitchRatios1 = [0.8909, 0.9439, 1.0, 1.0595, 1.1225];
+          var popPitchRatio1 = 1.0;
+          var popPitchCountdown1 = 0;
+          popPitchNode1.onaudioprocess = function(e) {
             var inp = e.inputBuffer.getChannelData(0);
             var out = e.outputBuffer.getChannelData(0);
-            if (vocoderNoteCountdown1 <= 0) {
-              vocoderFrequency1 = vocoderScale1[Math.floor(Math.random() * vocoderScale1.length)];
-              vocoderNoteCountdown1 = Math.floor(ctx.sampleRate * 0.35);
+            if (popPitchCountdown1 <= 0) {
+              popPitchRatio1 = popPitchRatios1[Math.floor(Math.random() * popPitchRatios1.length)];
+              popPitchCountdown1 = Math.floor(ctx.sampleRate * 0.30);
             }
-            vocoderNoteCountdown1 -= vocoderSize1;
-            for (var vo1 = 0; vo1 < vocoderSize1; vo1++) {
-              vocoderEnvelope1 = vocoderEnvelope1 * 0.992 + Math.abs(inp[vo1]) * 0.008;
-              vocoderPhase1 += (2 * Math.PI * vocoderFrequency1) / ctx.sampleRate;
-              if (vocoderPhase1 > 2 * Math.PI) vocoderPhase1 -= 2 * Math.PI;
-              out[vo1] = (Math.sin(vocoderPhase1) * 0.75 + Math.sin(vocoderPhase1 * 2) * 0.25) * vocoderEnvelope1 * 2.2;
+            popPitchCountdown1 -= popPitchSize1;
+            for (var pp1 = 0; pp1 < popPitchSize1; pp1++) {
+              var shiftedIndex1 = Math.min(popPitchSize1 - 1, Math.floor(pp1 * popPitchRatio1));
+              out[pp1] = inp[pp1] * 0.72 + inp[shiftedIndex1] * 0.48;
             }
           };
           var vocoderTone1 = ctx.createBiquadFilter();
-          vocoderTone1.type = 'bandpass'; vocoderTone1.frequency.value = 1800; vocoderTone1.Q.value = 0.9;
-          var vocoderReturn1 = ctx.createGain(); vocoderReturn1.gain.value = 1.5;
-          inputBoost.connect(vocoderNode1);
-          vocoderNode1.connect(vocoderTone1); vocoderTone1.connect(vocoderReturn1); vocoderReturn1.connect(analyser);
+          vocoderTone1.type = 'peaking'; vocoderTone1.frequency.value = 2600; vocoderTone1.Q.value = 0.8; vocoderTone1.gain.value = 3;
+          var vocoderReturn1 = ctx.createGain(); vocoderReturn1.gain.value = 1.8;
+          inputBoost.connect(popPitchNode1);
+          popPitchNode1.connect(vocoderTone1); vocoderTone1.connect(vocoderReturn1); vocoderReturn1.connect(analyser);
 
           analyser.connect(output);
           break;
@@ -313,13 +310,15 @@ function buildEffectChainJS(): string {
           var cbBp2 = ctx.createBiquadFilter();
           cbBp2.type = 'bandpass'; cbBp2.frequency.value = 2000; cbBp2.Q.value = 3;
 
-          // Random sampling gate at 0.5s intervals (2Hz square wave gate)
-          var sampleGate3 = ctx.createGain(); sampleGate3.gain.value = 1.0;
-          var sampleLfo3 = ctx.createOscillator(); sampleLfo3.type = 'square';
-          sampleLfo3.frequency.value = 2.0; // every 0.5 seconds
-          var sampleDepth3 = ctx.createGain(); sampleDepth3.gain.value = 0.9;
-          sampleLfo3.connect(sampleDepth3); sampleDepth3.connect(sampleGate3.gain);
-          sampleLfo3.start();
+          // Randomized eighth-note sampling gate, synced to the song BPM.
+          var sampleGate3 = ctx.createGain(); sampleGate3.gain.value = 0;
+          var eighthSample3 = beatSec / 2;
+          for (var sampleSchedule3 = 0; sampleSchedule3 < 240; sampleSchedule3++) {
+            var sampleTime3 = t + sampleSchedule3 * eighthSample3;
+            var sampleOpen3 = Math.random() > 0.30 ? 1 : 0;
+            sampleGate3.gain.setValueAtTime(sampleOpen3, sampleTime3);
+            sampleGate3.gain.setValueAtTime(0, sampleTime3 + eighthSample3 * 0.68);
+          }
 
           // Delay at 2x rate of music (half beat) — NO FEEDBACK, single tap
           var halfBeat3 = beatSec / 2;
@@ -343,10 +342,8 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 4: { // REVERSE RETURN — Krampus Wishes: immediate reverse playback at normal speed
-          // Reverse playback at normal speed via ScriptProcessor.
-          // A queued, forward-capture/reverse-read buffer prevents each callback
-          // from resetting the read position and accidentally sounding forward.
+        case 4: { // DEMON CHORUS — Krampus Wishes: quarter-note delayed reverse with finite reverb and doubled voice
+          // A queued reverse buffer prevents callback resets from creating an accidental forward path.
           var bufSize4 = 8192;
           var reverseNode4 = ctx.createScriptProcessor(bufSize4, 1, 1);
           var reverseLength4 = bufSize4 * 2;
@@ -386,10 +383,27 @@ function buildEffectChainJS(): string {
             }
           };
 
-          // Signal chain: input -> immediate full-speed reverse return. No pre-delay or reverb.
-          inputBoost.connect(reverseNode4);
-          var dry4g = ctx.createGain(); dry4g.gain.value = 0.0;
-          reverseNode4.connect(dry4g); dry4g.connect(analyser);
+          // Quarter-note delay before reverse capture.
+          var quarterDelay4 = ctx.createDelay(5.0); quarterDelay4.delayTime.value = beatSec;
+          inputBoost.connect(quarterDelay4); quarterDelay4.connect(reverseNode4);
+
+          // Two voices make the reverse return sound like a demon chorus.
+          var demonMain4 = ctx.createGain(); demonMain4.gain.value = 0.48;
+          var demonDoubleDelay4 = ctx.createDelay(0.10); demonDoubleDelay4.delayTime.value = 0.028;
+          var demonDoubleGain4 = ctx.createGain(); demonDoubleGain4.gain.value = 0.42;
+          reverseNode4.connect(demonMain4); demonMain4.connect(analyser);
+          reverseNode4.connect(demonDoubleDelay4); demonDoubleDelay4.connect(demonDoubleGain4); demonDoubleGain4.connect(analyser);
+
+          // Finite dark reverb reflections only — no feedback loop.
+          var demonReverb4 = ctx.createGain(); demonReverb4.gain.value = 0.52;
+          var demonReverbTimes4 = [0.14, 0.27, 0.43, 0.68, 0.96];
+          for (var demonRi4 = 0; demonRi4 < demonReverbTimes4.length; demonRi4++) {
+            var demonTap4 = ctx.createDelay(2.0); demonTap4.delayTime.value = demonReverbTimes4[demonRi4];
+            var demonFilter4 = ctx.createBiquadFilter(); demonFilter4.type = 'lowpass'; demonFilter4.frequency.value = 3200 - demonRi4 * 350;
+            var demonTapGain4 = ctx.createGain(); demonTapGain4.gain.value = 0.30 - demonRi4 * 0.04;
+            reverseNode4.connect(demonTap4); demonTap4.connect(demonFilter4); demonFilter4.connect(demonTapGain4); demonTapGain4.connect(demonReverb4);
+          }
+          demonReverb4.connect(analyser);
           analyser.connect(output);
           break;
         }
@@ -461,7 +475,7 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 6: { // DARK DELAY — Expiation: -15dB gate, stereo octave-down beat delays, treble cut
+        case 6: { // DARK DELAY — Expiation: -15dB gate, randomized stereo half-octave slow returns
           // Strict -15dB gate eliminates low-level high-frequency feedback before effects.
           var gate6 = ctx.createDynamicsCompressor();
           gate6.threshold.value = -15;
@@ -475,14 +489,21 @@ function buildEffectChainJS(): string {
           lp6.type = 'lowpass'; lp6.frequency.value = 5000;
           lp6.Q.value = 0.7;
 
-          // First tap: two beats, one octave down, hard left. Second: four beats, one octave down, hard right.
-          var del6 = ctx.createDelay(10.0); del6.delayTime.value = beatSec * 2;
+          // Both taps choose independent one-to-thirty beat delay times.
+          var expiationDelayChoices6 = [];
+          for (var expiationBeat6 = 1; expiationBeat6 <= 30; expiationBeat6++) expiationDelayChoices6.push(expiationBeat6);
+          var del6 = ctx.createDelay(30.0); del6.delayTime.value = beatSec * expiationDelayChoices6[Math.floor(Math.random() * expiationDelayChoices6.length)];
           var del6Gain = ctx.createGain(); del6Gain.gain.value = 0.60;
-          var del6b = ctx.createDelay(10.0); del6b.delayTime.value = beatSec * 4;
+          var del6b = ctx.createDelay(30.0); del6b.delayTime.value = beatSec * expiationDelayChoices6[Math.floor(Math.random() * expiationDelayChoices6.length)];
           var del6bGain = ctx.createGain(); del6bGain.gain.value = 0.30;
+          for (var expiationSchedule6 = 1; expiationSchedule6 <= 60; expiationSchedule6++) {
+            var expiationTime6 = t + expiationSchedule6 * beatSec * 16;
+            del6.delayTime.setValueAtTime(beatSec * expiationDelayChoices6[Math.floor(Math.random() * expiationDelayChoices6.length)], expiationTime6);
+            del6b.delayTime.setValueAtTime(beatSec * expiationDelayChoices6[Math.floor(Math.random() * expiationDelayChoices6.length)], expiationTime6);
+          }
 
-          // Each delay return receives a repeatable one-octave-down resampling stage.
-          function makeOctaveDown6() {
+          // Each delay return plays at 75% speed: an audible, approximately half-octave-down shift.
+          function makeHalfOctaveSlow6() {
             var octaveSize6 = 4096;
             var octaveNode6 = ctx.createScriptProcessor(octaveSize6, 1, 1);
             var octaveBuf6 = new Float32Array(octaveSize6 * 2);
@@ -499,18 +520,18 @@ function buildEffectChainJS(): string {
                 }
               }
               for (var oo6 = 0; oo6 < octaveSize6; oo6++) {
-                var octaveRead6 = Math.floor(oo6 / 2);
-                out[oo6] = octavePlay6[octaveRead6] * 0.8;
+                var halfOctaveRead6 = Math.floor(oo6 * 0.75);
+                out[oo6] = octavePlay6[halfOctaveRead6] * 0.8;
               }
             };
             return octaveNode6;
           }
-          var octaveDown6a = makeOctaveDown6();
-          var octaveDown6b = makeOctaveDown6();
+          var octaveDown6a = makeHalfOctaveSlow6();
+          var octaveDown6b = makeHalfOctaveSlow6();
           var pan6a = ctx.createStereoPanner(); pan6a.pan.value = -1;
           var pan6b = ctx.createStereoPanner(); pan6b.pan.value = 1;
 
-          // Signal chain: input -> gate -> LP filter -> stereo one-octave-down returns.
+          // Signal chain: input -> gate -> LP filter -> stereo 75%-speed, half-octave-style returns.
           inputBoost.connect(gate6);
           gate6.connect(lp6);
           lp6.connect(del6); del6.connect(octaveDown6a); octaveDown6a.connect(del6Gain); del6Gain.connect(pan6a);
@@ -583,63 +604,32 @@ function buildEffectChainJS(): string {
           break;
         }
 
-        case 8: { // GATED STUTTER — Road Show: randomized eighth-to-whole-note stutter
-          // Very slow base stutter as requested.
-          var gateFreq8 = 0.01 / beatSec;
-          var gateOsc8 = ctx.createOscillator(); gateOsc8.type = 'square';
-          gateOsc8.frequency.value = gateFreq8;
-          var gateGain8 = ctx.createGain(); gateGain8.gain.value = 0;
-          gateOsc8.connect(gateGain8.gain);
-          gateOsc8.start();
+        case 8: { // SYLLABLE CHOP — Road Show: eighth-note on/off voice fragments with randomized finite delays
+          // A square wave at one cycle per beat creates an eighth-note on / eighth-note off rhythm.
+          var syllableGate8 = ctx.createGain(); syllableGate8.gain.value = 0.5;
+          var syllableLfo8 = ctx.createOscillator(); syllableLfo8.type = 'square';
+          syllableLfo8.frequency.value = 1 / beatSec;
+          var syllableDepth8 = ctx.createGain(); syllableDepth8.gain.value = 0.5;
+          syllableLfo8.connect(syllableDepth8); syllableDepth8.connect(syllableGate8.gain);
+          syllableLfo8.start();
 
-          // Full on/off output gate: each random on duration is followed by four BPM units of silence.
-          var outputGate8 = ctx.createGain(); outputGate8.gain.value = 0;
-          var outputOnChoices8 = [0.25 * bpm, 0.33 * bpm, 0.5 * bpm, 4.0 * bpm, 10 * bpm];
-          var outputGateCursor8 = t;
-          for (var outputGateStep8 = 0; outputGateStep8 < 48; outputGateStep8++) {
-            var outputOnDuration8 = outputOnChoices8[Math.floor(Math.random() * outputOnChoices8.length)];
-            outputGate8.gain.setValueAtTime(1, outputGateCursor8);
-            outputGate8.gain.setValueAtTime(0, outputGateCursor8 + outputOnDuration8);
-            outputGateCursor8 += outputOnDuration8 + bpm * 4;
+          // Each half-second-like syllable fragment gets one finite BPM-based return.
+          var sampleDelayChoices8 = [beatSec * 2, beatSec * 4, beatSec * 0.33, beatSec * 12];
+          var sampleDelay8 = ctx.createDelay(15.0);
+          sampleDelay8.delayTime.value = sampleDelayChoices8[Math.floor(Math.random() * sampleDelayChoices8.length)];
+          var sampleReturn8 = ctx.createGain(); sampleReturn8.gain.value = 0.72;
+          // Re-randomize the BPM-based return every twenty seconds without feedback.
+          for (var sampleSchedule8 = 1; sampleSchedule8 <= 90; sampleSchedule8++) {
+            var sampleTime8 = t + sampleSchedule8 * 20;
+            var sampleChoice8 = sampleDelayChoices8[Math.floor(Math.random() * sampleDelayChoices8.length)];
+            sampleDelay8.delayTime.setValueAtTime(sampleChoice8, sampleTime8);
           }
 
-          // Primary delay mirrors the selected stutter length.
-          var primaryDel8 = ctx.createDelay(5.0);
-          primaryDel8.delayTime.value = beatSec;
-          var primaryGain8 = ctx.createGain(); primaryGain8.gain.value = 0.35;
-
-          var stutterChoices8 = [beatSec / 2, beatSec, beatSec * 2, beatSec * 4];
-          var stutterSection8 = beatSec * 16;
-          for (var stutterSchedule8 = 0; stutterSchedule8 < 32; stutterSchedule8++) {
-            var stutterDuration8 = stutterChoices8[Math.floor(Math.random() * stutterChoices8.length)];
-            var stutterTime8 = t + stutterSchedule8 * stutterSection8;
-            gateOsc8.frequency.setValueAtTime(1 / stutterDuration8, stutterTime8);
-            primaryDel8.delayTime.setValueAtTime(stutterDuration8, stutterTime8);
-          }
-
-          // 12-beat repeat delay
-          var repeatDel8 = ctx.createDelay(10.0);
-          repeatDel8.delayTime.value = beatSec * 12; // repeat after 12 beats
-          var repeatGain8 = ctx.createGain(); repeatGain8.gain.value = 0.8;
-
-          // Extended octave-down-style glide on the changing stutter delay.
-          var pitchLfo8 = ctx.createOscillator(); pitchLfo8.type = 'sawtooth';
-          pitchLfo8.frequency.value = (1 / beatSec) * 12;
-          var pitchDepth8 = ctx.createGain(); pitchDepth8.gain.value = beatSec * (0.50 + intensity * 0.20);
-          pitchLfo8.connect(pitchDepth8); pitchDepth8.connect(primaryDel8.delayTime);
-          pitchLfo8.start();
-
-          // Signal chain: input -> gate -> primary delay -> repeat delay
-          inputBoost.connect(gateGain8);
-          gateGain8.connect(primaryDel8);
-          primaryDel8.connect(primaryGain8);
-          primaryGain8.connect(repeatDel8);
-          repeatDel8.connect(repeatGain8);
-
-          // Mix: wet stutter + fixed 12-beat repeat. Road Show has no dry return.
-          primaryGain8.connect(outputGate8);
-          repeatGain8.connect(outputGate8);
-          outputGate8.connect(analyser);
+          // Chopped dry syllables and their selected finite delay are the entire effect.
+          var syllableDry8 = ctx.createGain(); syllableDry8.gain.value = 0.48;
+          inputBoost.connect(syllableGate8);
+          syllableGate8.connect(syllableDry8); syllableDry8.connect(analyser);
+          syllableGate8.connect(sampleDelay8); sampleDelay8.connect(sampleReturn8); sampleReturn8.connect(analyser);
           analyser.connect(output);
           break;
         }
@@ -734,6 +724,7 @@ function buildEffectChainJS(): string {
           var chorusMerge10 = ctx.createGain(); chorusMerge10.gain.value = 1.0;
           var chorusVoices10 = 3;
           var chorusBaseDelays10 = [0.015, 0.025, 0.035];
+          var chorusPanSection10 = beatSec * 16;
           for (var cv10 = 0; cv10 < chorusVoices10; cv10++) {
             var chDel10 = ctx.createDelay(0.1);
             chDel10.delayTime.value = chorusBaseDelays10[cv10];
@@ -750,14 +741,21 @@ function buildEffectChainJS(): string {
               var newRate10 = 0.3 + Math.random() * 2.5;
               chLfo10.frequency.setValueAtTime(newRate10, t + measuresSec10 * sched10);
             }
+            // Each chorus voice gets its own random pan and a new position every sixteen beats.
+            var chorusPan10 = ctx.createStereoPanner();
+            chorusPan10.pan.value = -1 + Math.random() * 2;
+            for (var panSchedule10 = 1; panSchedule10 <= 40; panSchedule10++) {
+              chorusPan10.pan.setValueAtTime(-1 + Math.random() * 2, t + chorusPanSection10 * panSchedule10);
+            }
             // NO FEEDBACK — chorus voices are single-pass only
             inputBoost.connect(chDel10);
-            chDel10.connect(chorusMerge10);
+            chDel10.connect(chorusPan10); chorusPan10.connect(chorusMerge10);
           }
 
-          // Mix: dry + chorus
-          var dry10 = ctx.createGain(); dry10.gain.value = 0.3;
-          inputBoost.connect(dry10); dry10.connect(analyser);
+          // Mix: stronger centered dry voice + independently panned chorus voices.
+          var dry10 = ctx.createGain(); dry10.gain.value = 0.5;
+          var dryPan10 = ctx.createStereoPanner(); dryPan10.pan.value = 0;
+          inputBoost.connect(dry10); dry10.connect(dryPan10); dryPan10.connect(analyser);
           chorusMerge10.connect(analyser);
           analyser.connect(output);
           break;
@@ -793,9 +791,9 @@ function buildEffectChainJS(): string {
         case 12: { // CHIPMUNK — Theme for New Beginnings (BPM 84): dual delayed, randomized-speed playback
           // 1-second delay
           var del12 = ctx.createDelay(5.0); del12.delayTime.value = 1.0;
-          var del12Gain = ctx.createGain(); del12Gain.gain.value = 0.35;
-          // Second chipmunk tap at 1.5 seconds.
-          var del12b = ctx.createDelay(5.0); del12b.delayTime.value = 1.5;
+          var del12Gain = ctx.createGain(); del12Gain.gain.value = 0.42;
+          // Second chipmunk tap uses twice the prior delay: three seconds.
+          var del12b = ctx.createDelay(5.0); del12b.delayTime.value = 3.0;
           var del12bGain = ctx.createGain(); del12bGain.gain.value = 0.25;
 
           // Chipmunk speed-up via ScriptProcessor (reads 2 samples per 1 output = 2x speed)

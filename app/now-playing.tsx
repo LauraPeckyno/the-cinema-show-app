@@ -37,6 +37,74 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+function BPMBorderChaser({
+  bpm,
+  isPlaying,
+  borderRadius,
+}: {
+  bpm: number;
+  isPlaying: boolean;
+  borderRadius: number;
+}) {
+  const progress = useSharedValue(0);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    cancelAnimation(progress);
+    if (isPlaying && bpm > 0) {
+      progress.value = 0;
+      progress.value = withRepeat(
+        withTiming(1, { duration: Math.max(120, 60000 / bpm), easing: Easing.linear }),
+        -1,
+        false,
+      );
+    } else {
+      progress.value = 0;
+    }
+  }, [bpm, isPlaying]);
+
+  const getPixelStyle = (offset: number) => {
+    "worklet";
+    const pixel = 6;
+    const horizontal = Math.max(1, size.width - pixel);
+    const vertical = Math.max(1, size.height - pixel);
+    const perimeter = 2 * (horizontal + vertical);
+    let distance = ((progress.value + offset) % 1) * perimeter;
+    let x = 0;
+    let y = 0;
+    if (distance <= horizontal) {
+      x = distance;
+    } else if ((distance -= horizontal) <= vertical) {
+      x = horizontal;
+      y = distance;
+    } else if ((distance -= vertical) <= horizontal) {
+      x = horizontal - distance;
+      y = vertical;
+    } else {
+      distance -= horizontal;
+      y = vertical - distance;
+    }
+    return {
+      opacity: isPlaying ? 1 : 0,
+      transform: [{ translateX: x }, { translateY: y }],
+    };
+  };
+
+  const firstPixelStyle = useAnimatedStyle(() => getPixelStyle(0));
+  const secondPixelStyle = useAnimatedStyle(() => getPixelStyle(0.5));
+
+  return (
+    <View
+      pointerEvents="none"
+      onLayout={(event) => setSize(event.nativeEvent.layout)}
+      style={[styles.borderChaserOverlay, { borderRadius }]}
+    >
+      <Animated.View style={[styles.borderChaserPixel, firstPixelStyle]} />
+      <Animated.View style={[styles.borderChaserPixel, secondPixelStyle]} />
+    </View>
+  );
+}
+
 export default function NowPlayingScreen() {
   useKeepAwake();
   const router = useRouter();
@@ -241,12 +309,12 @@ export default function NowPlayingScreen() {
     <ScreenContainer edges={["top", "bottom", "left", "right"]} containerClassName="bg-background">
       <Image
         source={{ uri: artworkUrl }}
-        style={styles.backgroundArtwork}
+        style={[styles.backgroundArtwork, { opacity: 0.75 }]}
         contentFit="cover"
         transition={300}
       />
       <LinearGradient
-        colors={["rgba(8,8,18,0.50)", isDark ? "rgba(24,7,38,0.68)" : "rgba(12,12,30,0.68)", "rgba(8,8,18,0.90)"]}
+        colors={["rgba(8,8,18,0.18)", isDark ? "rgba(24,7,38,0.34)" : "rgba(12,12,30,0.34)", "rgba(8,8,18,0.58)"]}
         style={StyleSheet.absoluteFillObject}
       />
 
@@ -342,6 +410,7 @@ export default function NowPlayingScreen() {
                 color="#0A0A14"
               />
             )}
+            <BPMBorderChaser bpm={currentTrack.bpm} isPlaying={isPlaying} borderRadius={36} />
           </Pressable>
         </View>
 
@@ -394,9 +463,10 @@ export default function NowPlayingScreen() {
                 size={32}
                 color={isMicActive ? effectColor : colors.muted}
               />
-              <Text style={[styles.micToggleLabel, { color: isMicActive ? effectColor : colors.muted, textAlign: 'center' }]}>
+              <Text style={[styles.micToggleLabel, { color: isMicActive ? effectColor : colors.muted, textAlign: 'center' }]}> 
                 {isMicActive ? "Tap to Deactivate" : "Listen Normally or\nTap to Activate"}
               </Text>
+              <BPMBorderChaser bpm={currentTrack.bpm} isPlaying={isPlaying} borderRadius={32} />
             </Pressable>
           </Animated.View>
         </View>
@@ -596,6 +666,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
+    position: "relative",
+    overflow: "hidden",
   },
   loadingText: {
     fontSize: 24,
@@ -628,6 +700,22 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 32,
     borderWidth: 1.5,
+    position: "relative",
+    overflow: "hidden",
+  },
+  borderChaserOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  borderChaserPixel: {
+    position: "absolute",
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#FFF7C0",
+    shadowColor: "#FFF7C0",
+    shadowOpacity: 1,
+    shadowRadius: 6,
+    elevation: 10,
   },
   micToggleLabel: {
     fontSize: 15,
