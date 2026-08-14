@@ -217,24 +217,43 @@ function buildEffectChainJS(): string {
           whisperDel.connect(whisperDelGain);
           // The legacy whisper echo remains silent because whisperVol is zero.
 
-          // Pop-style pitch shimmer: preserve the lead voice for intelligible words,
-          // while a restrained, singable D-minor resample layer shifts the color.
+          // Pop-style D-minor correction: estimate the voice's local pitch and map it
+          // to its nearest D-natural-minor note, while retaining a clear lead vocal mix.
           var popPitchSize1 = 2048;
           var popPitchNode1 = ctx.createScriptProcessor(popPitchSize1, 1, 1);
-          var popPitchRatios1 = [0.8909, 0.9439, 1.0, 1.0595, 1.1225];
-          var popPitchRatio1 = 1.0;
-          var popPitchCountdown1 = 0;
+          var dMinorPitchClasses1 = [0, 2, 4, 5, 7, 9, 10]; // C, D, E, F, G, A, Bb
+          function closestDMinorMidi1(sourceMidi1) {
+            var nearestMidi1 = sourceMidi1;
+            var nearestDistance1 = 999;
+            for (var octave1 = -1; octave1 <= 10; octave1++) {
+              for (var note1 = 0; note1 < dMinorPitchClasses1.length; note1++) {
+                var candidateMidi1 = octave1 * 12 + dMinorPitchClasses1[note1];
+                var candidateDistance1 = Math.abs(candidateMidi1 - sourceMidi1);
+                if (candidateDistance1 < nearestDistance1) {
+                  nearestDistance1 = candidateDistance1;
+                  nearestMidi1 = candidateMidi1;
+                }
+              }
+            }
+            return nearestMidi1;
+          }
           popPitchNode1.onaudioprocess = function(e) {
             var inp = e.inputBuffer.getChannelData(0);
             var out = e.outputBuffer.getChannelData(0);
-            if (popPitchCountdown1 <= 0) {
-              popPitchRatio1 = popPitchRatios1[Math.floor(Math.random() * popPitchRatios1.length)];
-              popPitchCountdown1 = Math.floor(ctx.sampleRate * 0.30);
+            var crossings1 = 0;
+            for (var detect1 = 1; detect1 < popPitchSize1; detect1++) {
+              if (inp[detect1 - 1] <= 0 && inp[detect1] > 0) crossings1++;
             }
-            popPitchCountdown1 -= popPitchSize1;
+            var detectedFrequency1 = crossings1 * ctx.sampleRate / popPitchSize1;
+            var correctionRatio1 = 1.0;
+            if (detectedFrequency1 >= 80 && detectedFrequency1 <= 500) {
+              var sourceMidi1 = 69 + 12 * (Math.log(detectedFrequency1 / 440) / Math.LN2);
+              var targetMidi1 = closestDMinorMidi1(sourceMidi1);
+              correctionRatio1 = Math.max(0.80, Math.min(1.25, Math.pow(2, (targetMidi1 - sourceMidi1) / 12)));
+            }
             for (var pp1 = 0; pp1 < popPitchSize1; pp1++) {
-              var shiftedIndex1 = Math.min(popPitchSize1 - 1, Math.floor(pp1 * popPitchRatio1));
-              out[pp1] = inp[pp1] * 0.72 + inp[shiftedIndex1] * 0.48;
+              var shiftedIndex1 = Math.min(popPitchSize1 - 1, Math.floor(pp1 * correctionRatio1));
+              out[pp1] = inp[pp1] * 0.64 + inp[shiftedIndex1] * 0.62;
             }
           };
           var vocoderTone1 = ctx.createBiquadFilter();
@@ -493,9 +512,9 @@ function buildEffectChainJS(): string {
           var expiationDelayChoices6 = [];
           for (var expiationBeat6 = 1; expiationBeat6 <= 30; expiationBeat6++) expiationDelayChoices6.push(expiationBeat6);
           var del6 = ctx.createDelay(30.0); del6.delayTime.value = beatSec * expiationDelayChoices6[Math.floor(Math.random() * expiationDelayChoices6.length)];
-          var del6Gain = ctx.createGain(); del6Gain.gain.value = 0.60;
+          var del6Gain = ctx.createGain(); del6Gain.gain.value = 0.72;
           var del6b = ctx.createDelay(30.0); del6b.delayTime.value = beatSec * expiationDelayChoices6[Math.floor(Math.random() * expiationDelayChoices6.length)];
-          var del6bGain = ctx.createGain(); del6bGain.gain.value = 0.30;
+          var del6bGain = ctx.createGain(); del6bGain.gain.value = 0.36;
           for (var expiationSchedule6 = 1; expiationSchedule6 <= 60; expiationSchedule6++) {
             var expiationTime6 = t + expiationSchedule6 * beatSec * 16;
             del6.delayTime.setValueAtTime(beatSec * expiationDelayChoices6[Math.floor(Math.random() * expiationDelayChoices6.length)], expiationTime6);
@@ -751,6 +770,29 @@ function buildEffectChainJS(): string {
             inputBoost.connect(chDel10);
             chDel10.connect(chorusPan10); chorusPan10.connect(chorusMerge10);
           }
+
+          // Fourth chorus voice: a twenty-beat delayed half-speed response at a random position.
+          var chDel10d = ctx.createDelay(15.0); chDel10d.delayTime.value = beatSec * 20;
+          var chSlowSize10 = 4096;
+          var chSlowNode10 = ctx.createScriptProcessor(chSlowSize10, 1, 1);
+          var chSlowBuf10 = new Float32Array(chSlowSize10 * 2);
+          var chSlowPlay10 = new Float32Array(chSlowSize10 * 2);
+          var chSlowWrite10 = 0;
+          chSlowNode10.onaudioprocess = function(e) {
+            var inp = e.inputBuffer.getChannelData(0);
+            var out = e.outputBuffer.getChannelData(0);
+            for (var sw10 = 0; sw10 < chSlowSize10; sw10++) {
+              chSlowBuf10[chSlowWrite10++] = inp[sw10];
+              if (chSlowWrite10 >= chSlowSize10 * 2) {
+                for (var sc10 = 0; sc10 < chSlowSize10 * 2; sc10++) chSlowPlay10[sc10] = chSlowBuf10[sc10];
+                chSlowWrite10 = 0;
+              }
+            }
+            for (var so10 = 0; so10 < chSlowSize10; so10++) out[so10] = chSlowPlay10[Math.floor(so10 * 0.5)] * 0.58;
+          };
+          var chPan10d = ctx.createStereoPanner(); chPan10d.pan.value = -1 + Math.random() * 2;
+          var chGain10d = ctx.createGain(); chGain10d.gain.value = 0.38;
+          inputBoost.connect(chDel10d); chDel10d.connect(chSlowNode10); chSlowNode10.connect(chGain10d); chGain10d.connect(chPan10d); chPan10d.connect(chorusMerge10);
 
           // Mix: stronger centered dry voice + independently panned chorus voices.
           var dry10 = ctx.createGain(); dry10.gain.value = 0.5;
@@ -1339,7 +1381,9 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
     } else {
       webViewRef.current.injectJavaScript("stopPassthrough(); true;");
     }
-  }, [isActive, isReady, permissionGranted, trackId, bpm, intensity, vol, mix, wetEffectVolume]);
+  // Wet level has its own setDryWet update below. Keeping it out of this dependency
+  // prevents slider movement from restarting the WebView and racing a later stop request.
+  }, [isActive, isReady, permissionGranted, trackId, bpm, intensity, vol, mix]);
 
   // Update volume and the shared pre-finish fade dynamically.
   useEffect(() => {

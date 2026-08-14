@@ -223,3 +223,7 @@
 - [x] Mutation and Madness: use BPM-based eighth-note random sampling
 - [x] Krampus Wishes: replace all effects with quarter-note delayed reverse, reverb, and doubled demon chorus
 - [x] Expiation: randomize both delays between 1–30 beats and use slower half-octave-down returns
+- [x] Increase Expiation’s default effected return by 20%
+- [x] Replace Corpse Parade random pitch behavior with D-minor nearest-note pitch correction mixed with the voice
+- [x] Add Piano Fandango’s fourth 20-beat delayed, half-speed, randomly panned chorus voice
+- [x] Fix the Now Playing mic toggle after a wet-effect volume slider change

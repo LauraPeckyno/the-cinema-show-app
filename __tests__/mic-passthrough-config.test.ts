@@ -51,7 +51,7 @@ describe("Latest requested per-track DSP refinements", () => {
     expect(excitement).toContain("delL9.delayTime.setValueAtTime(pingChoice9, pingTime9)");
   });
 
-  it("pans Piano Fandango chorus voices every sixteen beats and retains de-essed eighth-note Much Ado triplets", () => {
+  it("pans Piano Fandango chorus voices every sixteen beats and adds its delayed half-speed fourth voice", () => {
     const piano = branch(10, 11);
     const muchAdo = branch(11, 12);
     expect(piano).toContain("chorusMerge10.gain.value = 1.0");
@@ -59,6 +59,9 @@ describe("Latest requested per-track DSP refinements", () => {
     expect(piano).toContain("chorusPan10.pan.setValueAtTime");
     expect(piano).toContain("dry10.gain.value = 0.5");
     expect(piano).toContain("dryPan10.pan.value = 0");
+    expect(piano).toContain("chDel10d.delayTime.value = beatSec * 20");
+    expect(piano).toContain("Math.floor(so10 * 0.5)");
+    expect(piano).toContain("chPan10d.pan.value = -1 + Math.random() * 2");
     expect(muchAdo).toContain("var eighthTriplet11 = beatSec / 2");
     expect(muchAdo).toContain("tripletGain11a.gain.value = 0.32");
     expect(muchAdo).toContain("tripletGain11b.gain.value = 0.32");
@@ -66,10 +69,12 @@ describe("Latest requested per-track DSP refinements", () => {
     expect(muchAdo).toContain("deEss11a.type = 'notch'");
   });
 
-  it("uses a stronger, intelligible pop-style Corpse Parade pitch shimmer without a global dry return", () => {
+  it("maps Corpse Parade voice movement to nearest D-minor notes without a global dry return", () => {
     const corpseParade = branch(1, 2);
-    expect(corpseParade).toContain("var popPitchRatios1 = [0.8909, 0.9439, 1.0, 1.0595, 1.1225]");
-    expect(corpseParade).toContain("out[pp1] = inp[pp1] * 0.72 + inp[shiftedIndex1] * 0.48");
+    expect(corpseParade).toContain("var dMinorPitchClasses1 = [0, 2, 4, 5, 7, 9, 10]");
+    expect(corpseParade).toContain("function closestDMinorMidi1(sourceMidi1)");
+    expect(corpseParade).toContain("var targetMidi1 = closestDMinorMidi1(sourceMidi1)");
+    expect(corpseParade).toContain("out[pp1] = inp[pp1] * 0.64 + inp[shiftedIndex1] * 0.62");
     expect(corpseParade).toContain("vocoderReturn1.gain.value = 1.8");
     expect(micPassthroughSource).toContain("trackId === 1 || trackId === 6 || trackId === 12");
   });
@@ -96,6 +101,8 @@ describe("Latest requested per-track DSP refinements", () => {
     expect(expiation).toContain("expiationDelayChoices6.push(expiationBeat6)");
     expect(expiation).toContain("function makeHalfOctaveSlow6()");
     expect(expiation).toContain("Math.floor(oo6 * 0.75)");
+    expect(expiation).toContain("del6Gain.gain.value = 0.72");
+    expect(expiation).toContain("del6bGain.gain.value = 0.36");
     expect(expiation).toContain("pan6a.pan.value = -1");
     expect(expiation).toContain("pan6b.pan.value = 1");
     expect(expiation).toContain("dry6g.gain.value = 0.0");
@@ -109,5 +116,14 @@ describe("Universal pre-finish microphone fade", () => {
     expect(micPassthroughSource).toContain("shouldFadeOut?: boolean");
     expect(micPassthroughSource).toContain("linearRampToValueAtTime(0, now + 2.0)");
     expect(micPassthroughSource).toContain("function fadeMicOutput(shouldFadeOut, vol)");
+  });
+});
+
+describe("Wet slider microphone lifecycle", () => {
+  it("keeps wet-volume updates out of the native start-stop dependency while routing them through setDryWet", () => {
+    expect(micPassthroughSource).toContain("}, [isActive, isReady, permissionGranted, trackId, bpm, intensity, vol, mix]);");
+    expect(micPassthroughSource).toContain("setDryWet(${mix}, ${trackId}, ${wetEffectVolume}); true;");
+    expect(micPassthroughSource).toContain("}, [mix, trackId, wetEffectVolume, isReady, isActive]);");
+    expect(micPassthroughSource).toContain('webViewRef.current.injectJavaScript("stopPassthrough(); true;")');
   });
 });
