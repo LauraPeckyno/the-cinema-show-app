@@ -211,3 +211,6 @@
 - [x] Corpse Parade: raise D-minor vocoder return gain to 1.5
 - [x] Krampus Wishes: set reverse playback to normal speed
 - [x] Expiation: use one-octave-down stereo taps with zero dry return
+- [x] Add a touch-drag wet-effect volume slider with a 0.5×–1.5× range and 1.0× default
+- [x] Remove the fading-circle portion of the Now Playing effects-button animation
+- [x] Use the existing track artwork as proportionally scaled Now Playing background imagery behind controls

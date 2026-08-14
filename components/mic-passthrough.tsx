@@ -6,6 +6,7 @@ interface MicPassthroughProps {
   trackId: number;
   bpm: number;
   effectIntensity: number; // 0-100
+  effectVolumeMultiplier?: number; // 0.5–1.5 global wet-effect level
   micSensitivity: number; // 0-100 (fixed at 100 = +15dB gain)
   masterVolume: number; // 0-100 — overall output volume (device-controlled)
   musicVolume: number; // 0-100 — music track volume (effects capped at 30% of this)
@@ -28,25 +29,27 @@ interface MicPassthroughProps {
  * On web: Uses the Web Audio API directly in the main page context
  */
 export function MicPassthrough({
-  isActive,
-  trackId,
-  bpm,
-  effectIntensity,
-  micSensitivity,
-  masterVolume,
-  musicVolume,
-  dryWetMix,
-  shouldFadeOut = false,
-  onLevelUpdate,
-  onError,
+ isActive,
+ trackId,
+ bpm,
+ effectIntensity,
+  effectVolumeMultiplier = 1.0,
+ micSensitivity,
+ masterVolume,
+ musicVolume,
+ dryWetMix,
+ shouldFadeOut = false,
+ onLevelUpdate,
+ onError,
 }: MicPassthroughProps) {
-  if (Platform.OS === "web") {
+ if (Platform.OS === "web") {
     return (
       <WebMicPassthrough
         isActive={isActive}
         trackId={trackId}
         bpm={bpm}
         effectIntensity={effectIntensity}
+        effectVolumeMultiplier={effectVolumeMultiplier}
         micSensitivity={micSensitivity}
         masterVolume={masterVolume}
         musicVolume={musicVolume}
@@ -64,6 +67,7 @@ export function MicPassthrough({
       trackId={trackId}
       bpm={bpm}
       effectIntensity={effectIntensity}
+      effectVolumeMultiplier={effectVolumeMultiplier}
       micSensitivity={micSensitivity}
       masterVolume={masterVolume}
       musicVolume={musicVolume}
@@ -858,7 +862,7 @@ function buildEffectChainJS(): string {
 function buildDryWetChainJS(): string {
   return `
     // Build a dry/wet blended chain around the effect chain
-    function buildDryWetChain(ctx, source, trackId, bpm, intensity, dryWetMix) {
+    function buildDryWetChain(ctx, source, trackId, bpm, intensity, dryWetMix, effectVolumeMultiplier) {
       // Higher fixed mix: dry return +5 points and effected return +10 points.
       // Gate, frequency filters, compressor, and limiter remain in place to control leakage and peaks
       var dryGain = ctx.createGain();
@@ -866,7 +870,7 @@ function buildDryWetChainJS(): string {
       dryGain.gain.value = (trackId === 1 || trackId === 6 || trackId === 12) ? 0 : 0.25;
 
       var wetGain = ctx.createGain();
-      wetGain.gain.value = 0.80;
+      wetGain.gain.value = 0.80 * effectVolumeMultiplier;
 
       var merger = ctx.createGain();
       merger.gain.value = 1.0;
@@ -934,6 +938,7 @@ function WebMicPassthrough({
   trackId,
   bpm,
   effectIntensity,
+  effectVolumeMultiplier = 1.0,
   micSensitivity,
   masterVolume,
   musicVolume,
@@ -983,8 +988,8 @@ function WebMicPassthrough({
   // Update fixed mix: Corpse Parade, Expiation, and Theme for New Beginnings are fully wet.
   useEffect(() => {
     if (dryGainRef.current) dryGainRef.current.gain.value = (trackId === 1 || trackId === 6 || trackId === 12) ? 0 : 0.25;
-    if (wetGainRef.current) wetGainRef.current.gain.value = 0.80;
-  }, [dryWetMix, trackId]);
+    if (wetGainRef.current) wetGainRef.current.gain.value = 0.80 * effectVolumeMultiplier;
+  }, [dryWetMix, trackId, effectVolumeMultiplier]);
 
   async function startWebPassthrough() {
     try {
@@ -1018,10 +1023,10 @@ function WebMicPassthrough({
       const intensity = effectIntensity / 100;
       const mix = dryWetMix / 100;
       const buildFn = new Function(
-        "ctx", "source", "trackId", "bpm", "intensity", "dryWetMix",
-        buildEffectChainJS() + "\n" + buildDryWetChainJS() + "\nreturn buildDryWetChain(ctx, source, trackId, bpm, intensity, dryWetMix);"
+        "ctx", "source", "trackId", "bpm", "intensity", "dryWetMix", "effectVolumeMultiplier",
+        buildEffectChainJS() + "\n" + buildDryWetChainJS() + "\nreturn buildDryWetChain(ctx, source, trackId, bpm, intensity, dryWetMix, effectVolumeMultiplier);"
       );
-      const chain = buildFn(ctx, source, trackId, bpm, intensity, mix);
+      const chain = buildFn(ctx, source, trackId, bpm, intensity, mix, effectVolumeMultiplier);
       chainRef.current = chain;
       dryGainRef.current = chain.dryGain;
       wetGainRef.current = chain.wetGain;
@@ -1085,6 +1090,7 @@ function NativeMicPassthrough({
   trackId,
   bpm,
   effectIntensity,
+  effectVolumeMultiplier = 1.0,
   micSensitivity,
   masterVolume,
   musicVolume,
@@ -1140,6 +1146,7 @@ function NativeMicPassthrough({
   // Mic-output master at 0.80x music volume; native path matches web
   const vol = (musicVolume / 100) * 0.80;
   const mix = 0.80; // not used for initial setup (buildDryWetChain uses fixed 25/80)
+  const wetEffectVolume = Math.max(0.5, Math.min(1.5, effectVolumeMultiplier));
 
   const htmlContent = `
 <!DOCTYPE html>
@@ -1168,7 +1175,7 @@ function log(msg) {
   window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'log', message: msg }));
 }
 
-async function startPassthrough(trackId, bpm, intensity, vol, dryWetMix) {
+async function startPassthrough(trackId, bpm, intensity, vol, dryWetMix, effectVolumeMultiplier) {
   try {
     stopPassthrough();
     log('Starting BOLD mic passthrough for track ' + trackId);
@@ -1207,7 +1214,7 @@ async function startPassthrough(trackId, bpm, intensity, vol, dryWetMix) {
     outputGain.gain.value = 0;
     outputGain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 4.0);
 
-    chain = buildDryWetChain(audioCtx, source, trackId, bpm, intensity, dryWetMix);
+    chain = buildDryWetChain(audioCtx, source, trackId, bpm, intensity, dryWetMix, effectVolumeMultiplier);
     chain.output.connect(outputGain);
     outputGain.connect(audioCtx.destination);
 
@@ -1245,7 +1252,7 @@ async function startPassthrough(trackId, bpm, intensity, vol, dryWetMix) {
       retryCount++;
       log('Retrying in 500ms (attempt ' + retryCount + '/' + MAX_RETRIES + ')');
       setTimeout(function() {
-        startPassthrough(trackId, bpm, intensity, vol, dryWetMix);
+        startPassthrough(trackId, bpm, intensity, vol, dryWetMix, effectVolumeMultiplier);
       }, 500);
     } else {
       window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: errMsg }));
@@ -1285,12 +1292,12 @@ function fadeMicOutput(shouldFadeOut, vol) {
   }
 }
 
-function setDryWet(mix, trackId) {
+function setDryWet(mix, trackId, effectVolumeMultiplier) {
   if (chain && chain.dryGain && chain.wetGain && audioCtx) {
     var t = audioCtx.currentTime;
     // Corpse Parade, Expiation, and Theme for New Beginnings are fully wet.
     chain.dryGain.gain.setValueAtTime((trackId === 1 || trackId === 6 || trackId === 12) ? 0 : 0.25, t);
-    chain.wetGain.gain.setValueAtTime(0.80, t);
+    chain.wetGain.gain.setValueAtTime(0.80 * effectVolumeMultiplier, t);
   }
 }
 
@@ -1329,12 +1336,12 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
     if (!webViewRef.current || !isReady || !permissionGranted) return;
 
     if (isActive) {
-      const js = `startPassthrough(${trackId}, ${bpm}, ${intensity}, ${vol}, ${mix}); true;`;
+      const js = `startPassthrough(${trackId}, ${bpm}, ${intensity}, ${vol}, ${mix}, ${wetEffectVolume}); true;`;
       webViewRef.current.injectJavaScript(js);
     } else {
       webViewRef.current.injectJavaScript("stopPassthrough(); true;");
     }
-  }, [isActive, isReady, permissionGranted, trackId, bpm, intensity, vol, mix]);
+  }, [isActive, isReady, permissionGranted, trackId, bpm, intensity, vol, mix, wetEffectVolume]);
 
   // Update volume and the shared pre-finish fade dynamically.
   useEffect(() => {
@@ -1345,8 +1352,8 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
   // Update dry/wet mix dynamically
   useEffect(() => {
     if (!webViewRef.current || !isReady || !isActive) return;
-    webViewRef.current.injectJavaScript(`setDryWet(${mix}, ${trackId}); true;`);
-  }, [mix, trackId, isReady, isActive]);
+    webViewRef.current.injectJavaScript(`setDryWet(${mix}, ${trackId}, ${wetEffectVolume}); true;`);
+  }, [mix, trackId, wetEffectVolume, isReady, isActive]);
 
   // Don't render WebView until we have permission and the component
   if (!WebViewComponent || !permissionGranted) return null;
@@ -1380,7 +1387,7 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
         }}
         onLoadEnd={() => {
           if (isActive && isReady && permissionGranted) {
-            const js = `startPassthrough(${trackId}, ${bpm}, ${intensity}, ${vol}, ${mix}); true;`;
+            const js = `startPassthrough(${trackId}, ${bpm}, ${intensity}, ${vol}, ${mix}, ${wetEffectVolume}); true;`;
             setTimeout(() => {
               webViewRef.current?.injectJavaScript(js);
             }, 300);

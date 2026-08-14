@@ -24,7 +24,7 @@ describe("Microphone passthrough fixed mix", () => {
     expect(micPassthroughSource).toContain("(trackId === 1 || trackId === 6 || trackId === 12) ? 0 : 0.25");
     expect(micPassthroughSource).toContain("wetGain.gain.value = 0.80");
     expect(micPassthroughSource).toContain("(musicVolume / 100) * 0.80");
-    expect(micPassthroughSource).toContain("chain.wetGain.gain.setValueAtTime(0.80, t)");
+    expect(micPassthroughSource).toContain("chain.wetGain.gain.setValueAtTime(0.80 * effectVolumeMultiplier, t)");
   });
 });
 

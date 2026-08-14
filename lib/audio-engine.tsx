@@ -12,6 +12,7 @@ export interface AudioEngineState {
   micPermissionGranted: boolean;
   micSensitivity: number; // fixed at 100 (max gain, +15dB)
   effectIntensity: number; // fixed at 100 (full effect processing)
+  effectVolumeMultiplier: number; // global wet-effect level, 0.5–1.5 with 1.0 as default
   masterVolume: number; // fixed at 100 — overall output controlled by device volume
   musicVolume: number; // fixed at 90 — music at 90% of device volume
   dryWetMix: number; // fixed at 100 — fully wet (effected mic output)
@@ -36,6 +37,7 @@ const initialState: AudioEngineState = {
   micPermissionGranted: false,
   micSensitivity: 100, // max gain (+15dB) — captures slightest touch
   effectIntensity: 100, // full effect processing
+  effectVolumeMultiplier: 1.0,
   masterVolume: 100, // device volume controls overall output
   musicVolume: 90, // music at 90% of device volume
   dryWetMix: 100, // fully wet — effected mic output only
@@ -61,6 +63,7 @@ type AudioAction =
   | { type: "SET_MIC_PERMISSION"; granted: boolean }
   | { type: "SET_MIC_SENSITIVITY"; value: number }
   | { type: "SET_EFFECT_INTENSITY"; value: number }
+  | { type: "SET_EFFECT_VOLUME_MULTIPLIER"; value: number }
   | { type: "SET_MASTER_VOLUME"; value: number }
   | { type: "SET_MUSIC_VOLUME"; value: number }
   | { type: "SET_DRY_WET_MIX"; value: number; trackId?: number }
@@ -104,6 +107,8 @@ function audioReducer(state: AudioEngineState, action: AudioAction): AudioEngine
       return { ...state, micSensitivity: action.value };
     case "SET_EFFECT_INTENSITY":
       return { ...state, effectIntensity: action.value };
+    case "SET_EFFECT_VOLUME_MULTIPLIER":
+      return { ...state, effectVolumeMultiplier: Math.max(0.5, Math.min(1.5, action.value)) };
     case "SET_MASTER_VOLUME":
       return { ...state, masterVolume: action.value };
     case "SET_MUSIC_VOLUME":
@@ -218,6 +223,7 @@ interface AudioEngineContextType {
   requestMicPermission: () => Promise<boolean>;
   setMicSensitivity: (value: number) => void;
   setEffectIntensity: (value: number) => void;
+  setEffectVolumeMultiplier: (value: number) => void;
   setMasterVolume: (value: number) => void;
   setMusicVolume: (value: number) => void;
   setDryWetMix: (value: number) => void;
@@ -317,6 +323,10 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
     dispatch({ type: "SET_EFFECT_INTENSITY", value });
   }, []);
 
+  const setEffectVolumeMultiplier = useCallback((value: number) => {
+    dispatch({ type: "SET_EFFECT_VOLUME_MULTIPLIER", value });
+  }, []);
+
   const setMasterVolume = useCallback((value: number) => {
     dispatch({ type: "SET_MASTER_VOLUME", value });
   }, []);
@@ -396,6 +406,7 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
         requestMicPermission,
         setMicSensitivity,
         setEffectIntensity,
+        setEffectVolumeMultiplier,
         setMasterVolume,
         setMusicVolume,
         setDryWetMix,

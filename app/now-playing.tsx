@@ -4,7 +4,7 @@ import {
   View,
   StyleSheet,
   Pressable,
-  Dimensions,
+  PanResponder,
   ScrollView,
   Modal,
 } from "react-native";
@@ -31,8 +31,6 @@ import { reportTrackDuration } from "@/hooks/use-track-durations";
 import { MicPassthrough } from "@/components/mic-passthrough";
 import { TRACK_ARTWORK } from "@/constants/track-artwork";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
@@ -52,6 +50,7 @@ export default function NowPlayingScreen() {
     toggleMic,
     setMicSensitivity,
     setEffectIntensity,
+    setEffectVolumeMultiplier,
     setMasterVolume,
     setMusicVolume,
     setDryWetMix,
@@ -71,6 +70,7 @@ export default function NowPlayingScreen() {
     processedMicLevel,
     micSensitivity,
     effectIntensity,
+    effectVolumeMultiplier,
     masterVolume,
     musicVolume,
     dryWetMix,
@@ -165,47 +165,8 @@ export default function NowPlayingScreen() {
     }
   }, [isAlbumMode, advanceToNextTrack, setPlaying, updatePlaybackProgress, router]);
 
-  // Cinematic artwork animation - visible breathing scale + strong glow when playing
-  const artworkScale = useSharedValue(1);
-  const artworkGlow = useSharedValue(0.2);
-
-  useEffect(() => {
-    if (isPlaying) {
-      artworkScale.value = withRepeat(
-        withSequence(
-          withTiming(1.04, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1.0, { duration: 2500, easing: Easing.inOut(Easing.ease) })
-        ),
-        -1,
-        false
-      );
-      artworkGlow.value = withRepeat(
-        withSequence(
-          withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
-          withTiming(0.3, { duration: 1500, easing: Easing.inOut(Easing.ease) })
-        ),
-        -1,
-        false
-      );
-    } else {
-      cancelAnimation(artworkScale);
-      cancelAnimation(artworkGlow);
-      artworkScale.value = withTiming(1, { duration: 300 });
-      artworkGlow.value = withTiming(0.2, { duration: 300 });
-    }
-  }, [isPlaying]);
-
-  const animatedArtworkStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: artworkScale.value }],
-  }));
-
-  const animatedGlowStyle = useAnimatedStyle(() => ({
-    opacity: artworkGlow.value,
-  }));
-
-  // Animated mic toggle button - pulsing glow when active
+  // Animated effects toggle: retain the zoom only, without the fading circle.
   const micPulse = useSharedValue(1);
-  const micGlow = useSharedValue(0);
 
   useEffect(() => {
     if (isMicActive) {
@@ -217,19 +178,9 @@ export default function NowPlayingScreen() {
         -1,
         false
       );
-      micGlow.value = withRepeat(
-        withSequence(
-          withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-          withTiming(0.4, { duration: 1000, easing: Easing.inOut(Easing.ease) })
-        ),
-        -1,
-        false
-      );
     } else {
       cancelAnimation(micPulse);
-      cancelAnimation(micGlow);
       micPulse.value = withTiming(1, { duration: 200 });
-      micGlow.value = withTiming(0, { duration: 200 });
     }
   }, [isMicActive]);
 
@@ -237,9 +188,20 @@ export default function NowPlayingScreen() {
     transform: [{ scale: micPulse.value }],
   }));
 
-  const animatedMicGlowStyle = useAnimatedStyle(() => ({
-    opacity: micGlow.value,
-  }));
+  const wetSliderWidthRef = useRef(1);
+  const updateWetEffectVolume = useCallback((locationX: number) => {
+    const normalized = Math.max(0, Math.min(1, locationX / wetSliderWidthRef.current));
+    setEffectVolumeMultiplier(0.5 + normalized);
+  }, [setEffectVolumeMultiplier]);
+
+  const wetSliderResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (event) => updateWetEffectVolume(event.nativeEvent.locationX),
+      onPanResponderMove: (event) => updateWetEffectVolume(event.nativeEvent.locationX),
+    }),
+  ).current;
 
   if (!currentTrack) {
     return (
@@ -277,8 +239,14 @@ export default function NowPlayingScreen() {
 
   return (
     <ScreenContainer edges={["top", "bottom", "left", "right"]} containerClassName="bg-background">
+      <Image
+        source={{ uri: artworkUrl }}
+        style={styles.backgroundArtwork}
+        contentFit="cover"
+        transition={300}
+      />
       <LinearGradient
-        colors={["#0A0A14", isDark ? "#1A0A2E" : "#1A1A2E", "#0A0A14"]}
+        colors={["rgba(8,8,18,0.50)", isDark ? "rgba(24,7,38,0.68)" : "rgba(12,12,30,0.68)", "rgba(8,8,18,0.90)"]}
         style={StyleSheet.absoluteFillObject}
       />
 
@@ -302,6 +270,7 @@ export default function NowPlayingScreen() {
         trackId={currentTrack.id}
         bpm={currentTrack.bpm}
         effectIntensity={effectIntensity}
+        effectVolumeMultiplier={effectVolumeMultiplier}
         micSensitivity={micSensitivity}
         masterVolume={masterVolume}
         musicVolume={musicVolume}
@@ -326,28 +295,11 @@ export default function NowPlayingScreen() {
           </Pressable>
         </View>
 
-        {/* Track Title (above artwork) */}
+        {/* Track title over the full-screen artwork */}
         <View style={styles.titleArea}>
           <Text style={[styles.trackTitle, { color: colors.foreground }]} numberOfLines={2}>
             {currentTrack.title}
           </Text>
-        </View>
-
-        {/* Track Artwork with cinematic animation */}
-        <View style={styles.artworkArea}>
-          <Animated.View style={[styles.artworkGlowWrap, animatedGlowStyle]}>
-            <View style={[styles.artworkGlowInner, { backgroundColor: effectColor, shadowColor: effectColor }]} />
-          </Animated.View>
-          <Animated.View style={[styles.artworkAnimWrap, animatedArtworkStyle]}>
-            <View style={[styles.artworkFrame, { borderColor: effectColor + "60" }]}>
-              <Image
-                source={{ uri: artworkUrl }}
-                style={styles.artworkImage}
-                contentFit="cover"
-                transition={300}
-              />
-            </View>
-          </Animated.View>
         </View>
 
         {/* Progress Bar with Times */}
@@ -393,6 +345,27 @@ export default function NowPlayingScreen() {
           </Pressable>
         </View>
 
+        {/* Global effected-mic return slider: 0.5× at left, 1.0× center, 1.5× at right. */}
+        <View style={styles.effectSliderArea}>
+          <View style={styles.effectSliderHeading}>
+            <Text style={[styles.effectSliderLabel, { color: colors.foreground }]}>Effect Volume</Text>
+            <Text style={[styles.effectSliderValue, { color: effectColor }]}>{effectVolumeMultiplier.toFixed(1)}×</Text>
+          </View>
+          <View
+            style={[styles.effectSliderTrack, { backgroundColor: colors.border }]}
+            onLayout={(event) => { wetSliderWidthRef.current = Math.max(1, event.nativeEvent.layout.width); }}
+            {...wetSliderResponder.panHandlers}
+          >
+            <View style={[styles.effectSliderFill, { width: `${(effectVolumeMultiplier - 0.5) * 100}%`, backgroundColor: effectColor }]} />
+            <View style={[styles.effectSliderThumb, { left: `${(effectVolumeMultiplier - 0.5) * 100}%`, borderColor: effectColor, backgroundColor: colors.background }]} />
+          </View>
+          <View style={styles.effectSliderBounds}>
+            <Text style={[styles.effectSliderBound, { color: colors.muted }]}>0.5×</Text>
+            <Text style={[styles.effectSliderBound, { color: colors.muted }]}>1.0×</Text>
+            <Text style={[styles.effectSliderBound, { color: colors.muted }]}>1.5×</Text>
+          </View>
+        </View>
+
         {/* Mic Error Message */}
         {micError && (
           <View style={[styles.micErrorArea, { backgroundColor: colors.error + '15', borderColor: colors.error + '40' }]}>
@@ -404,7 +377,6 @@ export default function NowPlayingScreen() {
 
         {/* Animated Mic & Effects Toggle */}
         <View style={styles.micToggleArea}>
-          <Animated.View style={[styles.micToggleGlow, animatedMicGlowStyle, { backgroundColor: effectColor }]} />
           <Animated.View style={animatedMicStyle}>
             <Pressable
               onPress={() => { setMicError(null); toggleMic(); }}
@@ -520,48 +492,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
   },
-  artworkArea: {
-    alignItems: "center",
-    paddingTop: 16,
-    paddingBottom: 20,
-  },
-  artworkFrame: {
-    width: SCREEN_WIDTH * 0.7,
-    height: SCREEN_WIDTH * 0.7,
-    borderRadius: 12,
-    borderWidth: 2,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 10,
-  },
-  artworkImage: {
+  backgroundArtwork: {
+    ...StyleSheet.absoluteFillObject,
     width: "100%",
     height: "100%",
-  },
-  artworkGlowWrap: {
-    position: "absolute",
-    top: 4,
-    alignSelf: "center",
-    width: SCREEN_WIDTH * 0.80,
-    height: SCREEN_WIDTH * 0.80,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  artworkGlowInner: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 20,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 50,
-    elevation: 25,
-    opacity: 0.7,
-  },
-  artworkAnimWrap: {
-    alignItems: "center",
   },
   titleArea: {
     alignItems: "center",
@@ -603,6 +537,54 @@ const styles = StyleSheet.create({
     gap: 28,
     marginBottom: 32,
   },
+  effectSliderArea: {
+    marginHorizontal: 24,
+    marginBottom: 24,
+  },
+  effectSliderHeading: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  effectSliderLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+  },
+  effectSliderValue: {
+    fontSize: 14,
+    fontWeight: "800",
+    fontVariant: ["tabular-nums"],
+  },
+  effectSliderTrack: {
+    height: 8,
+    borderRadius: 4,
+    justifyContent: "center",
+  },
+  effectSliderFill: {
+    position: "absolute",
+    height: "100%",
+    left: 0,
+    borderRadius: 4,
+  },
+  effectSliderThumb: {
+    position: "absolute",
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 3,
+    marginLeft: -11,
+  },
+  effectSliderBounds: {
+    marginTop: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  effectSliderBound: {
+    fontSize: 11,
+    fontVariant: ["tabular-nums"],
+  },
   playButton: {
     width: 72,
     height: 72,
@@ -637,17 +619,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 32,
     position: "relative",
-  },
-  micToggleGlow: {
-    position: "absolute",
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    top: -10,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 30,
-    elevation: 15,
   },
   micToggleButton: {
     flexDirection: "row",
