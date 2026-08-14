@@ -202,3 +202,12 @@
 - [x] Krampus Wishes: return to one-third-speed reverse playback with dry return disabled
 - [x] Expiation: raise delay returns by 20%, move first tap to two beats without octave shift, and move second tap to four beats with two-octave reduction
 - [x] Fade all dry and effected mic output over the final two seconds of every music track
+- [x] Recessional: re-randomize finite 1–12 beat stereo echoes every 20 seconds
+- [x] Road Show: use the requested slow stutter base rate and randomized square-wave on/off gate pattern
+- [x] Excitement and Elimination: re-randomize ping-pong delay timing every 22 seconds
+- [x] Piano Fandango: raise chorus return gain to 1.0
+- [x] Much Ado: rebalance triplet gains, use an eighth-note span, and de-ess delay returns with a notch filter
+- [x] Theme for New Beginnings: randomize chipmunk speed every 128 beats and add a second 1.5-second chipmunk tap
+- [x] Corpse Parade: raise D-minor vocoder return gain to 1.5
+- [x] Krampus Wishes: set reverse playback to normal speed
+- [x] Expiation: use one-octave-down stereo taps with zero dry return
