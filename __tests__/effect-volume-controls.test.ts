@@ -47,11 +47,11 @@ describe("Now Playing wet slider and artwork composition", () => {
     expect(nowPlayingSource).not.toContain("animatedMicGlowStyle");
   });
 
-  it("separates the title, timeline, play control, wet slider, and effects toggle with a consistent 32-point rhythm", () => {
-    expect(nowPlayingSource).toMatch(/titleArea:\s*\{[\s\S]*?marginBottom: 32/);
-    expect(nowPlayingSource).toMatch(/progressArea:\s*\{[\s\S]*?marginBottom: 32/);
-    expect(nowPlayingSource).toMatch(/controlsRow:\s*\{[\s\S]*?marginBottom: 32/);
-    expect(nowPlayingSource).toMatch(/effectSliderArea:\s*\{[\s\S]*?marginBottom: 32/);
+  it("separates the title, timeline, play control, wet slider, and effects toggle with a consistent 40-point rhythm", () => {
+    expect(nowPlayingSource).toMatch(/titleArea:\s*\{[\s\S]*?marginBottom: 40/);
+    expect(nowPlayingSource).toMatch(/progressArea:\s*\{[\s\S]*?marginBottom: 40/);
+    expect(nowPlayingSource).toMatch(/controlsRow:\s*\{[\s\S]*?marginBottom: 40/);
+    expect(nowPlayingSource).toMatch(/effectSliderArea:\s*\{[\s\S]*?marginBottom: 40/);
   });
 
   it("uses full white playback borders and active-effects color-shifting borders instead of moving pixels", () => {
