@@ -53,10 +53,14 @@ describe("Now Playing wet slider and artwork composition", () => {
     expect(nowPlayingSource).toContain("withTiming(\"#FF7CD8\"");
     expect(nowPlayingSource).toContain("withTiming(\"#7BE7FF\"");
     expect(nowPlayingSource).toContain("withTiming(\"#FFF1A6\"");
+    expect(nowPlayingSource).toContain("const barDuration = Math.max(240, (60000 / Math.max(1, bpm)) * 4)");
+    expect(nowPlayingSource).toContain("withTiming(0.62");
+    expect(nowPlayingSource).toContain("shadowOpacity: borderPulse.value");
     expect(nowPlayingSource).toContain("isEffectsActive={false}");
     expect(nowPlayingSource).toContain("isEffectsActive={isMicActive && isPlaying}");
     expect(nowPlayingSource).toContain("animatedButtonBorder");
     expect(nowPlayingSource).not.toContain("BPMBorderChaser");
     expect(nowPlayingSource).not.toContain("borderChaserPixel");
+    expect(nowPlayingSource).toContain("borderWidth: 3");
   });
 });

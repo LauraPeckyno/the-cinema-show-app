@@ -39,21 +39,26 @@ function formatTime(seconds: number): string {
 }
 
 function AnimatedButtonBorder({
+  bpm,
   isPlaying,
   isEffectsActive,
   effectColor,
   borderRadius,
 }: {
+  bpm: number;
   isPlaying: boolean;
   isEffectsActive: boolean;
   effectColor: string;
   borderRadius: number;
 }) {
   const borderColor = useSharedValue("transparent");
+  const borderPulse = useSharedValue(1);
 
   useEffect(() => {
     cancelAnimation(borderColor);
+    cancelAnimation(borderPulse);
     if (isEffectsActive) {
+      borderPulse.value = 1;
       borderColor.value = withRepeat(
         withSequence(
           withTiming(effectColor, { duration: 750, easing: Easing.inOut(Easing.ease) }),
@@ -66,15 +71,26 @@ function AnimatedButtonBorder({
       );
     } else if (isPlaying) {
       borderColor.value = withTiming("#FFFFFF", { duration: 1400, easing: Easing.inOut(Easing.ease) });
+      const barDuration = Math.max(240, (60000 / Math.max(1, bpm)) * 4);
+      borderPulse.value = withRepeat(
+        withSequence(
+          withTiming(0.62, { duration: Math.max(80, barDuration * 0.12), easing: Easing.out(Easing.ease) }),
+          withTiming(1, { duration: Math.max(160, barDuration * 0.88), easing: Easing.inOut(Easing.ease) }),
+        ),
+        -1,
+        false,
+      );
     } else {
+      borderPulse.value = withTiming(1, { duration: 180 });
       borderColor.value = withTiming("transparent", { duration: 220, easing: Easing.out(Easing.ease) });
     }
-  }, [effectColor, isEffectsActive, isPlaying]);
+  }, [bpm, effectColor, isEffectsActive, isPlaying]);
 
   const animatedBorderStyle = useAnimatedStyle(() => ({
     borderColor: borderColor.value,
     shadowColor: borderColor.value,
     opacity: isPlaying ? 1 : 0,
+    shadowOpacity: borderPulse.value,
   }));
 
   return (
@@ -391,6 +407,7 @@ export default function NowPlayingScreen() {
               />
             )}
             <AnimatedButtonBorder
+              bpm={currentTrack.bpm}
               isPlaying={isPlaying}
               isEffectsActive={false}
               effectColor={effectColor}
@@ -452,6 +469,7 @@ export default function NowPlayingScreen() {
                 {isMicActive ? "Tap to Deactivate" : "Listen Normally or\nTap to Activate"}
               </Text>
               <AnimatedButtonBorder
+                bpm={currentTrack.bpm}
                 isPlaying={isPlaying}
                 isEffectsActive={isMicActive && isPlaying}
                 effectColor={effectColor}
@@ -689,13 +707,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 16,
     borderRadius: 32,
-    borderWidth: 1.5,
+    borderWidth: 3,
     position: "relative",
     overflow: "hidden",
   },
   animatedButtonBorder: {
     ...StyleSheet.absoluteFillObject,
-    borderWidth: 2,
+    borderWidth: 3,
     shadowOpacity: 0.85,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 0 },
