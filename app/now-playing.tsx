@@ -16,6 +16,7 @@ import Animated, {
   withSequence,
   Easing,
   cancelAnimation,
+  interpolateColor,
 } from "react-native-reanimated";
 import { useHeadphoneDetection } from "@/hooks/use-headphone-detection";
 import { useRouter } from "expo-router";
@@ -37,71 +38,50 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-function BPMBorderChaser({
-  bpm,
+function AnimatedButtonBorder({
   isPlaying,
+  isEffectsActive,
+  effectColor,
   borderRadius,
 }: {
-  bpm: number;
   isPlaying: boolean;
+  isEffectsActive: boolean;
+  effectColor: string;
   borderRadius: number;
 }) {
-  const progress = useSharedValue(0);
-  const [size, setSize] = useState({ width: 0, height: 0 });
+  const borderColor = useSharedValue("transparent");
 
   useEffect(() => {
-    cancelAnimation(progress);
-    if (isPlaying && bpm > 0) {
-      progress.value = 0;
-      progress.value = withRepeat(
-        withTiming(1, { duration: Math.max(120, 60000 / bpm), easing: Easing.linear }),
+    cancelAnimation(borderColor);
+    if (isEffectsActive) {
+      borderColor.value = withRepeat(
+        withSequence(
+          withTiming(effectColor, { duration: 750, easing: Easing.inOut(Easing.ease) }),
+          withTiming("#FF7CD8", { duration: 750, easing: Easing.inOut(Easing.ease) }),
+          withTiming("#7BE7FF", { duration: 750, easing: Easing.inOut(Easing.ease) }),
+          withTiming("#FFF1A6", { duration: 750, easing: Easing.inOut(Easing.ease) }),
+        ),
         -1,
         false,
       );
+    } else if (isPlaying) {
+      borderColor.value = withTiming("#FFFFFF", { duration: 1400, easing: Easing.inOut(Easing.ease) });
     } else {
-      progress.value = 0;
+      borderColor.value = withTiming("transparent", { duration: 220, easing: Easing.out(Easing.ease) });
     }
-  }, [bpm, isPlaying]);
+  }, [effectColor, isEffectsActive, isPlaying]);
 
-  const getPixelStyle = (offset: number) => {
-    "worklet";
-    const pixel = 6;
-    const horizontal = Math.max(1, size.width - pixel);
-    const vertical = Math.max(1, size.height - pixel);
-    const perimeter = 2 * (horizontal + vertical);
-    let distance = ((progress.value + offset) % 1) * perimeter;
-    let x = 0;
-    let y = 0;
-    if (distance <= horizontal) {
-      x = distance;
-    } else if ((distance -= horizontal) <= vertical) {
-      x = horizontal;
-      y = distance;
-    } else if ((distance -= vertical) <= horizontal) {
-      x = horizontal - distance;
-      y = vertical;
-    } else {
-      distance -= horizontal;
-      y = vertical - distance;
-    }
-    return {
-      opacity: isPlaying ? 1 : 0,
-      transform: [{ translateX: x }, { translateY: y }],
-    };
-  };
-
-  const firstPixelStyle = useAnimatedStyle(() => getPixelStyle(0));
-  const secondPixelStyle = useAnimatedStyle(() => getPixelStyle(0.5));
+  const animatedBorderStyle = useAnimatedStyle(() => ({
+    borderColor: borderColor.value,
+    shadowColor: borderColor.value,
+    opacity: isPlaying ? 1 : 0,
+  }));
 
   return (
-    <View
+    <Animated.View
       pointerEvents="none"
-      onLayout={(event) => setSize(event.nativeEvent.layout)}
-      style={[styles.borderChaserOverlay, { borderRadius }]}
-    >
-      <Animated.View style={[styles.borderChaserPixel, firstPixelStyle]} />
-      <Animated.View style={[styles.borderChaserPixel, secondPixelStyle]} />
-    </View>
+      style={[styles.animatedButtonBorder, { borderRadius }, animatedBorderStyle]}
+    />
   );
 }
 
@@ -410,7 +390,12 @@ export default function NowPlayingScreen() {
                 color="#0A0A14"
               />
             )}
-            <BPMBorderChaser bpm={currentTrack.bpm} isPlaying={isPlaying} borderRadius={36} />
+            <AnimatedButtonBorder
+              isPlaying={isPlaying}
+              isEffectsActive={false}
+              effectColor={effectColor}
+              borderRadius={36}
+            />
           </Pressable>
         </View>
 
@@ -466,7 +451,12 @@ export default function NowPlayingScreen() {
               <Text style={[styles.micToggleLabel, { color: isMicActive ? effectColor : colors.muted, textAlign: 'center' }]}> 
                 {isMicActive ? "Tap to Deactivate" : "Listen Normally or\nTap to Activate"}
               </Text>
-              <BPMBorderChaser bpm={currentTrack.bpm} isPlaying={isPlaying} borderRadius={32} />
+              <AnimatedButtonBorder
+                isPlaying={isPlaying}
+                isEffectsActive={isMicActive && isPlaying}
+                effectColor={effectColor}
+                borderRadius={32}
+              />
             </Pressable>
           </Animated.View>
         </View>
@@ -703,18 +693,12 @@ const styles = StyleSheet.create({
     position: "relative",
     overflow: "hidden",
   },
-  borderChaserOverlay: {
+  animatedButtonBorder: {
     ...StyleSheet.absoluteFillObject,
-  },
-  borderChaserPixel: {
-    position: "absolute",
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#FFF7C0",
-    shadowColor: "#FFF7C0",
-    shadowOpacity: 1,
-    shadowRadius: 6,
+    borderWidth: 2,
+    shadowOpacity: 0.85,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
     elevation: 10,
   },
   micToggleLabel: {

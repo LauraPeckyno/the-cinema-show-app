@@ -230,3 +230,4 @@
 - [x] Theme for New Beginnings: randomize both chipmunk return pans every 24 beats
 - [x] Corpse Parade: replace prior effects with heavily compressed radio-style hard-tune autotune
 - [x] Move Theme for New Beginnings to the end of the Start the Show queue only
+- [x] Replace moving button-border pixels with slow white playback borders and continuous color-shifting active-effects borders

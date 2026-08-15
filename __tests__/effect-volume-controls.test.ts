@@ -47,11 +47,16 @@ describe("Now Playing wet slider and artwork composition", () => {
     expect(nowPlayingSource).not.toContain("animatedMicGlowStyle");
   });
 
-  it("adds two BPM-synced bright-pixel border chasers to play and effects controls", () => {
-    expect(nowPlayingSource).toContain("function BPMBorderChaser");
-    expect(nowPlayingSource).toContain("duration: Math.max(120, 60000 / bpm)");
-    expect(nowPlayingSource).toContain("<BPMBorderChaser bpm={currentTrack.bpm} isPlaying={isPlaying} borderRadius={36} />");
-    expect(nowPlayingSource).toContain("<BPMBorderChaser bpm={currentTrack.bpm} isPlaying={isPlaying} borderRadius={32} />");
-    expect(nowPlayingSource).toContain("backgroundColor: \"#FFF7C0\"");
+  it("uses full white playback borders and active-effects color-shifting borders instead of moving pixels", () => {
+    expect(nowPlayingSource).toContain("function AnimatedButtonBorder");
+    expect(nowPlayingSource).toContain("withTiming(\"#FFFFFF\", { duration: 1400");
+    expect(nowPlayingSource).toContain("withTiming(\"#FF7CD8\"");
+    expect(nowPlayingSource).toContain("withTiming(\"#7BE7FF\"");
+    expect(nowPlayingSource).toContain("withTiming(\"#FFF1A6\"");
+    expect(nowPlayingSource).toContain("isEffectsActive={false}");
+    expect(nowPlayingSource).toContain("isEffectsActive={isMicActive && isPlaying}");
+    expect(nowPlayingSource).toContain("animatedButtonBorder");
+    expect(nowPlayingSource).not.toContain("BPMBorderChaser");
+    expect(nowPlayingSource).not.toContain("borderChaserPixel");
   });
 });
