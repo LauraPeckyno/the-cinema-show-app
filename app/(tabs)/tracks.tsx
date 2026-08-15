@@ -1,8 +1,9 @@
 import { useState, useCallback } from "react";
-import { Text, View, StyleSheet, ScrollView, Pressable, Dimensions } from "react-native";
+import { Text, View, StyleSheet, ScrollView, Pressable, Dimensions, Linking } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useAudioEngine } from "@/lib/audio-engine";
@@ -16,6 +17,23 @@ const SPROCKET_SIZE = 8;
 
 const ALBUM_MUSIC_URL = "https://streamingkeys2.imaginaurium.workers.dev/sh3.mp3";
 const ALBUM_MUSIC_VOLUME = 25;
+const PURCHASE_OUTLETS = [
+  {
+    label: "Amazon",
+    icon: "amazon" as const,
+    url: "https://www.amazon.com/music/player/artists/B001VIHWT2/robert-peckyno",
+  },
+  {
+    label: "Apple Music",
+    icon: "apple" as const,
+    url: "https://music.apple.com/us/artist/robert-peckyno/418366396",
+  },
+  {
+    label: "Bandcamp",
+    icon: "bandcamp" as const,
+    url: "https://streamingkeys.bandcamp.com/",
+  },
+];
 
 /** A single film frame cell with artwork and always-visible title */
 function FilmCell({ track, onPress }: { track: Track; onPress: () => void }) {
@@ -184,6 +202,27 @@ export default function TracksScreen() {
             onTrackPress={handleTrackPress}
           />
         </View>
+
+        <View style={styles.buyAlbumSection}>
+          <View style={styles.buySeparator} />
+          <Text style={styles.buyAlbumHeading}>Buy the Album</Text>
+          <View style={styles.outletLinks}>
+            {PURCHASE_OUTLETS.map((outlet) => (
+              <Pressable
+                key={outlet.label}
+                accessibilityRole="link"
+                accessibilityLabel={`Buy The Cinema Show on ${outlet.label}`}
+                onPress={() => {
+                  void Linking.openURL(outlet.url);
+                }}
+                style={({ pressed }) => [styles.outletLink, pressed && styles.outletLinkPressed]}
+              >
+                <FontAwesome name={outlet.icon} size={20} color="#F6E8AE" />
+                <Text style={styles.outletLabel}>{outlet.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
       </ScrollView>
     </ScreenContainer>
   );
@@ -223,6 +262,53 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 12,
     gap: 12,
+  },
+  buyAlbumSection: {
+    alignItems: "center",
+    marginTop: 30,
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+  },
+  buySeparator: {
+    width: "100%",
+    height: 1,
+    backgroundColor: "rgba(201, 168, 76, 0.46)",
+  },
+  buyAlbumHeading: {
+    color: "#F6E8AE",
+    marginTop: 16,
+    fontSize: 15,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 2.4,
+  },
+  outletLinks: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 10,
+    marginTop: 14,
+  },
+  outletLink: {
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 82,
+    borderWidth: 1,
+    borderColor: "rgba(246, 232, 174, 0.35)",
+    borderRadius: 10,
+    backgroundColor: "rgba(9, 9, 19, 0.5)",
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+    gap: 5,
+  },
+  outletLinkPressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.97 }],
+  },
+  outletLabel: {
+    color: "#F6E8AE",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
   filmStrip: {
     flex: 1,

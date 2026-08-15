@@ -236,3 +236,4 @@
 - [x] Stream Home background music from Cloudflare tpp.mp3 and Tracks background music from Cloudflare sh3.mp3
 - [x] Verify both Cloudflare background audio sources and remove remaining SoundCloud-specific code
 - [x] Raise Corpse Parade’s robotic D-minor autotune to music-level loudness and reduce its dry return to 10%
+- [x] Add a separated Buy the Album section beneath the film strips with Amazon, Apple Music, and Bandcamp links
