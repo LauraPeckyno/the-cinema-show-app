@@ -31,6 +31,7 @@ import { getCachedUri, preDownloadAll } from "@/lib/audio-cache";
 import { TRACKS } from "@/constants/tracks";
 
 const ALBUM_COVER_URL = "https://streamingkeys2.imaginaurium.workers.dev/cinemashow_cover.png";
+const KEYS_ROSE_URL = "https://streamingkeys2.imaginaurium.workers.dev/keysrose.jpg";
 // Use cached local URI if pre-downloaded, otherwise falls back to remote
 const getAlbumCoverUri = () => getCachedUri(ALBUM_COVER_URL);
 
@@ -267,12 +268,21 @@ export default function HomeScreen() {
 
           {/* ─── Headphones Required Notice (text only, no icon) ─── */}
           <View style={[styles.headphonesNotice, { borderColor: colors.primary + "40" }]}>
-            <Text style={[styles.headphonesTitle, { color: colors.primary }]}>
+            <Text style={[styles.headphonesTitle, { color: colors.primary }]}> 
               HEADPHONES REQUIRED
             </Text>
             <Text style={[styles.headphonesText, { color: colors.muted }]}>
               To avoid audio feedback, please connect headphones or earbuds before starting.
             </Text>
+          </View>
+
+          <View style={styles.keysRoseContainer}>
+            <Image
+              source={{ uri: KEYS_ROSE_URL }}
+              style={styles.keysRoseImage}
+              resizeMode="cover"
+              accessibilityLabel="Piano keys character holding a rose"
+            />
           </View>
 
         </View>
@@ -375,6 +385,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     textAlign: "center",
+  },
+  keysRoseContainer: {
+    marginTop: 16,
+    marginBottom: 8,
+    width: SCREEN_WIDTH * 0.9,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  keysRoseImage: {
+    width: "100%",
+    height: SCREEN_WIDTH * 0.9,
   },
   descriptionSection: {
     paddingHorizontal: 8,
