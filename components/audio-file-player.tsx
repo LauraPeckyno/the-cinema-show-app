@@ -18,7 +18,7 @@ interface AudioFilePlayerProps {
 /**
  * Cross-platform audio file player using HTML5 Audio on web
  * and expo-audio on native platforms.
- * Replaces the SoundCloud widget-based player with direct file streaming.
+ * Uses direct file streaming on web and native platforms.
  */
 export function AudioFilePlayer({
   track,
