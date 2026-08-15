@@ -93,6 +93,14 @@ const config: ExpoConfig = {
       },
     ],
     [
+      "expo-media-library",
+      {
+        photosPermission: "Allow $(PRODUCT_NAME) to access media needed for your downloads.",
+        savePhotosPermission: "Allow $(PRODUCT_NAME) to save the album to your Music folder.",
+        granularPermissions: ["audio"],
+      },
+    ],
+    [
       "expo-video",
       {
         supportsBackgroundPlayback: true,
