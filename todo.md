@@ -238,3 +238,5 @@
 - [x] Raise Corpse Parade’s robotic D-minor autotune to music-level loudness and reduce its dry return to 10%
 - [x] Add a separated Buy the Album section beneath the film strips with Amazon, Apple Music, and Bandcamp links
 - [x] Add the supplied Spotify artist link to the Buy the Album outlets
+- [x] Lower Krampus Wishes’ dry return by 20%
+- [x] Replace Corpse Parade with a four-beat listen window and three randomized-speed, independently panned quarter-note delay returns

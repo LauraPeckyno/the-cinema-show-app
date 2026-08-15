@@ -144,51 +144,85 @@ function buildEffectChainJS(): string {
       var t = ctx.currentTime;
 
       switch (trackId) {
-        case 1: { // HARD-TUNED RADIO — Corpse Parade (BPM 116)
-          // Deliberately immediate D-minor correction with no glide for a robotic vocal return.
-          var hardTuneSize1 = 1024;
-          var hardTuneNode1 = ctx.createScriptProcessor(hardTuneSize1, 1, 1);
-          var dMinorRobotNotes1 = [50, 52, 53, 55, 57, 58, 60, 62, 64, 65, 67, 69, 70, 72];
-          function closestDMinorMidi1(sourceMidi1) {
-            var nearestMidi1 = dMinorRobotNotes1[0];
-            var nearestDistance1 = 999;
-            for (var key1 = 0; key1 < dMinorRobotNotes1.length; key1++) {
-              var candidate1 = dMinorRobotNotes1[key1];
-              var distance1 = Math.abs(candidate1 - sourceMidi1);
-              if (distance1 < nearestDistance1) {
-                nearestDistance1 = distance1;
-                nearestMidi1 = candidate1;
-              }
-            }
-            return nearestMidi1;
+        case 1: { // MEASURE DELAY — Corpse Parade (BPM 116)
+          // Each four-beat measure captures only its first beat. Three finite quarter-note
+          // returns then play during beats two, three, and four; there is no feedback loop.
+          var listenGate1 = ctx.createGain();
+          listenGate1.gain.value = 0;
+          var corpseMeasure1 = beatSec * 4;
+          for (var measure1 = 0; measure1 < 120; measure1++) {
+            var measureStart1 = t + measure1 * corpseMeasure1;
+            listenGate1.gain.setValueAtTime(1, measureStart1);
+            listenGate1.gain.setValueAtTime(0, measureStart1 + beatSec);
           }
-          hardTuneNode1.onaudioprocess = function(e) {
-            var inp = e.inputBuffer.getChannelData(0);
-            var out = e.outputBuffer.getChannelData(0);
-            var crossings1 = 0;
-            for (var detect1 = 1; detect1 < hardTuneSize1; detect1++) {
-              if (inp[detect1 - 1] <= 0 && inp[detect1] > 0) crossings1++;
-            }
-            var detectedFrequency1 = crossings1 * ctx.sampleRate / hardTuneSize1;
-            var correctionRatio1 = 1.0;
-            if (detectedFrequency1 >= 70 && detectedFrequency1 <= 600) {
-              var sourceMidi1 = 69 + 12 * (Math.log(detectedFrequency1 / 440) / Math.LN2);
-              var targetMidi1 = closestDMinorMidi1(sourceMidi1);
-              correctionRatio1 = Math.max(0.5, Math.min(2.0, Math.pow(2, (targetMidi1 - sourceMidi1) / 12)));
-            }
-            for (var pp1 = 0; pp1 < hardTuneSize1; pp1++) {
-              var shiftedIndex1 = Math.min(hardTuneSize1 - 1, Math.floor(pp1 * correctionRatio1));
-              out[pp1] = inp[shiftedIndex1];
-            }
-          };
-          var radioBand1 = ctx.createBiquadFilter();
-          radioBand1.type = 'bandpass'; radioBand1.frequency.value = 1900; radioBand1.Q.value = 0.6;
-          var radioComp1 = ctx.createDynamicsCompressor();
-          radioComp1.threshold.value = -20; radioComp1.knee.value = 0; radioComp1.ratio.value = 30;
-          radioComp1.attack.value = 0.001; radioComp1.release.value = 0.05;
-          var hardTuneReturn1 = ctx.createGain(); hardTuneReturn1.gain.value = 2.40;
-          inputBoost.connect(hardTuneNode1);
-          hardTuneNode1.connect(radioBand1); radioBand1.connect(radioComp1); radioComp1.connect(hardTuneReturn1); hardTuneReturn1.connect(analyser);
+
+          // Speed multipliers correspond to BPM × 1.0, × 0.7, × 0.4, and × 1.6 playback.
+          // Every return keeps its own selected speed for sixteen beats before choosing again.
+          var corpseSpeedChoices1 = [1.0, 0.7, 0.4, 1.6];
+          function makeCorpseSpeedNode1() {
+            var speedBlock1 = 2048;
+            var speedNode1 = ctx.createScriptProcessor(speedBlock1, 1, 1);
+            var speedBuffer1 = new Float32Array(speedBlock1 * 32);
+            var speedWrite1 = 0;
+            var speedRead1 = speedBuffer1.length - speedBlock1 * 2;
+            var speed1 = corpseSpeedChoices1[Math.floor(Math.random() * corpseSpeedChoices1.length)];
+            var speedSectionFrames1 = Math.max(speedBlock1, Math.floor(ctx.sampleRate * beatSec * 16));
+            var speedFramesUntilChange1 = speedSectionFrames1;
+            speedNode1.onaudioprocess = function(e) {
+              var inp = e.inputBuffer.getChannelData(0);
+              var out = e.outputBuffer.getChannelData(0);
+              for (var sample1 = 0; sample1 < speedBlock1; sample1++) {
+                speedBuffer1[speedWrite1] = inp[sample1];
+                speedWrite1 = (speedWrite1 + 1) % speedBuffer1.length;
+                var readIndex1 = Math.floor(speedRead1) % speedBuffer1.length;
+                if (readIndex1 < 0) readIndex1 += speedBuffer1.length;
+                out[sample1] = speedBuffer1[readIndex1] * 0.86;
+                speedRead1 = (speedRead1 + speed1) % speedBuffer1.length;
+              }
+              speedFramesUntilChange1 -= speedBlock1;
+              if (speedFramesUntilChange1 <= 0) {
+                speed1 = corpseSpeedChoices1[Math.floor(Math.random() * corpseSpeedChoices1.length)];
+                speedFramesUntilChange1 += speedSectionFrames1;
+              }
+            };
+            return speedNode1;
+          }
+
+          // Three single-tap quarter-note returns: no delayed return is fed back into a delay.
+          var corpseTap1a = ctx.createDelay(5.0); corpseTap1a.delayTime.value = beatSec;
+          var corpseTap1b = ctx.createDelay(5.0); corpseTap1b.delayTime.value = beatSec * 2;
+          var corpseTap1c = ctx.createDelay(5.0); corpseTap1c.delayTime.value = beatSec * 3;
+          var corpseGain1a = ctx.createGain(); corpseGain1a.gain.value = 0.58;
+          var corpseGain1b = ctx.createGain(); corpseGain1b.gain.value = 0.48;
+          var corpseGain1c = ctx.createGain(); corpseGain1c.gain.value = 0.40;
+          var corpseSpeed1a = makeCorpseSpeedNode1();
+          var corpseSpeed1b = makeCorpseSpeedNode1();
+          var corpseSpeed1c = makeCorpseSpeedNode1();
+
+          // Returns are given distinct stereo locations and all three positions are refreshed
+          // on each sixteen-beat boundary.
+          var corpsePan1a = ctx.createStereoPanner();
+          var corpsePan1b = ctx.createStereoPanner();
+          var corpsePan1c = ctx.createStereoPanner();
+          function randomCorpsePans1(atTime1) {
+            var panA1 = -1 + Math.random() * 2;
+            var panB1 = -1 + Math.random() * 2;
+            var panC1 = -1 + Math.random() * 2;
+            if (Math.abs(panB1 - panA1) < 0.3) panB1 = panB1 > 0 ? panB1 - 0.5 : panB1 + 0.5;
+            if (Math.abs(panC1 - panA1) < 0.3 || Math.abs(panC1 - panB1) < 0.3) panC1 = -panC1;
+            corpsePan1a.pan.setValueAtTime(Math.max(-1, Math.min(1, panA1)), atTime1);
+            corpsePan1b.pan.setValueAtTime(Math.max(-1, Math.min(1, panB1)), atTime1);
+            corpsePan1c.pan.setValueAtTime(Math.max(-1, Math.min(1, panC1)), atTime1);
+          }
+          var corpsePanSection1 = beatSec * 16;
+          for (var panSchedule1 = 0; panSchedule1 < 30; panSchedule1++) {
+            randomCorpsePans1(t + panSchedule1 * corpsePanSection1);
+          }
+
+          inputBoost.connect(listenGate1);
+          listenGate1.connect(corpseTap1a); corpseTap1a.connect(corpseSpeed1a); corpseSpeed1a.connect(corpseGain1a); corpseGain1a.connect(corpsePan1a); corpsePan1a.connect(analyser);
+          listenGate1.connect(corpseTap1b); corpseTap1b.connect(corpseSpeed1b); corpseSpeed1b.connect(corpseGain1b); corpseGain1b.connect(corpsePan1b); corpsePan1b.connect(analyser);
+          listenGate1.connect(corpseTap1c); corpseTap1c.connect(corpseSpeed1c); corpseSpeed1c.connect(corpseGain1c); corpseGain1c.connect(corpsePan1c); corpsePan1c.connect(analyser);
 
           analyser.connect(output);
           break;
@@ -842,8 +876,8 @@ function buildDryWetChainJS(): string {
       // Higher fixed mix: dry return +5 points and effected return +10 points.
       // Gate, frequency filters, compressor, and limiter remain in place to control leakage and peaks
       var dryGain = ctx.createGain();
-      // Corpse Parade keeps only a restrained dry signal; Expiation and Theme remain fully wet.
-      dryGain.gain.value = trackId === 1 ? 0.10 : (trackId === 6 || trackId === 12) ? 0 : 0.25;
+      // Corpse Parade, Expiation, and Theme remain fully wet. Krampus Wishes uses a 20% lower dry return.
+      dryGain.gain.value = (trackId === 1 || trackId === 6 || trackId === 12) ? 0 : trackId === 4 ? 0.20 : 0.25;
 
       var wetGain = ctx.createGain();
       wetGain.gain.value = 0.80 * effectVolumeMultiplier;
