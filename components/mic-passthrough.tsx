@@ -145,21 +145,19 @@ function buildEffectChainJS(): string {
 
       switch (trackId) {
         case 1: { // HARD-TUNED RADIO — Corpse Parade (BPM 116)
-          // Fresh audible path: fast, hard D-minor tuning followed by radio compression.
-          var hardTuneSize1 = 2048;
+          // Deliberately immediate D-minor correction with no glide for a robotic vocal return.
+          var hardTuneSize1 = 1024;
           var hardTuneNode1 = ctx.createScriptProcessor(hardTuneSize1, 1, 1);
-          var dMinorPitchClasses1 = [0, 2, 4, 5, 7, 9, 10]; // C, D, E, F, G, A, Bb
+          var dMinorRobotNotes1 = [50, 52, 53, 55, 57, 58, 60, 62, 64, 65, 67, 69, 70, 72];
           function closestDMinorMidi1(sourceMidi1) {
-            var nearestMidi1 = sourceMidi1;
+            var nearestMidi1 = dMinorRobotNotes1[0];
             var nearestDistance1 = 999;
-            for (var octave1 = -1; octave1 <= 10; octave1++) {
-              for (var note1 = 0; note1 < dMinorPitchClasses1.length; note1++) {
-                var candidateMidi1 = octave1 * 12 + dMinorPitchClasses1[note1];
-                var candidateDistance1 = Math.abs(candidateMidi1 - sourceMidi1);
-                if (candidateDistance1 < nearestDistance1) {
-                  nearestDistance1 = candidateDistance1;
-                  nearestMidi1 = candidateMidi1;
-                }
+            for (var key1 = 0; key1 < dMinorRobotNotes1.length; key1++) {
+              var candidate1 = dMinorRobotNotes1[key1];
+              var distance1 = Math.abs(candidate1 - sourceMidi1);
+              if (distance1 < nearestDistance1) {
+                nearestDistance1 = distance1;
+                nearestMidi1 = candidate1;
               }
             }
             return nearestMidi1;
@@ -173,22 +171,22 @@ function buildEffectChainJS(): string {
             }
             var detectedFrequency1 = crossings1 * ctx.sampleRate / hardTuneSize1;
             var correctionRatio1 = 1.0;
-            if (detectedFrequency1 >= 80 && detectedFrequency1 <= 500) {
+            if (detectedFrequency1 >= 70 && detectedFrequency1 <= 600) {
               var sourceMidi1 = 69 + 12 * (Math.log(detectedFrequency1 / 440) / Math.LN2);
               var targetMidi1 = closestDMinorMidi1(sourceMidi1);
-              correctionRatio1 = Math.max(0.65, Math.min(1.45, Math.pow(2, (targetMidi1 - sourceMidi1) / 12)));
+              correctionRatio1 = Math.max(0.5, Math.min(2.0, Math.pow(2, (targetMidi1 - sourceMidi1) / 12)));
             }
             for (var pp1 = 0; pp1 < hardTuneSize1; pp1++) {
               var shiftedIndex1 = Math.min(hardTuneSize1 - 1, Math.floor(pp1 * correctionRatio1));
-              out[pp1] = inp[shiftedIndex1] * 0.95;
+              out[pp1] = inp[shiftedIndex1];
             }
           };
           var radioBand1 = ctx.createBiquadFilter();
-          radioBand1.type = 'bandpass'; radioBand1.frequency.value = 1850; radioBand1.Q.value = 0.75;
+          radioBand1.type = 'bandpass'; radioBand1.frequency.value = 1900; radioBand1.Q.value = 0.6;
           var radioComp1 = ctx.createDynamicsCompressor();
-          radioComp1.threshold.value = -30; radioComp1.knee.value = 0; radioComp1.ratio.value = 20;
-          radioComp1.attack.value = 0.001; radioComp1.release.value = 0.08;
-          var hardTuneReturn1 = ctx.createGain(); hardTuneReturn1.gain.value = 1.20;
+          radioComp1.threshold.value = -20; radioComp1.knee.value = 0; radioComp1.ratio.value = 30;
+          radioComp1.attack.value = 0.001; radioComp1.release.value = 0.05;
+          var hardTuneReturn1 = ctx.createGain(); hardTuneReturn1.gain.value = 2.40;
           inputBoost.connect(hardTuneNode1);
           hardTuneNode1.connect(radioBand1); radioBand1.connect(radioComp1); radioComp1.connect(hardTuneReturn1); hardTuneReturn1.connect(analyser);
 
@@ -844,8 +842,8 @@ function buildDryWetChainJS(): string {
       // Higher fixed mix: dry return +5 points and effected return +10 points.
       // Gate, frequency filters, compressor, and limiter remain in place to control leakage and peaks
       var dryGain = ctx.createGain();
-      // Corpse Parade, Expiation, and Theme for New Beginnings intentionally have no global dry mic return.
-      dryGain.gain.value = (trackId === 1 || trackId === 6 || trackId === 12) ? 0 : 0.25;
+      // Corpse Parade keeps only a restrained dry signal; Expiation and Theme remain fully wet.
+      dryGain.gain.value = trackId === 1 ? 0.10 : (trackId === 6 || trackId === 12) ? 0 : 0.25;
 
       var wetGain = ctx.createGain();
       wetGain.gain.value = 0.80 * effectVolumeMultiplier;
@@ -963,9 +961,9 @@ function WebMicPassthrough({
     }
   }, [musicVolume, shouldFadeOut]);
 
-  // Update fixed mix: Corpse Parade, Expiation, and Theme for New Beginnings are fully wet.
+  // Update fixed mix: Corpse Parade retains 10% dry; Expiation and Theme remain fully wet.
   useEffect(() => {
-    if (dryGainRef.current) dryGainRef.current.gain.value = (trackId === 1 || trackId === 6 || trackId === 12) ? 0 : 0.25;
+    if (dryGainRef.current) dryGainRef.current.gain.value = trackId === 1 ? 0.10 : (trackId === 6 || trackId === 12) ? 0 : 0.25;
     if (wetGainRef.current) wetGainRef.current.gain.value = 0.80 * effectVolumeMultiplier;
   }, [dryWetMix, trackId, effectVolumeMultiplier]);
 
@@ -1273,8 +1271,8 @@ function fadeMicOutput(shouldFadeOut, vol) {
 function setDryWet(mix, trackId, effectVolumeMultiplier) {
   if (chain && chain.dryGain && chain.wetGain && audioCtx) {
     var t = audioCtx.currentTime;
-    // Corpse Parade, Expiation, and Theme for New Beginnings are fully wet.
-    chain.dryGain.gain.setValueAtTime((trackId === 1 || trackId === 6 || trackId === 12) ? 0 : 0.25, t);
+    // Corpse Parade retains 10% dry; Expiation and Theme remain fully wet.
+    chain.dryGain.gain.setValueAtTime(trackId === 1 ? 0.10 : (trackId === 6 || trackId === 12) ? 0 : 0.25, t);
     chain.wetGain.gain.setValueAtTime(0.80 * effectVolumeMultiplier, t);
   }
 }

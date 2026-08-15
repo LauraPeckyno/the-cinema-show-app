@@ -20,8 +20,8 @@ function branch(startCase: number, endCase: number | "default") {
 }
 
 describe("Microphone passthrough fixed mix", () => {
-  it("retains the 80% wet and 0.80x master mic mix while disabling global dry for the requested tracks", () => {
-    expect(micPassthroughSource).toContain("(trackId === 1 || trackId === 6 || trackId === 12) ? 0 : 0.25");
+  it("retains the 80% wet and 0.80x master mic mix with Corpse Parade at 10% dry", () => {
+    expect(micPassthroughSource).toContain("trackId === 1 ? 0.10 : (trackId === 6 || trackId === 12) ? 0 : 0.25");
     expect(micPassthroughSource).toContain("wetGain.gain.value = 0.80");
     expect(micPassthroughSource).toContain("(musicVolume / 100) * 0.80");
     expect(micPassthroughSource).toContain("chain.wetGain.gain.setValueAtTime(0.80 * effectVolumeMultiplier, t)");
@@ -69,17 +69,18 @@ describe("Latest requested per-track DSP refinements", () => {
     expect(muchAdo).toContain("deEss11a.type = 'notch'");
   });
 
-  it("uses only hard-tuned D-minor radio processing for Corpse Parade without a global dry return", () => {
+  it("uses a loud robotic D-minor hard-tune return with a restrained Corpse Parade dry signal", () => {
     const corpseParade = branch(1, 2);
-    expect(corpseParade).toContain("var dMinorPitchClasses1 = [0, 2, 4, 5, 7, 9, 10]");
+    expect(corpseParade).toContain("var dMinorRobotNotes1 = [50, 52, 53, 55, 57, 58, 60, 62, 64, 65, 67, 69, 70, 72]");
     expect(corpseParade).toContain("function closestDMinorMidi1(sourceMidi1)");
     expect(corpseParade).toContain("var targetMidi1 = closestDMinorMidi1(sourceMidi1)");
+    expect(corpseParade).toContain("var hardTuneSize1 = 1024");
     expect(corpseParade).toContain("var hardTuneNode1 = ctx.createScriptProcessor(hardTuneSize1, 1, 1)");
-    expect(corpseParade).toContain("out[pp1] = inp[shiftedIndex1] * 0.95");
-    expect(corpseParade).toContain("radioComp1.ratio.value = 20");
-    expect(corpseParade).toContain("hardTuneReturn1.gain.value = 1.20");
+    expect(corpseParade).toContain("correctionRatio1 = Math.max(0.5, Math.min(2.0");
+    expect(corpseParade).toContain("radioComp1.ratio.value = 30");
+    expect(corpseParade).toContain("hardTuneReturn1.gain.value = 2.40");
     expect(corpseParade).not.toContain("whisperHP1");
-    expect(micPassthroughSource).toContain("trackId === 1 || trackId === 6 || trackId === 12");
+    expect(micPassthroughSource).toContain("trackId === 1 ? 0.10");
   });
 
   it("uses a quarter-note delayed reverse demon chorus with finite reverb", () => {
