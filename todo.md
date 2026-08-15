@@ -240,3 +240,4 @@
 - [x] Add the supplied Spotify artist link to the Buy the Album outlets
 - [x] Lower Krampus Wishes’ dry return by 20%
 - [x] Replace Corpse Parade with a four-beat listen window and three randomized-speed, independently panned quarter-note delay returns
+- [x] Add equidistant blank space between each primary Now Playing playback-control area

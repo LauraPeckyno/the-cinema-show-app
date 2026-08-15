@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
   titleArea: {
     alignItems: "center",
     paddingHorizontal: 24,
-    marginBottom: 24,
+    marginBottom: 32,
   },
   trackTitle: {
     fontSize: 24,
@@ -594,7 +594,7 @@ const styles = StyleSheet.create({
   },
   progressArea: {
     paddingHorizontal: 24,
-    marginBottom: 24,
+    marginBottom: 32,
   },
   progressTrack: {
     height: 4,
@@ -623,7 +623,7 @@ const styles = StyleSheet.create({
   },
   effectSliderArea: {
     marginHorizontal: 24,
-    marginBottom: 24,
+    marginBottom: 32,
   },
   effectSliderHeading: {
     flexDirection: "row",
