@@ -25,4 +25,19 @@ describe("Track Selection purchase links", () => {
     expect(tracksSource).toContain("FontAwesome");
     expect(tracksSource).toContain("Linking.openURL(outlet.url)");
   });
+
+  it("groups the links into the requested two-row ordering", () => {
+    expect(tracksSource).toContain("const PURCHASE_OUTLET_ROWS");
+    const firstRow = tracksSource.slice(
+      tracksSource.indexOf("const PURCHASE_OUTLET_ROWS"),
+      tracksSource.indexOf("  ],\n  [", tracksSource.indexOf("const PURCHASE_OUTLET_ROWS")),
+    );
+    const secondRow = tracksSource.slice(
+      tracksSource.indexOf("  ],\n  [", tracksSource.indexOf("const PURCHASE_OUTLET_ROWS")),
+      tracksSource.indexOf("] as const;", tracksSource.indexOf("const PURCHASE_OUTLET_ROWS")),
+    );
+    expect(firstRow.indexOf('label: "Bandcamp"')).toBeLessThan(firstRow.indexOf('label: "Spotify"'));
+    expect(secondRow.indexOf('label: "Amazon"')).toBeLessThan(secondRow.indexOf('label: "Apple Music"'));
+    expect(tracksSource).toContain("styles.outletRows");
+  });
 });

@@ -17,28 +17,32 @@ const SPROCKET_SIZE = 8;
 
 const ALBUM_MUSIC_URL = "https://streamingkeys2.imaginaurium.workers.dev/sh3.mp3";
 const ALBUM_MUSIC_VOLUME = 25;
-const PURCHASE_OUTLETS = [
-  {
-    label: "Amazon",
-    icon: "amazon" as const,
-    url: "https://www.amazon.com/music/player/artists/B001VIHWT2/robert-peckyno",
-  },
-  {
-    label: "Apple Music",
-    icon: "apple" as const,
-    url: "https://music.apple.com/us/artist/robert-peckyno/418366396",
-  },
-  {
-    label: "Bandcamp",
-    icon: "bandcamp" as const,
-    url: "https://streamingkeys.bandcamp.com/",
-  },
-  {
-    label: "Spotify",
-    icon: "spotify" as const,
-    url: "https://open.spotify.com/artist/2EdIHh3lgB1v2DI6h48P5g",
-  },
-];
+const PURCHASE_OUTLET_ROWS = [
+  [
+    {
+      label: "Bandcamp",
+      icon: "bandcamp" as const,
+      url: "https://streamingkeys.bandcamp.com/",
+    },
+    {
+      label: "Spotify",
+      icon: "spotify" as const,
+      url: "https://open.spotify.com/artist/2EdIHh3lgB1v2DI6h48P5g",
+    },
+  ],
+  [
+    {
+      label: "Amazon",
+      icon: "amazon" as const,
+      url: "https://www.amazon.com/music/player/artists/B001VIHWT2/robert-peckyno",
+    },
+    {
+      label: "Apple Music",
+      icon: "apple" as const,
+      url: "https://music.apple.com/us/artist/robert-peckyno/418366396",
+    },
+  ],
+] as const;
 
 /** A single film frame cell with artwork and always-visible title */
 function FilmCell({ track, onPress }: { track: Track; onPress: () => void }) {
@@ -211,20 +215,24 @@ export default function TracksScreen() {
         <View style={styles.buyAlbumSection}>
           <View style={styles.buySeparator} />
           <Text style={styles.buyAlbumHeading}>Buy the Album</Text>
-          <View style={styles.outletLinks}>
-            {PURCHASE_OUTLETS.map((outlet) => (
-              <Pressable
-                key={outlet.label}
-                accessibilityRole="link"
-                accessibilityLabel={`Buy The Cinema Show on ${outlet.label}`}
-                onPress={() => {
-                  void Linking.openURL(outlet.url);
-                }}
-                style={({ pressed }) => [styles.outletLink, pressed && styles.outletLinkPressed]}
-              >
-                <FontAwesome name={outlet.icon} size={20} color="#F6E8AE" />
-                <Text style={styles.outletLabel}>{outlet.label}</Text>
-              </Pressable>
+          <View style={styles.outletRows}>
+            {PURCHASE_OUTLET_ROWS.map((outletRow) => (
+              <View key={outletRow[0].label} style={styles.outletLinks}>
+                {outletRow.map((outlet) => (
+                  <Pressable
+                    key={outlet.label}
+                    accessibilityRole="link"
+                    accessibilityLabel={`Buy The Cinema Show on ${outlet.label}`}
+                    onPress={() => {
+                      void Linking.openURL(outlet.url);
+                    }}
+                    style={({ pressed }) => [styles.outletLink, pressed && styles.outletLinkPressed]}
+                  >
+                    <FontAwesome name={outlet.icon} size={20} color="#F6E8AE" />
+                    <Text style={styles.outletLabel}>{outlet.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
             ))}
           </View>
         </View>
@@ -290,6 +298,12 @@ const styles = StyleSheet.create({
   outletLinks: {
     flexDirection: "row",
     justifyContent: "center",
+    gap: 10,
+    width: "100%",
+  },
+  outletRows: {
+    width: "100%",
+    alignItems: "center",
     gap: 10,
     marginTop: 14,
   },

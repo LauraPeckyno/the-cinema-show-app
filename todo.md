@@ -242,3 +242,4 @@
 - [x] Replace Corpse Parade with a four-beat listen window and three randomized-speed, independently panned quarter-note delay returns
 - [x] Add equidistant blank space between each primary Now Playing playback-control area
 - [x] Increase the shared Now Playing playback-control spacing to 40 points
+- [x] Arrange Buy the Album links in two rows: Bandcamp and Spotify above Amazon and Apple Music
