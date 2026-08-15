@@ -227,3 +227,6 @@
 - [x] Replace Corpse Parade random pitch behavior with D-minor nearest-note pitch correction mixed with the voice
 - [x] Add Piano Fandango’s fourth 20-beat delayed, half-speed, randomly panned chorus voice
 - [x] Fix the Now Playing mic toggle after a wet-effect volume slider change
+- [x] Theme for New Beginnings: randomize both chipmunk return pans every 24 beats
+- [x] Corpse Parade: replace prior effects with heavily compressed radio-style hard-tune autotune
+- [x] Move Theme for New Beginnings to the end of the Start the Show queue only

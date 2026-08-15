@@ -144,83 +144,10 @@ function buildEffectChainJS(): string {
       var t = ctx.currentTime;
 
       switch (trackId) {
-        case 1: { // GHOST WHISPER — Corpse Parade (BPM 116): returns voice as a whisper
-          // Whisper effect: remove low frequencies (body of voice), keep only breathy high-freq content,
-          // add shaped noise to simulate whisper breath, reduce volume dramatically
-
-          // Step 1: High-pass filter to remove chest resonance (voice body)
-          // Whispers have almost no energy below 500Hz
-          var whisperHP1 = ctx.createBiquadFilter();
-          whisperHP1.type = 'highpass';
-          whisperHP1.frequency.value = 800; // aggressive HP removes voice body
-          whisperHP1.Q.value = 0.8;
-
-          // Step 2: Second HP for even more body removal
-          var whisperHP2 = ctx.createBiquadFilter();
-          whisperHP2.type = 'highpass';
-          whisperHP2.frequency.value = 1200;
-          whisperHP2.Q.value = 0.5;
-
-          // Step 3: Boost the sibilant/breathy frequencies (2-6kHz) where whisper energy lives
-          var whisperPeak = ctx.createBiquadFilter();
-          whisperPeak.type = 'peaking';
-          whisperPeak.frequency.value = 3500;
-          whisperPeak.Q.value = 1.0;
-          whisperPeak.gain.value = 10; // boost the airy frequencies
-
-          // Step 4: Generate white noise shaped by the voice envelope (noise follows voice dynamics)
-          // This simulates the breathy turbulence of a whisper
-          var noiseSize1 = 4096;
-          var noiseNode1 = ctx.createScriptProcessor(noiseSize1, 1, 1);
-          var noiseEnvelope1 = 0;
-          noiseNode1.onaudioprocess = function(e) {
-            var inp = e.inputBuffer.getChannelData(0);
-            var out = e.outputBuffer.getChannelData(0);
-            // Track envelope of input (voice amplitude)
-            for (var ni = 0; ni < noiseSize1; ni++) {
-              var absVal = Math.abs(inp[ni]);
-              noiseEnvelope1 = noiseEnvelope1 * 0.995 + absVal * 0.005; // smooth envelope follower
-              // Generate noise shaped by envelope
-              var noise = (Math.random() * 2 - 1) * noiseEnvelope1 * 2.5;
-              // Mix: filtered voice (quiet) + shaped noise (breathy)
-              out[ni] = inp[ni] * 0.3 + noise * 1.0;
-            }
-          };
-
-          // Step 5: Low-pass the output to avoid harshness
-          var whisperLP = ctx.createBiquadFilter();
-          whisperLP.type = 'lowpass';
-          whisperLP.frequency.value = 7000;
-          whisperLP.Q.value = 0.5;
-
-          // Step 6: Reduce overall volume (whispers are quiet)
-          var whisperVol = ctx.createGain();
-          whisperVol.gain.value = 0.0; // retired whisper path is intentionally silent
-
-          // Step 7: Add a short delay for ghostly effect (single tap, no feedback)
-          var whisperDel = ctx.createDelay(2.0);
-          whisperDel.delayTime.value = beatSec * 4; // 2-beat delayed whisper echo
-          var whisperDelGain = ctx.createGain();
-          whisperDelGain.gain.value = 0.5;
-
-          // Signal chain: input -> HP1 -> HP2 -> peak boost -> noise shaper -> LP -> volume -> output
-          inputBoost.connect(whisperHP1);
-          whisperHP1.connect(whisperHP2);
-          whisperHP2.connect(whisperPeak);
-          whisperPeak.connect(noiseNode1);
-          noiseNode1.connect(whisperLP);
-          whisperLP.connect(whisperVol);
-          // The legacy whisper path remains disconnected from the audible return.
-
-          // Delayed whisper ghost
-          whisperVol.connect(whisperDel);
-          whisperDel.connect(whisperDelGain);
-          // The legacy whisper echo remains silent because whisperVol is zero.
-
-          // Pop-style D-minor correction: estimate the voice's local pitch and map it
-          // to its nearest D-natural-minor note, while retaining a clear lead vocal mix.
-          var popPitchSize1 = 2048;
-          var popPitchNode1 = ctx.createScriptProcessor(popPitchSize1, 1, 1);
+        case 1: { // HARD-TUNED RADIO — Corpse Parade (BPM 116)
+          // Fresh audible path: fast, hard D-minor tuning followed by radio compression.
+          var hardTuneSize1 = 2048;
+          var hardTuneNode1 = ctx.createScriptProcessor(hardTuneSize1, 1, 1);
           var dMinorPitchClasses1 = [0, 2, 4, 5, 7, 9, 10]; // C, D, E, F, G, A, Bb
           function closestDMinorMidi1(sourceMidi1) {
             var nearestMidi1 = sourceMidi1;
@@ -237,30 +164,33 @@ function buildEffectChainJS(): string {
             }
             return nearestMidi1;
           }
-          popPitchNode1.onaudioprocess = function(e) {
+          hardTuneNode1.onaudioprocess = function(e) {
             var inp = e.inputBuffer.getChannelData(0);
             var out = e.outputBuffer.getChannelData(0);
             var crossings1 = 0;
-            for (var detect1 = 1; detect1 < popPitchSize1; detect1++) {
+            for (var detect1 = 1; detect1 < hardTuneSize1; detect1++) {
               if (inp[detect1 - 1] <= 0 && inp[detect1] > 0) crossings1++;
             }
-            var detectedFrequency1 = crossings1 * ctx.sampleRate / popPitchSize1;
+            var detectedFrequency1 = crossings1 * ctx.sampleRate / hardTuneSize1;
             var correctionRatio1 = 1.0;
             if (detectedFrequency1 >= 80 && detectedFrequency1 <= 500) {
               var sourceMidi1 = 69 + 12 * (Math.log(detectedFrequency1 / 440) / Math.LN2);
               var targetMidi1 = closestDMinorMidi1(sourceMidi1);
-              correctionRatio1 = Math.max(0.80, Math.min(1.25, Math.pow(2, (targetMidi1 - sourceMidi1) / 12)));
+              correctionRatio1 = Math.max(0.65, Math.min(1.45, Math.pow(2, (targetMidi1 - sourceMidi1) / 12)));
             }
-            for (var pp1 = 0; pp1 < popPitchSize1; pp1++) {
-              var shiftedIndex1 = Math.min(popPitchSize1 - 1, Math.floor(pp1 * correctionRatio1));
-              out[pp1] = inp[pp1] * 0.64 + inp[shiftedIndex1] * 0.62;
+            for (var pp1 = 0; pp1 < hardTuneSize1; pp1++) {
+              var shiftedIndex1 = Math.min(hardTuneSize1 - 1, Math.floor(pp1 * correctionRatio1));
+              out[pp1] = inp[shiftedIndex1] * 0.95;
             }
           };
-          var vocoderTone1 = ctx.createBiquadFilter();
-          vocoderTone1.type = 'peaking'; vocoderTone1.frequency.value = 2600; vocoderTone1.Q.value = 0.8; vocoderTone1.gain.value = 3;
-          var vocoderReturn1 = ctx.createGain(); vocoderReturn1.gain.value = 1.8;
-          inputBoost.connect(popPitchNode1);
-          popPitchNode1.connect(vocoderTone1); vocoderTone1.connect(vocoderReturn1); vocoderReturn1.connect(analyser);
+          var radioBand1 = ctx.createBiquadFilter();
+          radioBand1.type = 'bandpass'; radioBand1.frequency.value = 1850; radioBand1.Q.value = 0.75;
+          var radioComp1 = ctx.createDynamicsCompressor();
+          radioComp1.threshold.value = -30; radioComp1.knee.value = 0; radioComp1.ratio.value = 20;
+          radioComp1.attack.value = 0.001; radioComp1.release.value = 0.08;
+          var hardTuneReturn1 = ctx.createGain(); hardTuneReturn1.gain.value = 1.20;
+          inputBoost.connect(hardTuneNode1);
+          hardTuneNode1.connect(radioBand1); radioBand1.connect(radioComp1); radioComp1.connect(hardTuneReturn1); hardTuneReturn1.connect(analyser);
 
           analyser.connect(output);
           break;
@@ -838,49 +768,57 @@ function buildEffectChainJS(): string {
           var del12b = ctx.createDelay(5.0); del12b.delayTime.value = 3.0;
           var del12bGain = ctx.createGain(); del12bGain.gain.value = 0.25;
 
-          // Chipmunk speed-up via ScriptProcessor (reads 2 samples per 1 output = 2x speed)
-          var bufSize12 = 4096;
-          var chipmunkNode12 = ctx.createScriptProcessor(bufSize12, 1, 1);
-          var chipmunkBuf12 = new Float32Array(bufSize12 * 2);
-          var chipmunkWriteIdx12 = 0;
-          var chipmunkPlayBuf12 = new Float32Array(bufSize12 * 2);
           var chipmunkSpeeds12 = [2.0, 1.8, 1.5, 1.3];
-          var chipmunkSpeed12 = chipmunkSpeeds12[Math.floor(Math.random() * chipmunkSpeeds12.length)];
-          var chipmunkSamplesPerSection12 = Math.floor(ctx.sampleRate * beatSec * 128);
-          var chipmunkSamplesUntilChange12 = chipmunkSamplesPerSection12;
-          chipmunkNode12.onaudioprocess = function(e) {
-            var inp = e.inputBuffer.getChannelData(0);
-            var out = e.outputBuffer.getChannelData(0);
-            // Write input
-            for (var wi = 0; wi < bufSize12; wi++) {
-              chipmunkBuf12[chipmunkWriteIdx12] = inp[wi];
-              chipmunkWriteIdx12++;
-              if (chipmunkWriteIdx12 >= bufSize12 * 2) {
-                for (var ci = 0; ci < bufSize12 * 2; ci++) chipmunkPlayBuf12[ci] = chipmunkBuf12[ci];
-                chipmunkWriteIdx12 = 0;
+          // Separate chipmunk processors keep each delayed return independently panned.
+          function makeChipmunkNode12() {
+            var bufSize12 = 4096;
+            var node12 = ctx.createScriptProcessor(bufSize12, 1, 1);
+            var chipmunkBuf12 = new Float32Array(bufSize12 * 2);
+            var chipmunkPlayBuf12 = new Float32Array(bufSize12 * 2);
+            var chipmunkWriteIdx12 = 0;
+            var chipmunkSpeed12 = chipmunkSpeeds12[Math.floor(Math.random() * chipmunkSpeeds12.length)];
+            var chipmunkSamplesPerSection12 = Math.floor(ctx.sampleRate * beatSec * 128);
+            var chipmunkSamplesUntilChange12 = chipmunkSamplesPerSection12;
+            node12.onaudioprocess = function(e) {
+              var inp = e.inputBuffer.getChannelData(0);
+              var out = e.outputBuffer.getChannelData(0);
+              for (var wi = 0; wi < bufSize12; wi++) {
+                chipmunkBuf12[chipmunkWriteIdx12++] = inp[wi];
+                if (chipmunkWriteIdx12 >= bufSize12 * 2) {
+                  for (var ci = 0; ci < bufSize12 * 2; ci++) chipmunkPlayBuf12[ci] = chipmunkBuf12[ci];
+                  chipmunkWriteIdx12 = 0;
+                }
               }
-            }
-            // Re-randomize the chipmunk speed every 128 beats.
-            chipmunkSamplesUntilChange12 -= bufSize12;
-            if (chipmunkSamplesUntilChange12 <= 0) {
-              chipmunkSpeed12 = chipmunkSpeeds12[Math.floor(Math.random() * chipmunkSpeeds12.length)];
-              chipmunkSamplesUntilChange12 += chipmunkSamplesPerSection12;
-            }
-            // Read at the selected chipmunk speed.
-            for (var ro = 0; ro < bufSize12; ro++) {
-              var readPos = Math.floor(ro * chipmunkSpeed12);
-              out[ro] = (readPos < bufSize12 * 2) ? chipmunkPlayBuf12[readPos] * 0.8 : 0;
-            }
-          };
+              chipmunkSamplesUntilChange12 -= bufSize12;
+              if (chipmunkSamplesUntilChange12 <= 0) {
+                chipmunkSpeed12 = chipmunkSpeeds12[Math.floor(Math.random() * chipmunkSpeeds12.length)];
+                chipmunkSamplesUntilChange12 += chipmunkSamplesPerSection12;
+              }
+              for (var ro = 0; ro < bufSize12; ro++) {
+                var readPos = Math.floor(ro * chipmunkSpeed12);
+                out[ro] = (readPos < bufSize12 * 2) ? chipmunkPlayBuf12[readPos] * 0.8 : 0;
+              }
+            };
+            return node12;
+          }
+          var chipmunkNode12a = makeChipmunkNode12();
+          var chipmunkNode12b = makeChipmunkNode12();
+          var chipmunkPan12a = ctx.createStereoPanner(); chipmunkPan12a.pan.value = -1 + Math.random() * 2;
+          var chipmunkPan12b = ctx.createStereoPanner(); chipmunkPan12b.pan.value = -1 + Math.random() * 2;
+          var chipmunkPanSection12 = beatSec * 24;
+          for (var panSchedule12 = 1; panSchedule12 <= 50; panSchedule12++) {
+            var panTime12 = t + panSchedule12 * chipmunkPanSection12;
+            chipmunkPan12a.pan.setValueAtTime(-1 + Math.random() * 2, panTime12);
+            chipmunkPan12b.pan.setValueAtTime(-1 + Math.random() * 2, panTime12);
+          }
 
-          // Signal chain: two finite delayed taps -> randomized chipmunk speed-up -> output.
+          // Signal chain: two finite delayed taps -> independent chipmunk paths -> independently random stereo positions.
           inputBoost.connect(del12); del12.connect(del12Gain);
           inputBoost.connect(del12b); del12b.connect(del12bGain);
-          del12Gain.connect(chipmunkNode12);
-          del12bGain.connect(chipmunkNode12);
+          del12Gain.connect(chipmunkNode12a); chipmunkNode12a.connect(chipmunkPan12a); chipmunkPan12a.connect(analyser);
+          del12bGain.connect(chipmunkNode12b); chipmunkNode12b.connect(chipmunkPan12b); chipmunkPan12b.connect(analyser);
           var dry12 = ctx.createGain(); dry12.gain.value = 0.0; // Theme for New Beginnings has no effect-chain dry return
           inputBoost.connect(dry12); dry12.connect(analyser);
-          chipmunkNode12.connect(analyser);
           analyser.connect(output);
           break;
         }

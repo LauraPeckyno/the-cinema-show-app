@@ -211,6 +211,10 @@ export const TRACKS: Track[] = [
 export const DARK_TRACKS = TRACKS.filter((t) => t.side === "dark");
 export const LIGHT_TRACKS = TRACKS.filter((t) => t.side === "light");
 
-// Start the album on the Light Side, beginning with Recessional.
-// Keeping track ID 12 preserves its existing ID-keyed artwork and effect chain.
-export const ALBUM_PLAYBACK_QUEUE = [...LIGHT_TRACKS, ...DARK_TRACKS];
+// Start on the Light Side with Recessional, keep every screen-side grouping intact,
+// and reserve Theme for New Beginnings as the final Start the Show track only.
+export const ALBUM_PLAYBACK_QUEUE = [
+  ...LIGHT_TRACKS.filter((track) => track.id !== 12),
+  ...DARK_TRACKS,
+  TRACKS.find((track) => track.id === 12)!,
+];

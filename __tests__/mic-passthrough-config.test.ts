@@ -69,13 +69,16 @@ describe("Latest requested per-track DSP refinements", () => {
     expect(muchAdo).toContain("deEss11a.type = 'notch'");
   });
 
-  it("maps Corpse Parade voice movement to nearest D-minor notes without a global dry return", () => {
+  it("uses only hard-tuned D-minor radio processing for Corpse Parade without a global dry return", () => {
     const corpseParade = branch(1, 2);
     expect(corpseParade).toContain("var dMinorPitchClasses1 = [0, 2, 4, 5, 7, 9, 10]");
     expect(corpseParade).toContain("function closestDMinorMidi1(sourceMidi1)");
     expect(corpseParade).toContain("var targetMidi1 = closestDMinorMidi1(sourceMidi1)");
-    expect(corpseParade).toContain("out[pp1] = inp[pp1] * 0.64 + inp[shiftedIndex1] * 0.62");
-    expect(corpseParade).toContain("vocoderReturn1.gain.value = 1.8");
+    expect(corpseParade).toContain("var hardTuneNode1 = ctx.createScriptProcessor(hardTuneSize1, 1, 1)");
+    expect(corpseParade).toContain("out[pp1] = inp[shiftedIndex1] * 0.95");
+    expect(corpseParade).toContain("radioComp1.ratio.value = 20");
+    expect(corpseParade).toContain("hardTuneReturn1.gain.value = 1.20");
+    expect(corpseParade).not.toContain("whisperHP1");
     expect(micPassthroughSource).toContain("trackId === 1 || trackId === 6 || trackId === 12");
   });
 
@@ -87,13 +90,18 @@ describe("Latest requested per-track DSP refinements", () => {
     expect(krampus).toContain("demonReverbTimes4 = [0.14, 0.27, 0.43, 0.68, 0.96]");
   });
 
-  it("uses dual randomized-speed chipmunk taps for Theme for New Beginnings", () => {
+  it("uses independently panned dual chipmunk taps for Theme for New Beginnings", () => {
     const theme = branch(12, "default");
     expect(theme).toContain("del12Gain.gain.value = 0.42");
     expect(theme).toContain("del12b.delayTime.value = 3.0");
     expect(theme).toContain("del12bGain.gain.value = 0.25");
     expect(theme).toContain("var chipmunkSpeeds12 = [2.0, 1.8, 1.5, 1.3]");
     expect(theme).toContain("beatSec * 128");
+    expect(theme).toContain("var chipmunkPanSection12 = beatSec * 24");
+    expect(theme).toContain("chipmunkPan12a.pan.setValueAtTime");
+    expect(theme).toContain("chipmunkPan12b.pan.setValueAtTime");
+    expect(theme).toContain("var chipmunkNode12a = makeChipmunkNode12()");
+    expect(theme).toContain("var chipmunkNode12b = makeChipmunkNode12()");
   });
 
   it("uses dry-free hard-panned randomized, slower half-octave Expiation returns", () => {

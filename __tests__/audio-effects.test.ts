@@ -54,10 +54,11 @@ describe("Track Data", () => {
     });
   });
 
-  it("should queue the Light Side before the Dark Side for Start the Show", () => {
+  it("should preserve screen-side grouping while placing Theme for New Beginnings last in Start the Show", () => {
     expect(ALBUM_PLAYBACK_QUEUE.map((track) => track.id)).toEqual([
-      7, 8, 9, 10, 11, 12,
+      7, 8, 9, 10, 11,
       1, 2, 3, 4, 5, 6,
+      12,
     ]);
   });
 
