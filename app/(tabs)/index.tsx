@@ -42,6 +42,8 @@ export default function HomeScreen() {
   const [musicStopped, setMusicStopped] = useState(false);
   const [musicRestartKey, setMusicRestartKey] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const keysRoseTopRef = useRef<number | null>(null);
+  const hasRevealedKeysRose = useRef(false);
 
   const [fontsLoaded] = useFonts({
     "PlayfairDisplay-Bold": "https://fonts.gstatic.com/s/playfairdisplay/v37/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvXDXbtY.ttf",
@@ -66,6 +68,7 @@ export default function HomeScreen() {
 
   // Fade-to-black overlay opacity
   const fadeOpacity = useSharedValue(0);
+  const keysRoseFadeOpacity = useSharedValue(0);
 
   useEffect(() => {
     shimmerX.value = withRepeat(
@@ -90,6 +93,22 @@ export default function HomeScreen() {
   const fadeOverlayStyle = useAnimatedStyle(() => ({
     opacity: fadeOpacity.value,
   }));
+
+  const keysRoseFadeStyle = useAnimatedStyle(() => ({
+    opacity: keysRoseFadeOpacity.value,
+    transform: [{ scale: 0.96 + keysRoseFadeOpacity.value * 0.04 }],
+  }));
+
+  const handleHomeScroll = useCallback((scrollY: number, viewportHeight: number) => {
+    if (
+      !hasRevealedKeysRose.current
+      && keysRoseTopRef.current !== null
+      && scrollY + viewportHeight >= keysRoseTopRef.current + 48
+    ) {
+      hasRevealedKeysRose.current = true;
+      keysRoseFadeOpacity.value = withTiming(1, { duration: 700, easing: Easing.out(Easing.cubic) });
+    }
+  }, [keysRoseFadeOpacity]);
 
   const navigateToTracks = useCallback(() => {
     router.push("/(tabs)/tracks" as any);
@@ -153,6 +172,13 @@ export default function HomeScreen() {
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={(event) => {
+          handleHomeScroll(
+            event.nativeEvent.contentOffset.y,
+            event.nativeEvent.layoutMeasurement.height,
+          );
+        }}
       >
         <View style={styles.container}>
           {/* ─── Title Section ─── */}
@@ -276,14 +302,17 @@ export default function HomeScreen() {
             </Text>
           </View>
 
-          <View style={styles.keysRoseContainer}>
+          <Animated.View
+            style={[styles.keysRoseContainer, keysRoseFadeStyle]}
+            onLayout={(event) => { keysRoseTopRef.current = event.nativeEvent.layout.y; }}
+          >
             <Image
               source={{ uri: KEYS_ROSE_URL }}
               style={styles.keysRoseImage}
               resizeMode="cover"
               accessibilityLabel="Piano keys character holding a rose"
             />
-          </View>
+          </Animated.View>
 
         </View>
       </ScrollView>

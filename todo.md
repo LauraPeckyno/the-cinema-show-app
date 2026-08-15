@@ -244,3 +244,5 @@
 - [x] Increase the shared Now Playing playback-control spacing to 40 points
 - [x] Arrange Buy the Album links in two rows: Bandcamp and Spotify above Amazon and Apple Music
 - [x] Add keysrose.jpg below the Home screen Headphones Required box at 90% width
+- [x] Add a smooth fade-in animation to the Home screen keysrose artwork
+- [x] Add a cinematic Track Selection entrance transition from the homepage

@@ -4,6 +4,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withTiming } from "react-native-reanimated";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useAudioEngine } from "@/lib/audio-engine";
@@ -132,6 +133,31 @@ export default function TracksScreen() {
   const { selectTrack, startAlbumPlayback } = useAudioEngine();
   const [musicStopped, setMusicStopped] = useState(false);
   const [musicRestartKey, setMusicRestartKey] = useState(0);
+  const sceneOpacity = useSharedValue(0);
+  const sceneScale = useSharedValue(0.95);
+  const sceneTranslateY = useSharedValue(22);
+  const curtainOpacity = useSharedValue(1);
+
+  const sceneEntranceStyle = useAnimatedStyle(() => ({
+    opacity: sceneOpacity.value,
+    transform: [
+      { translateY: sceneTranslateY.value },
+      { scale: sceneScale.value },
+    ],
+  }));
+
+  const curtainStyle = useAnimatedStyle(() => ({ opacity: curtainOpacity.value }));
+
+  const runSceneEntrance = useCallback(() => {
+    sceneOpacity.value = 0;
+    sceneScale.value = 0.95;
+    sceneTranslateY.value = 22;
+    curtainOpacity.value = 1;
+    curtainOpacity.value = withTiming(0, { duration: 520, easing: Easing.out(Easing.cubic) });
+    sceneOpacity.value = withDelay(100, withTiming(1, { duration: 540, easing: Easing.out(Easing.cubic) }));
+    sceneScale.value = withDelay(100, withTiming(1, { duration: 620, easing: Easing.out(Easing.cubic) }));
+    sceneTranslateY.value = withDelay(100, withTiming(0, { duration: 620, easing: Easing.out(Easing.cubic) }));
+  }, [curtainOpacity, sceneOpacity, sceneScale, sceneTranslateY]);
 
   const handleTrackPress = async (track: Track) => {
     // Stop album background music
@@ -161,7 +187,8 @@ export default function TracksScreen() {
     useCallback(() => {
       setMusicStopped(false);
       setMusicRestartKey((previous) => previous + 1);
-    }, [])
+      runSceneEntrance();
+    }, [runSceneEntrance])
   );
 
   return (
@@ -178,10 +205,11 @@ export default function TracksScreen() {
         colors={["#0A0A14", "#1A1A2E"]}
         style={StyleSheet.absoluteFillObject}
       />
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <Animated.View style={[styles.sceneStage, sceneEntranceStyle]}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
         {/* Start the Show button */}
         <View style={styles.instructionArea}>
           <Pressable
@@ -236,7 +264,9 @@ export default function TracksScreen() {
             ))}
           </View>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </Animated.View>
+      <Animated.View pointerEvents="none" style={[styles.cinemaCurtain, curtainStyle]} />
     </ScreenContainer>
   );
 }
@@ -244,6 +274,14 @@ export default function TracksScreen() {
 const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 100,
+  },
+  sceneStage: {
+    flex: 1,
+  },
+  cinemaCurtain: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#05050D",
+    zIndex: 10,
   },
   instructionArea: {
     alignItems: "center",
