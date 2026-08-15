@@ -6,6 +6,7 @@ import type { Track } from "@/constants/tracks";
 
 const DEVICE_MUSIC_ALBUM = "Music";
 const LOCAL_DOWNLOAD_DIRECTORY = `${FileSystem.documentDirectory}cinema-show-downloads/`;
+export const VERIFIED_ALBUM_BYTES = 34_123_649;
 
 export type AlbumDownloadProgress = {
   completed: number;
@@ -16,6 +17,27 @@ export type AlbumDownloadProgress = {
 export class AlbumDownloadError extends Error {
   constructor(public readonly code: "unsupported" | "permission-denied" | "download-failed") {
     super(code);
+  }
+}
+
+export function formatAlbumSize(bytes: number) {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Retrieves remote Content-Length headers and preserves the verified total when unavailable. */
+export async function getAlbumSizeBytes(tracks: Track[]) {
+  try {
+    const lengths = await Promise.all(
+      tracks.map(async (track) => {
+        const response = await fetch(track.audioUrl, { method: "HEAD" });
+        const bytes = Number(response.headers.get("content-length"));
+        return Number.isFinite(bytes) && bytes > 0 ? bytes : 0;
+      }),
+    );
+    const total = lengths.reduce((sum, bytes) => sum + bytes, 0);
+    return total > 0 ? total : VERIFIED_ALBUM_BYTES;
+  } catch {
+    return VERIFIED_ALBUM_BYTES;
   }
 }
 

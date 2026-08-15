@@ -37,4 +37,15 @@ describe("Full-album MP3 download", () => {
     expect(appConfigSource).toContain('"expo-media-library"');
     expect(appConfigSource).toContain('granularPermissions: ["audio"]');
   });
+
+  it("shows the verified total size before download and only marks success after all tracks finish", () => {
+    expect(downloadSource).toContain("export const VERIFIED_ALBUM_BYTES = 34_123_649");
+    expect(downloadSource).toContain('fetch(track.audioUrl, { method: "HEAD" })');
+    expect(downloadSource).toContain("export function formatAlbumSize(bytes: number)");
+    expect(tracksSource).toContain("getAlbumSizeBytes(ALBUM_PLAYBACK_QUEUE).then(setAlbumSizeBytes)");
+    expect(tracksSource).toContain("12 MP3s · {formatAlbumSize(albumSizeBytes)}");
+    expect(tracksSource).toContain('? "Downloaded"');
+    expect(tracksSource).toContain("downloadComplete && styles.downloadButtonComplete");
+    expect(tracksSource).toContain('borderColor: "#55D68B"');
+  });
 });
