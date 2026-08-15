@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { Text, View, StyleSheet, ScrollView, Pressable, Dimensions, Alert, Platform } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Image } from "expo-image";
@@ -13,9 +13,6 @@ import { BackgroundMusic } from "@/components/background-music";
 import {
   AlbumDownloadError,
   downloadAlbumToMusic,
-  formatAlbumSize,
-  getAlbumSizeBytes,
-  VERIFIED_ALBUM_BYTES,
 } from "@/lib/album-download";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -114,11 +111,6 @@ export default function TracksScreen() {
   const [musicRestartKey, setMusicRestartKey] = useState(0);
   const [downloadProgress, setDownloadProgress] = useState<{ completed: number; total: number; trackTitle: string } | null>(null);
   const [downloadComplete, setDownloadComplete] = useState(false);
-  const [albumSizeBytes, setAlbumSizeBytes] = useState(VERIFIED_ALBUM_BYTES);
-
-  useEffect(() => {
-    getAlbumSizeBytes(ALBUM_PLAYBACK_QUEUE).then(setAlbumSizeBytes);
-  }, []);
 
   const handleTrackPress = async (track: Track) => {
     // Stop album background music
@@ -223,28 +215,23 @@ export default function TracksScreen() {
         </View>
 
         <View style={styles.downloadArea}>
-          <View style={styles.downloadButtonRow}>
-            <Pressable
-              onPress={handleAlbumDownload}
-              disabled={downloadComplete || (downloadProgress !== null && !downloadComplete)}
-              style={({ pressed }) => [
-                styles.downloadButton,
-                downloadComplete && styles.downloadButtonComplete,
-                (pressed || (downloadProgress !== null && !downloadComplete)) && styles.downloadButtonPressed,
-              ]}
-            >
-              <Text style={[styles.downloadButtonText, downloadComplete && styles.downloadButtonTextComplete]}>
-                {downloadComplete
-                  ? "Downloaded"
-                  : downloadProgress
-                    ? `Downloading ${downloadProgress.completed}/${downloadProgress.total}`
-                    : "Download mp3s"}
-              </Text>
-            </Pressable>
-            <View style={styles.downloadSizeBadge}>
-              <Text style={styles.downloadSizeText}>12 MP3s · {formatAlbumSize(albumSizeBytes)}</Text>
-            </View>
-          </View>
+          <Pressable
+            onPress={handleAlbumDownload}
+            disabled={downloadComplete || (downloadProgress !== null && !downloadComplete)}
+            style={({ pressed }) => [
+              styles.downloadButton,
+              downloadComplete && styles.downloadButtonComplete,
+              (pressed || (downloadProgress !== null && !downloadComplete)) && styles.downloadButtonPressed,
+            ]}
+          >
+            <Text style={[styles.downloadButtonText, downloadComplete && styles.downloadButtonTextComplete]}>
+              {downloadComplete
+                ? "Downloaded"
+                : downloadProgress
+                  ? `Downloading ${downloadProgress.completed}/${downloadProgress.total}`
+                  : "Add to my Library"}
+            </Text>
+          </Pressable>
           {downloadProgress && !downloadComplete && (
             <Text style={[styles.downloadStatus, { color: colors.muted }]} numberOfLines={1}>
               {downloadProgress.trackTitle}
@@ -289,11 +276,6 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     alignItems: "center",
   },
-  downloadButtonRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
   downloadButtonComplete: {
     borderColor: "#55D68B",
     backgroundColor: "rgba(85, 214, 139, 0.16)",
@@ -311,20 +293,6 @@ const styles = StyleSheet.create({
   },
   downloadButtonTextComplete: {
     color: "#8AF0B6",
-  },
-  downloadSizeBadge: {
-    borderWidth: 1,
-    borderColor: "rgba(246, 232, 174, 0.28)",
-    borderRadius: 999,
-    backgroundColor: "rgba(9, 9, 19, 0.52)",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  downloadSizeText: {
-    color: "#F6E8AE",
-    fontSize: 10,
-    fontWeight: "600",
-    letterSpacing: 0.45,
   },
   downloadStatus: {
     marginTop: 9,

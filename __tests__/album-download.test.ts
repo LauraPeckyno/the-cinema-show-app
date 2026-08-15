@@ -31,21 +31,19 @@ describe("Full-album MP3 download", () => {
     expect(downloadSource).toContain("onProgress?.({ completed: index + 1, total: tracks.length, trackTitle: track.title })");
   });
 
-  it("places a Download mp3s control beneath the filmstrips and configures audio permission support", () => {
-    expect(tracksSource).toContain('"Download mp3s"');
+  it("places an Add to my Library control beneath the filmstrips and configures audio permission support", () => {
+    expect(tracksSource).toContain('"Add to my Library"');
     expect(tracksSource).toContain("styles.downloadArea");
     expect(appConfigSource).toContain('"expo-media-library"');
     expect(appConfigSource).toContain('granularPermissions: ["audio"]');
   });
 
-  it("shows the verified total size before download and only marks success after all tracks finish", () => {
-    expect(downloadSource).toContain("export const VERIFIED_ALBUM_BYTES = 34_123_649");
-    expect(downloadSource).toContain('fetch(track.audioUrl, { method: "HEAD" })');
-    expect(downloadSource).toContain("export function formatAlbumSize(bytes: number)");
-    expect(tracksSource).toContain("getAlbumSizeBytes(ALBUM_PLAYBACK_QUEUE).then(setAlbumSizeBytes)");
-    expect(tracksSource).toContain("12 MP3s · {formatAlbumSize(albumSizeBytes)}");
+  it("keeps the completed state while removing the album count and file-size badge", () => {
     expect(tracksSource).toContain('? "Downloaded"');
     expect(tracksSource).toContain("downloadComplete && styles.downloadButtonComplete");
     expect(tracksSource).toContain('borderColor: "#55D68B"');
+    expect(tracksSource).not.toContain("downloadSizeBadge");
+    expect(tracksSource).not.toContain("formatAlbumSize");
+    expect(downloadSource).not.toContain("getAlbumSizeBytes");
   });
 });
