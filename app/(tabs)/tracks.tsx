@@ -33,6 +33,11 @@ const PURCHASE_OUTLETS = [
     icon: "bandcamp" as const,
     url: "https://streamingkeys.bandcamp.com/",
   },
+  {
+    label: "Spotify",
+    icon: "spotify" as const,
+    url: "https://open.spotify.com/artist/2EdIHh3lgB1v2DI6h48P5g",
+  },
 ];
 
 /** A single film frame cell with artwork and always-visible title */

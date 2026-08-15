@@ -20,6 +20,8 @@ describe("Track Selection purchase links", () => {
     expect(tracksSource).toContain("https://www.amazon.com/music/player/artists/B001VIHWT2/robert-peckyno");
     expect(tracksSource).toContain("https://music.apple.com/us/artist/robert-peckyno/418366396");
     expect(tracksSource).toContain("https://streamingkeys.bandcamp.com/");
+    expect(tracksSource).toContain("https://open.spotify.com/artist/2EdIHh3lgB1v2DI6h48P5g");
+    expect(tracksSource).toContain('icon: "spotify" as const');
     expect(tracksSource).toContain("FontAwesome");
     expect(tracksSource).toContain("Linking.openURL(outlet.url)");
   });
