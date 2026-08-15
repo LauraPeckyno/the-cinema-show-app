@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Text, View, StyleSheet, ScrollView, Pressable, Dimensions, Alert, Platform } from "react-native";
+import { Text, View, StyleSheet, ScrollView, Pressable, Dimensions } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -10,10 +10,6 @@ import { ALBUM_PLAYBACK_QUEUE, DARK_TRACKS, LIGHT_TRACKS, Track } from "@/consta
 import { TRACK_ARTWORK } from "@/constants/track-artwork";
 import { preDownload, preDownloadAll } from "@/lib/audio-cache";
 import { BackgroundMusic } from "@/components/background-music";
-import {
-  AlbumDownloadError,
-  downloadAlbumToMusic,
-} from "@/lib/album-download";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SPROCKET_SIZE = 8;
@@ -109,8 +105,6 @@ export default function TracksScreen() {
   const { selectTrack, startAlbumPlayback } = useAudioEngine();
   const [musicStopped, setMusicStopped] = useState(false);
   const [musicRestartKey, setMusicRestartKey] = useState(0);
-  const [downloadProgress, setDownloadProgress] = useState<{ completed: number; total: number; trackTitle: string } | null>(null);
-  const [downloadComplete, setDownloadComplete] = useState(false);
 
   const handleTrackPress = async (track: Track) => {
     // Stop album background music
@@ -133,29 +127,6 @@ export default function TracksScreen() {
     // Continue downloading remaining tracks in background
     const remainingUrls = ALBUM_PLAYBACK_QUEUE.slice(1).map((t) => t.audioUrl);
     preDownloadAll(remainingUrls).catch((e) => console.warn("Background pre-download error:", e));
-  };
-
-  const handleAlbumDownload = async () => {
-    if (Platform.OS === "web") {
-      Alert.alert("Download on a phone", "Full-album downloads are available in the installed mobile app.");
-      return;
-    }
-
-    setDownloadComplete(false);
-    setDownloadProgress({ completed: 0, total: ALBUM_PLAYBACK_QUEUE.length, trackTitle: "Requesting storage access" });
-
-    try {
-      await downloadAlbumToMusic(ALBUM_PLAYBACK_QUEUE, setDownloadProgress);
-      setDownloadComplete(true);
-      Alert.alert("Album saved", "All 12 MP3s were added to your device Music folder.");
-    } catch (error) {
-      setDownloadProgress(null);
-      if (error instanceof AlbumDownloadError && error.code === "permission-denied") {
-        Alert.alert("Storage access needed", "Allow music-storage access to save the album to your phone.");
-        return;
-      }
-      Alert.alert("Download incomplete", "We could not save every track. Please check your connection and available device storage.");
-    }
   };
 
   // Reset music state when returning to this screen (e.g. back from Now Playing)
@@ -213,34 +184,6 @@ export default function TracksScreen() {
             onTrackPress={handleTrackPress}
           />
         </View>
-
-        <View style={styles.downloadArea}>
-          <Pressable
-            onPress={handleAlbumDownload}
-            disabled={downloadComplete || (downloadProgress !== null && !downloadComplete)}
-            style={({ pressed }) => [
-              styles.downloadButton,
-              downloadComplete && styles.downloadButtonComplete,
-              (pressed || (downloadProgress !== null && !downloadComplete)) && styles.downloadButtonPressed,
-            ]}
-          >
-            <Text style={[styles.downloadButtonText, downloadComplete && styles.downloadButtonTextComplete]}>
-              {downloadComplete
-                ? "Downloaded"
-                : downloadProgress
-                  ? `Downloading ${downloadProgress.completed}/${downloadProgress.total}`
-                  : "Add to my Library"}
-            </Text>
-          </Pressable>
-          {downloadProgress && !downloadComplete && (
-            <Text style={[styles.downloadStatus, { color: colors.muted }]} numberOfLines={1}>
-              {downloadProgress.trackTitle}
-            </Text>
-          )}
-          {downloadComplete && (
-            <Text style={[styles.downloadStatus, { color: "#C9A84C" }]}>Saved to your Music folder</Text>
-          )}
-        </View>
       </ScrollView>
     </ScreenContainer>
   );
@@ -260,46 +203,6 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     textAlign: "center",
     marginTop: 10,
-  },
-  downloadArea: {
-    alignItems: "center",
-    paddingTop: 28,
-    paddingBottom: 20,
-  },
-  downloadButton: {
-    minWidth: 190,
-    borderWidth: 1.5,
-    borderColor: "#C9A84C",
-    borderRadius: 999,
-    backgroundColor: "rgba(201, 168, 76, 0.12)",
-    paddingHorizontal: 26,
-    paddingVertical: 13,
-    alignItems: "center",
-  },
-  downloadButtonComplete: {
-    borderColor: "#55D68B",
-    backgroundColor: "rgba(85, 214, 139, 0.16)",
-  },
-  downloadButtonPressed: {
-    opacity: 0.65,
-    transform: [{ scale: 0.98 }],
-  },
-  downloadButtonText: {
-    color: "#F6E8AE",
-    fontWeight: "700",
-    letterSpacing: 1.1,
-    fontSize: 13,
-    textTransform: "uppercase",
-  },
-  downloadButtonTextComplete: {
-    color: "#8AF0B6",
-  },
-  downloadStatus: {
-    marginTop: 9,
-    maxWidth: 250,
-    fontSize: 11,
-    textAlign: "center",
-    letterSpacing: 0.35,
   },
   startShowButton: {
     backgroundColor: "#C9A84C",

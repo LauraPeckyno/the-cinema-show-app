@@ -236,6 +236,3 @@
 - [x] Stream Home background music from Cloudflare tpp.mp3 and Tracks background music from Cloudflare sh3.mp3
 - [x] Verify both Cloudflare background audio sources and remove remaining SoundCloud-specific code
 - [x] Raise Corpse Parade’s robotic D-minor autotune to music-level loudness and reduce its dry return to 10%
-- [x] Add a Track Selection Download mp3s button that requests storage access and saves all 12 Cloudflare tracks to user-accessible music storage
-- [x] Show total full-album MP3 size before downloading and turn the control green with Downloaded text after all files save
-- [x] Rename the download control to Add to my Library and remove its album-count and file-size badge
