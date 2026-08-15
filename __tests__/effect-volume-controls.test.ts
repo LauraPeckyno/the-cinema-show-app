@@ -49,12 +49,17 @@ describe("Now Playing wet slider and artwork composition", () => {
 
   it("uses full white playback borders and active-effects color-shifting borders instead of moving pixels", () => {
     expect(nowPlayingSource).toContain("function AnimatedButtonBorder");
-    expect(nowPlayingSource).toContain("withTiming(\"#FFFFFF\", { duration: 1400");
+    expect(nowPlayingSource).toContain("withTiming(\"#FFFFFF\", { duration: 1000");
     expect(nowPlayingSource).toContain("withTiming(\"#FF7CD8\"");
     expect(nowPlayingSource).toContain("withTiming(\"#7BE7FF\"");
     expect(nowPlayingSource).toContain("withTiming(\"#FFF1A6\"");
-    expect(nowPlayingSource).toContain("const barDuration = Math.max(240, (60000 / Math.max(1, bpm)) * 4)");
-    expect(nowPlayingSource).toContain("withTiming(0.62");
+    expect(nowPlayingSource).toContain("const millisecondsIntoBar = (playbackTime * 1000) % barDuration");
+    expect(nowPlayingSource).toContain("const millisecondsUntilBar = Math.max(1, barDuration - millisecondsIntoBar)");
+    expect(nowPlayingSource).toContain("const barSyncedColorCycle = withSequence");
+    expect(nowPlayingSource).toContain("withTiming(effectColor, { duration: millisecondsUntilBar");
+    expect(nowPlayingSource).toContain("withTiming(1.6");
+    expect(nowPlayingSource).toContain("barDuration * 0.42");
+    expect(nowPlayingSource).toContain("barDuration * 0.58");
     expect(nowPlayingSource).toContain("shadowOpacity: borderPulse.value");
     expect(nowPlayingSource).toContain("isEffectsActive={false}");
     expect(nowPlayingSource).toContain("isEffectsActive={isMicActive && isPlaying}");
@@ -62,5 +67,6 @@ describe("Now Playing wet slider and artwork composition", () => {
     expect(nowPlayingSource).not.toContain("BPMBorderChaser");
     expect(nowPlayingSource).not.toContain("borderChaserPixel");
     expect(nowPlayingSource).toContain("borderWidth: 3");
+    expect(nowPlayingSource).toContain("playbackTime={playbackTime}");
   });
 });

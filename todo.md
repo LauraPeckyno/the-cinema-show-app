@@ -232,3 +232,4 @@
 - [x] Move Theme for New Beginnings to the end of the Start the Show queue only
 - [x] Replace moving button-border pixels with slow white playback borders and continuous color-shifting active-effects borders
 - [x] Add a subtle bar-synced pulse to the white playback border and increase control borders to 3px
+- [x] Strengthen and lengthen playback border pulses, bar-sync effect color cycling, and restrict both animations to control borders

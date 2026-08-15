@@ -40,12 +40,14 @@ function formatTime(seconds: number): string {
 
 function AnimatedButtonBorder({
   bpm,
+  playbackTime,
   isPlaying,
   isEffectsActive,
   effectColor,
   borderRadius,
 }: {
   bpm: number;
+  playbackTime: number;
   isPlaying: boolean;
   isEffectsActive: boolean;
   effectColor: string;
@@ -57,25 +59,27 @@ function AnimatedButtonBorder({
   useEffect(() => {
     cancelAnimation(borderColor);
     cancelAnimation(borderPulse);
+    const barDuration = Math.max(240, (60000 / Math.max(1, bpm)) * 4);
+    const millisecondsIntoBar = (playbackTime * 1000) % barDuration;
+    const millisecondsUntilBar = Math.max(1, barDuration - millisecondsIntoBar);
     if (isEffectsActive) {
       borderPulse.value = 1;
-      borderColor.value = withRepeat(
-        withSequence(
-          withTiming(effectColor, { duration: 750, easing: Easing.inOut(Easing.ease) }),
-          withTiming("#FF7CD8", { duration: 750, easing: Easing.inOut(Easing.ease) }),
-          withTiming("#7BE7FF", { duration: 750, easing: Easing.inOut(Easing.ease) }),
-          withTiming("#FFF1A6", { duration: 750, easing: Easing.inOut(Easing.ease) }),
-        ),
-        -1,
-        false,
+      const barSyncedColorCycle = withSequence(
+        withTiming(effectColor, { duration: barDuration * 0.25, easing: Easing.inOut(Easing.ease) }),
+        withTiming("#FF7CD8", { duration: barDuration * 0.25, easing: Easing.inOut(Easing.ease) }),
+        withTiming("#7BE7FF", { duration: barDuration * 0.25, easing: Easing.inOut(Easing.ease) }),
+        withTiming("#FFF1A6", { duration: barDuration * 0.25, easing: Easing.inOut(Easing.ease) }),
+      );
+      borderColor.value = withSequence(
+        withTiming(effectColor, { duration: millisecondsUntilBar, easing: Easing.linear }),
+        withRepeat(barSyncedColorCycle, -1, false),
       );
     } else if (isPlaying) {
-      borderColor.value = withTiming("#FFFFFF", { duration: 1400, easing: Easing.inOut(Easing.ease) });
-      const barDuration = Math.max(240, (60000 / Math.max(1, bpm)) * 4);
+      borderColor.value = withTiming("#FFFFFF", { duration: 1000, easing: Easing.inOut(Easing.ease) });
       borderPulse.value = withRepeat(
         withSequence(
-          withTiming(0.62, { duration: Math.max(80, barDuration * 0.12), easing: Easing.out(Easing.ease) }),
-          withTiming(1, { duration: Math.max(160, barDuration * 0.88), easing: Easing.inOut(Easing.ease) }),
+          withTiming(1.6, { duration: Math.max(250, barDuration * 0.42), easing: Easing.out(Easing.ease) }),
+          withTiming(0.96, { duration: Math.max(300, barDuration * 0.58), easing: Easing.inOut(Easing.ease) }),
         ),
         -1,
         false,
@@ -408,6 +412,7 @@ export default function NowPlayingScreen() {
             )}
             <AnimatedButtonBorder
               bpm={currentTrack.bpm}
+              playbackTime={playbackTime}
               isPlaying={isPlaying}
               isEffectsActive={false}
               effectColor={effectColor}
@@ -470,6 +475,7 @@ export default function NowPlayingScreen() {
               </Text>
               <AnimatedButtonBorder
                 bpm={currentTrack.bpm}
+                playbackTime={playbackTime}
                 isPlaying={isPlaying}
                 isEffectsActive={isMicActive && isPlaying}
                 effectColor={effectColor}
