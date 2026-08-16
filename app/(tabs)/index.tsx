@@ -44,6 +44,7 @@ export default function HomeScreen() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const keysRoseTopRef = useRef<number | null>(null);
   const hasRevealedKeysRose = useRef(false);
+  const stopBackgroundMusicRef = useRef<(() => void) | null>(null);
 
   const [fontsLoaded] = useFonts({
     "PlayfairDisplay-Bold": "https://fonts.gstatic.com/s/playfairdisplay/v37/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvXDXbtY.ttf",
@@ -110,6 +111,15 @@ export default function HomeScreen() {
     }
   }, [keysRoseFadeOpacity]);
 
+  const stopBackgroundMusic = useCallback(() => {
+    stopBackgroundMusicRef.current?.();
+    setMusicStopped(true);
+  }, []);
+
+  const handleBackgroundStopReady = useCallback((stop: (() => void) | null) => {
+    stopBackgroundMusicRef.current = stop;
+  }, []);
+
   const navigateToTracks = useCallback(() => {
     router.push("/(tabs)/tracks" as any);
   }, [router]);
@@ -137,8 +147,8 @@ export default function HomeScreen() {
       }, 100);
     }, 1400);
 
-    // Stop background music
-    setMusicStopped(true);
+    // Pause the direct player before the visual transition begins.
+    stopBackgroundMusic();
 
     // Fade to black then navigate
     fadeOpacity.value = withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) }, (finished) => {
@@ -146,7 +156,7 @@ export default function HomeScreen() {
         runOnJS(navigateToTracks)();
       }
     });
-  }, [isTransitioning, projectorPlayer, fadeOpacity, navigateToTracks, clearProjectorFade]);
+  }, [isTransitioning, projectorPlayer, fadeOpacity, navigateToTracks, clearProjectorFade, stopBackgroundMusic]);
 
   // Reset transition state when screen regains focus (e.g. tapping Home tab)
   useFocusEffect(
@@ -155,7 +165,10 @@ export default function HomeScreen() {
       setMusicStopped(false);
       setMusicRestartKey((previous) => previous + 1);
       fadeOpacity.value = 0;
-    }, [])
+      return () => {
+        stopBackgroundMusic();
+      };
+    }, [stopBackgroundMusic])
   );
 
   return (
@@ -167,6 +180,7 @@ export default function HomeScreen() {
         muted={isMuted}
         stopped={musicStopped}
         restartKey={musicRestartKey}
+        onStopReady={handleBackgroundStopReady}
       />
 
       <ScrollView
@@ -281,7 +295,10 @@ export default function HomeScreen() {
               streamingkeys (aka Robert Peckyno) is a Pittsburgh-based composer, multimedia artist, and synth pioneer sitting somewhere between classical discipline and electronic rebellion…   Recognizable by his signature delayed-piano style, streamingkeys creates cinematic soundscapes that blur the lines between sweeping neoclassical, modern prog, and immersive ambient design.
             </Text>
             <Pressable
-              onPress={() => Linking.openURL('https://streamingkeys.com')}
+              onPress={() => {
+                stopBackgroundMusic();
+                void Linking.openURL('https://streamingkeys.com');
+              }}
               style={({ pressed }) => [{ marginTop: 12, opacity: pressed ? 0.6 : 1 }]}
             >
               <Text style={{ color: colors.primary, fontSize: 15, textAlign: 'center', textDecorationLine: 'underline' }}>

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Text, View, StyleSheet, ScrollView, Pressable, Dimensions, Linking } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Image } from "expo-image";
@@ -133,6 +133,7 @@ export default function TracksScreen() {
   const { selectTrack, startAlbumPlayback } = useAudioEngine();
   const [musicStopped, setMusicStopped] = useState(false);
   const [musicRestartKey, setMusicRestartKey] = useState(0);
+  const stopBackgroundMusicRef = useRef<(() => void) | null>(null);
   const sceneOpacity = useSharedValue(0);
   const sceneScale = useSharedValue(0.95);
   const sceneTranslateY = useSharedValue(22);
@@ -159,9 +160,18 @@ export default function TracksScreen() {
     sceneTranslateY.value = withDelay(100, withTiming(0, { duration: 620, easing: Easing.out(Easing.cubic) }));
   }, [curtainOpacity, sceneOpacity, sceneScale, sceneTranslateY]);
 
-  const handleTrackPress = async (track: Track) => {
-    // Stop album background music
+  const stopBackgroundMusic = useCallback(() => {
+    stopBackgroundMusicRef.current?.();
     setMusicStopped(true);
+  }, []);
+
+  const handleBackgroundStopReady = useCallback((stop: (() => void) | null) => {
+    stopBackgroundMusicRef.current = stop;
+  }, []);
+
+  const handleTrackPress = async (track: Track) => {
+    // Pause the direct player before pre-download and route change begin.
+    stopBackgroundMusic();
     // Pre-download the selected track before navigating
     await preDownload(track.audioUrl);
     // Select track and navigate
@@ -170,8 +180,8 @@ export default function TracksScreen() {
   };
 
   const handleStartTheShow = async () => {
-    // Stop album background music and start continuous album playback
-    setMusicStopped(true);
+    // Pause the direct player before pre-download and route change begin.
+    stopBackgroundMusic();
     // Light Side begins the album (Recessional); Dark Side follows after it.
     const firstTrack = ALBUM_PLAYBACK_QUEUE[0];
     await preDownload(firstTrack.audioUrl);
@@ -188,7 +198,10 @@ export default function TracksScreen() {
       setMusicStopped(false);
       setMusicRestartKey((previous) => previous + 1);
       runSceneEntrance();
-    }, [runSceneEntrance])
+      return () => {
+        stopBackgroundMusic();
+      };
+    }, [runSceneEntrance, stopBackgroundMusic])
   );
 
   return (
@@ -199,6 +212,7 @@ export default function TracksScreen() {
         volume={ALBUM_MUSIC_VOLUME}
         stopped={musicStopped}
         restartKey={musicRestartKey}
+        onStopReady={handleBackgroundStopReady}
       />
 
       <LinearGradient
@@ -252,6 +266,7 @@ export default function TracksScreen() {
                     accessibilityRole="link"
                     accessibilityLabel={`Buy The Cinema Show on ${outlet.label}`}
                     onPress={() => {
+                      stopBackgroundMusic();
                       void Linking.openURL(outlet.url);
                     }}
                     style={({ pressed }) => [styles.outletLink, pressed && styles.outletLinkPressed]}

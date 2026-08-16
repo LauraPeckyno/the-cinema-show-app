@@ -250,3 +250,5 @@
 - [x] Raise Sleep Deprivation’s default wet-effect return by 15%
 - [x] Raise Expiation’s default wet-effect return by 15%
 - [x] Restore visible playback and active-effects border animations on Now Playing controls
+- [x] Raise Corpse Parade, Sleep Deprivation, and Expiation wet returns slightly above music level
+- [x] Reconfirm and enforce background-music stop before every page transition

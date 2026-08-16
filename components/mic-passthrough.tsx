@@ -21,7 +21,8 @@ function getDefaultDryReturnGain(trackId: number): number {
 }
 
 function getDefaultWetReturnGain(trackId: number, effectVolumeMultiplier: number): number {
-  const trackWetBoost = trackId === 1 ? 1.20 : (trackId === 2 || trackId === 6) ? 1.15 : 1.0;
+  // These featured effect returns sit just above the music in the final mix: 0.80 × 1.40 = 1.12.
+  const trackWetBoost = (trackId === 1 || trackId === 2 || trackId === 6) ? 1.40 : 1.0;
   return 0.80 * trackWetBoost * effectVolumeMultiplier;
 }
 
@@ -886,7 +887,7 @@ function buildDryWetChainJS(): string {
         return (trackId === 1 || trackId === 6 || trackId === 12) ? 0 : trackId === 4 ? 0.20 : 0.25;
       }
       function getDefaultWetReturnGain(trackId, effectVolumeMultiplier) {
-        var trackWetBoost = trackId === 1 ? 1.20 : (trackId === 2 || trackId === 6) ? 1.15 : 1.0;
+        var trackWetBoost = (trackId === 1 || trackId === 2 || trackId === 6) ? 1.40 : 1.0;
         return 0.80 * trackWetBoost * effectVolumeMultiplier;
       }
       // Higher fixed mix: dry return +5 points and effected return +10 points.

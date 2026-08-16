@@ -20,10 +20,10 @@ function branch(startCase: number, endCase: number | "default") {
 }
 
 describe("Microphone passthrough fixed mix", () => {
-  it("applies fully wet routing and the requested default wet-return boosts to the three tracks", () => {
+  it("applies fully wet routing and featured wet returns slightly above the music level", () => {
     expect(micPassthroughSource).toContain("function getDefaultDryReturnGain(trackId: number): number");
     expect(micPassthroughSource).toContain("function getDefaultWetReturnGain(trackId: number, effectVolumeMultiplier: number): number");
-    expect(micPassthroughSource).toContain("trackId === 1 ? 1.20 : (trackId === 2 || trackId === 6) ? 1.15 : 1.0");
+    expect(micPassthroughSource).toContain("(trackId === 1 || trackId === 2 || trackId === 6) ? 1.40 : 1.0");
     expect(micPassthroughSource).toContain("return 0.80 * trackWetBoost * effectVolumeMultiplier");
     expect(micPassthroughSource).toContain("(musicVolume / 100) * 0.80");
     expect(micPassthroughSource).toContain("chain.wetGain.gain.setValueAtTime(getDefaultWetReturnGain(trackId, effectVolumeMultiplier), t)");

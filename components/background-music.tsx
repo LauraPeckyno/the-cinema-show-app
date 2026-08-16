@@ -7,6 +7,7 @@ interface BackgroundMusicProps {
   muted?: boolean;
   stopped: boolean;
   restartKey: number;
+  onStopReady?: (stop: (() => void) | null) => void;
 }
 
 /**
@@ -20,6 +21,7 @@ export function BackgroundMusic({
   muted = false,
   stopped,
   restartKey,
+  onStopReady,
 }: BackgroundMusicProps) {
   const player = useAudioPlayer(source);
 
@@ -35,8 +37,21 @@ export function BackgroundMusic({
   }, [muted, player, volume]);
 
   useEffect(() => {
+    const stopImmediately = () => {
+      player.pause();
+      player.seekTo(0);
+    };
+    onStopReady?.(stopImmediately);
+    return () => {
+      stopImmediately();
+      onStopReady?.(null);
+    };
+  }, [onStopReady, player]);
+
+  useEffect(() => {
     if (stopped) {
       player.pause();
+      player.seekTo(0);
       return;
     }
 

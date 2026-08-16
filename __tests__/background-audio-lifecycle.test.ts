@@ -47,4 +47,16 @@ describe("Screen background-music restart lifecycle", () => {
     expect(backgroundMusicSource).toContain("player.play()");
     expect(`${homeSource}${tracksSource}${backgroundMusicSource}`.toLowerCase()).not.toContain("soundcloud");
   });
+
+  it("stops the direct background player before internal and external navigation begins", () => {
+    expect(backgroundMusicSource).toContain("onStopReady?: (stop: (() => void) | null) => void");
+    expect(backgroundMusicSource).toContain("const stopImmediately = () => {");
+    expect(backgroundMusicSource).toContain("player.pause()");
+    expect(backgroundMusicSource).toContain("player.seekTo(0)");
+    expect(homeSource).toContain("const stopBackgroundMusic = useCallback");
+    expect(homeSource).toContain("stopBackgroundMusic();\n\n    // Fade to black then navigate");
+    expect(tracksSource).toContain("stopBackgroundMusic();\n    // Pre-download the selected track before navigating");
+    expect(tracksSource).toContain("stopBackgroundMusic();\n    // Light Side begins the album");
+    expect(tracksSource).toContain("onStopReady={handleBackgroundStopReady}");
+  });
 });
