@@ -71,6 +71,10 @@ describe("Now Playing wet slider and artwork composition", () => {
     expect(nowPlayingSource).toContain("isEffectsActive={false}");
     expect(nowPlayingSource).toContain("isEffectsActive={isMicActive && isPlaying}");
     expect(nowPlayingSource).toContain("animatedButtonBorder");
+    expect(nowPlayingSource).toContain("styles.playButtonFrame");
+    expect(nowPlayingSource).toContain("styles.micToggleFrame");
+    expect(nowPlayingSource).toContain("opacity: isPlaying || isEffectsActive ? 1 : 0");
+    expect(nowPlayingSource).toContain("zIndex: 20");
     expect(nowPlayingSource).not.toContain("BPMBorderChaser");
     expect(nowPlayingSource).not.toContain("borderChaserPixel");
     expect(nowPlayingSource).toContain("borderWidth: 3");

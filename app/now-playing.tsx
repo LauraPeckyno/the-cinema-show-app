@@ -93,7 +93,7 @@ function AnimatedButtonBorder({
   const animatedBorderStyle = useAnimatedStyle(() => ({
     borderColor: borderColor.value,
     shadowColor: borderColor.value,
-    opacity: isPlaying ? 1 : 0,
+    opacity: isPlaying || isEffectsActive ? 1 : 0,
     shadowOpacity: borderPulse.value,
   }));
 
@@ -393,23 +393,26 @@ export default function NowPlayingScreen() {
         {/* Control Buttons: Play only */}
         <View style={styles.controlsRow}>
           {/* Play/Pause */}
-          <Pressable
-            onPress={togglePlayback}
-            style={({ pressed }) => [
-              styles.playButton,
-              { backgroundColor: effectColor },
-              pressed && { transform: [{ scale: 0.95 }], opacity: 0.9 },
-            ]}
-          >
-            {isLoading ? (
-              <Text style={styles.loadingText}>...</Text>
-            ) : (
-              <IconSymbol
-                name={isPlaying ? "pause.fill" : "play.fill"}
-                size={36}
-                color="#0A0A14"
-              />
-            )}
+          <View style={styles.playButtonFrame}>
+            <Pressable
+              onPress={togglePlayback}
+              style={({ pressed }) => [
+                styles.playButton,
+                { backgroundColor: effectColor },
+                pressed && { transform: [{ scale: 0.95 }], opacity: 0.9 },
+              ]}
+            >
+              {isLoading ? (
+                <Text style={styles.loadingText}>...</Text>
+              ) : (
+                <IconSymbol
+                  name={isPlaying ? "pause.fill" : "play.fill"}
+                  size={36}
+                  color="#0A0A14"
+                />
+              )}
+            </Pressable>
+            {/* Sibling overlay prevents the animated border from being buried by the button surface. */}
             <AnimatedButtonBorder
               bpm={currentTrack.bpm}
               playbackTime={playbackTime}
@@ -418,7 +421,7 @@ export default function NowPlayingScreen() {
               effectColor={effectColor}
               borderRadius={36}
             />
-          </Pressable>
+          </View>
         </View>
 
         {/* Global effected-mic return slider: 0.5× at left, 1.0× center, 1.5× at right. */}
@@ -454,25 +457,28 @@ export default function NowPlayingScreen() {
         {/* Animated Mic & Effects Toggle */}
         <View style={styles.micToggleArea}>
           <Animated.View style={animatedMicStyle}>
-            <Pressable
-              onPress={() => { setMicError(null); toggleMic(); }}
-              style={({ pressed }) => [
-                styles.micToggleButton,
-                {
-                  backgroundColor: isMicActive ? effectColor + "25" : colors.surface,
-                  borderColor: isMicActive ? effectColor : colors.border,
-                },
-                pressed && { opacity: 0.8 },
-              ]}
-            >
-              <IconSymbol
-                name={isMicActive ? "mic.fill" : "mic.slash.fill"}
-                size={32}
-                color={isMicActive ? effectColor : colors.muted}
-              />
-              <Text style={[styles.micToggleLabel, { color: isMicActive ? effectColor : colors.muted, textAlign: 'center' }]}> 
-                {isMicActive ? "Tap to Deactivate" : "Listen Normally or\nTap to Activate"}
-              </Text>
+            <View style={styles.micToggleFrame}>
+              <Pressable
+                onPress={() => { setMicError(null); toggleMic(); }}
+                style={({ pressed }) => [
+                  styles.micToggleButton,
+                  {
+                    backgroundColor: isMicActive ? effectColor + "25" : colors.surface,
+                    borderColor: isMicActive ? effectColor : colors.border,
+                  },
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                <IconSymbol
+                  name={isMicActive ? "mic.fill" : "mic.slash.fill"}
+                  size={32}
+                  color={isMicActive ? effectColor : colors.muted}
+                />
+                <Text style={[styles.micToggleLabel, { color: isMicActive ? effectColor : colors.muted, textAlign: 'center' }]}> 
+                  {isMicActive ? "Tap to Deactivate" : "Listen Normally or\nTap to Activate"}
+                </Text>
+              </Pressable>
+              {/* The animated outline lives above—not inside—the clipping button surface. */}
               <AnimatedButtonBorder
                 bpm={currentTrack.bpm}
                 playbackTime={playbackTime}
@@ -481,7 +487,7 @@ export default function NowPlayingScreen() {
                 effectColor={effectColor}
                 borderRadius={32}
               />
-            </Pressable>
+            </View>
           </Animated.View>
         </View>
       </ScrollView>
@@ -683,6 +689,12 @@ const styles = StyleSheet.create({
     position: "relative",
     overflow: "hidden",
   },
+  playButtonFrame: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    position: "relative",
+  },
   loadingText: {
     fontSize: 24,
     fontWeight: "700",
@@ -706,6 +718,10 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     position: "relative",
   },
+  micToggleFrame: {
+    position: "relative",
+    borderRadius: 32,
+  },
   micToggleButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -723,7 +739,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.85,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 0 },
-    elevation: 10,
+    zIndex: 20,
+    elevation: 12,
   },
   micToggleLabel: {
     fontSize: 15,

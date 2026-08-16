@@ -249,3 +249,4 @@
 - [x] Raise Corpse Parade’s default wet-effect return by 20%
 - [x] Raise Sleep Deprivation’s default wet-effect return by 15%
 - [x] Raise Expiation’s default wet-effect return by 15%
+- [x] Restore visible playback and active-effects border animations on Now Playing controls
