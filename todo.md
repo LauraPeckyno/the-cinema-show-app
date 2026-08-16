@@ -246,3 +246,6 @@
 - [x] Add keysrose.jpg below the Home screen Headphones Required box at 90% width
 - [x] Add a smooth fade-in animation to the Home screen keysrose artwork
 - [x] Add a cinematic Track Selection entrance transition from the homepage
+- [x] Raise Corpse Parade’s default wet-effect return by 20%
+- [x] Raise Sleep Deprivation’s default wet-effect return by 15%
+- [x] Raise Expiation’s default wet-effect return by 15%

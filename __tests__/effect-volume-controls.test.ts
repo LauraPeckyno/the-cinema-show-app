@@ -24,8 +24,8 @@ describe("Global wet-effect volume control", () => {
 
   it("applies the multiplier to wet gain in Web Audio and the native WebView bridge", () => {
     expect(micPassthroughSource).toContain("effectVolumeMultiplier?: number");
-    expect(micPassthroughSource).toContain("wetGain.gain.value = 0.80 * effectVolumeMultiplier");
-    expect(micPassthroughSource).toContain("chain.wetGain.gain.setValueAtTime(0.80 * effectVolumeMultiplier, t)");
+    expect(micPassthroughSource).toContain("wetGain.gain.value = getDefaultWetReturnGain(trackId, effectVolumeMultiplier)");
+    expect(micPassthroughSource).toContain("chain.wetGain.gain.setValueAtTime(getDefaultWetReturnGain(trackId, effectVolumeMultiplier), t)");
     expect(micPassthroughSource).toContain("startPassthrough(${trackId}, ${bpm}, ${intensity}, ${vol}, ${mix}, ${wetEffectVolume})");
   });
 });

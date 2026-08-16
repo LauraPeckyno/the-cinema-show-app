@@ -20,11 +20,14 @@ function branch(startCase: number, endCase: number | "default") {
 }
 
 describe("Microphone passthrough fixed mix", () => {
-  it("retains the 80% wet and 0.80x master mic mix with Corpse Parade fully wet and Krampus at 20% dry", () => {
-    expect(micPassthroughSource).toContain("(trackId === 1 || trackId === 6 || trackId === 12) ? 0 : trackId === 4 ? 0.20 : 0.25");
-    expect(micPassthroughSource).toContain("wetGain.gain.value = 0.80");
+  it("applies fully wet routing and the requested default wet-return boosts to the three tracks", () => {
+    expect(micPassthroughSource).toContain("function getDefaultDryReturnGain(trackId: number): number");
+    expect(micPassthroughSource).toContain("function getDefaultWetReturnGain(trackId: number, effectVolumeMultiplier: number): number");
+    expect(micPassthroughSource).toContain("trackId === 1 ? 1.20 : (trackId === 2 || trackId === 6) ? 1.15 : 1.0");
+    expect(micPassthroughSource).toContain("return 0.80 * trackWetBoost * effectVolumeMultiplier");
     expect(micPassthroughSource).toContain("(musicVolume / 100) * 0.80");
-    expect(micPassthroughSource).toContain("chain.wetGain.gain.setValueAtTime(0.80 * effectVolumeMultiplier, t)");
+    expect(micPassthroughSource).toContain("chain.wetGain.gain.setValueAtTime(getDefaultWetReturnGain(trackId, effectVolumeMultiplier), t)");
+    expect(micPassthroughSource).toContain("wetGain.gain.value = getDefaultWetReturnGain(trackId, effectVolumeMultiplier)");
   });
 });
 

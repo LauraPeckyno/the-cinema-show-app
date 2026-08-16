@@ -16,6 +16,15 @@ interface MicPassthroughProps {
   onError?: (error: string) => void;
 }
 
+function getDefaultDryReturnGain(trackId: number): number {
+  return (trackId === 1 || trackId === 6 || trackId === 12) ? 0 : trackId === 4 ? 0.20 : 0.25;
+}
+
+function getDefaultWetReturnGain(trackId: number, effectVolumeMultiplier: number): number {
+  const trackWetBoost = trackId === 1 ? 1.20 : (trackId === 2 || trackId === 6) ? 1.15 : 1.0;
+  return 0.80 * trackWetBoost * effectVolumeMultiplier;
+}
+
 /**
  * MicPassthrough — BOLD EDITION
  *
@@ -873,14 +882,21 @@ function buildDryWetChainJS(): string {
   return `
     // Build a dry/wet blended chain around the effect chain
     function buildDryWetChain(ctx, source, trackId, bpm, intensity, dryWetMix, effectVolumeMultiplier) {
+      function getDefaultDryReturnGain(trackId) {
+        return (trackId === 1 || trackId === 6 || trackId === 12) ? 0 : trackId === 4 ? 0.20 : 0.25;
+      }
+      function getDefaultWetReturnGain(trackId, effectVolumeMultiplier) {
+        var trackWetBoost = trackId === 1 ? 1.20 : (trackId === 2 || trackId === 6) ? 1.15 : 1.0;
+        return 0.80 * trackWetBoost * effectVolumeMultiplier;
+      }
       // Higher fixed mix: dry return +5 points and effected return +10 points.
       // Gate, frequency filters, compressor, and limiter remain in place to control leakage and peaks
       var dryGain = ctx.createGain();
       // Corpse Parade, Expiation, and Theme remain fully wet. Krampus Wishes uses a 20% lower dry return.
-      dryGain.gain.value = (trackId === 1 || trackId === 6 || trackId === 12) ? 0 : trackId === 4 ? 0.20 : 0.25;
+      dryGain.gain.value = getDefaultDryReturnGain(trackId);
 
       var wetGain = ctx.createGain();
-      wetGain.gain.value = 0.80 * effectVolumeMultiplier;
+      wetGain.gain.value = getDefaultWetReturnGain(trackId, effectVolumeMultiplier);
 
       var merger = ctx.createGain();
       merger.gain.value = 1.0;
@@ -995,10 +1011,10 @@ function WebMicPassthrough({
     }
   }, [musicVolume, shouldFadeOut]);
 
-  // Update fixed mix: Corpse Parade retains 10% dry; Expiation and Theme remain fully wet.
+  // Update track-specific dry and wet returns without rebuilding the microphone graph.
   useEffect(() => {
-    if (dryGainRef.current) dryGainRef.current.gain.value = trackId === 1 ? 0.10 : (trackId === 6 || trackId === 12) ? 0 : 0.25;
-    if (wetGainRef.current) wetGainRef.current.gain.value = 0.80 * effectVolumeMultiplier;
+    if (dryGainRef.current) dryGainRef.current.gain.value = getDefaultDryReturnGain(trackId);
+    if (wetGainRef.current) wetGainRef.current.gain.value = getDefaultWetReturnGain(trackId, effectVolumeMultiplier);
   }, [dryWetMix, trackId, effectVolumeMultiplier]);
 
   async function startWebPassthrough() {
@@ -1305,9 +1321,8 @@ function fadeMicOutput(shouldFadeOut, vol) {
 function setDryWet(mix, trackId, effectVolumeMultiplier) {
   if (chain && chain.dryGain && chain.wetGain && audioCtx) {
     var t = audioCtx.currentTime;
-    // Corpse Parade retains 10% dry; Expiation and Theme remain fully wet.
-    chain.dryGain.gain.setValueAtTime(trackId === 1 ? 0.10 : (trackId === 6 || trackId === 12) ? 0 : 0.25, t);
-    chain.wetGain.gain.setValueAtTime(0.80 * effectVolumeMultiplier, t);
+    chain.dryGain.gain.setValueAtTime(getDefaultDryReturnGain(trackId), t);
+    chain.wetGain.gain.setValueAtTime(getDefaultWetReturnGain(trackId, effectVolumeMultiplier), t);
   }
 }
 
