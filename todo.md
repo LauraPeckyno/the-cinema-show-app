@@ -258,3 +258,4 @@
 - [x] Randomize Now Playing dust and scratch positions throughout playback
 - [x] Restrict active-effects film colors to dust and scratches without tinting artwork
 - [x] Add a subtle BPM-synchronized artwork reel-jitter on downbeats
+- [x] Change artwork reel-jitter to rare randomized 30–60 second playback events

@@ -69,11 +69,12 @@ describe("Now Playing wet slider and artwork composition", () => {
     expect(nowPlayingSource).toContain("styles.contentLayer");
   });
 
-  it("adds a subtle reel-jitter to artwork on BPM-synchronized downbeats without moving controls", () => {
+  it("adds a subtle reel-jitter to artwork as a rare randomized playback event without moving controls", () => {
     expect(nowPlayingSource).toContain("function FilmReelJitter");
-    expect(nowPlayingSource).toContain("const beatIndex = Math.floor((playbackTime * 1000) / beatDuration)");
-    expect(nowPlayingSource).toContain("beatIndex % 4 !== 0");
-    expect(nowPlayingSource).toContain("const horizontalKick = beatIndex % 8 === 0 ? 2 : -1.5");
+    expect(nowPlayingSource).toContain("const nextSlipDelay = 30000 + Math.round(Math.random() * 30000)");
+    expect(nowPlayingSource).toContain("reelTimer = setTimeout(triggerRareReelSlip, nextSlipDelay)");
+    expect(nowPlayingSource).toContain("scheduleNextReelSlip()");
+    expect(nowPlayingSource).toContain("if (reelTimer) clearTimeout(reelTimer)");
     expect(nowPlayingSource).toContain("reelRotation.value = withSequence");
     expect(nowPlayingSource).toContain("styles.reelJitterLayer");
     expect(nowPlayingSource).toContain("<FilmReelJitter");
