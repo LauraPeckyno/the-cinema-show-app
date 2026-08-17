@@ -254,3 +254,4 @@
 - [x] Reconfirm and enforce background-music stop before every page transition
 - [x] Add b1.jpg between the streamingkeys header and biography paragraph at album-cover size
 - [x] Add playback-synced monochrome and active-effects color dust-and-scratches overlay to Now Playing artwork
+- [x] Synchronize Now Playing scratch bursts and active-effects color shifts to track BPM beats

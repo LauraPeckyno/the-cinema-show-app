@@ -68,24 +68,29 @@ const FILM_EFFECT_COLORS = ["#FF4FA3", "#55E6FF", "#B68CFF", "#FFE36B", "#61F2B2
 function FilmDustAndScratches({
   isPlaying,
   isEffectsActive,
+  bpm,
+  playbackTime,
 }: {
   isPlaying: boolean;
   isEffectsActive: boolean;
+  bpm: number;
+  playbackTime: number;
 }) {
   const filmOpacity = useSharedValue(0);
   const flicker = useSharedValue(0.4);
+  const scratchBurst = useSharedValue(0);
   const markColor = useSharedValue("#FFFFFF");
 
   useEffect(() => {
     cancelAnimation(filmOpacity);
     cancelAnimation(flicker);
-    let colorInterval: ReturnType<typeof setInterval> | null = null;
 
     if (!isPlaying) {
       filmOpacity.value = withTiming(0, { duration: 180, easing: Easing.out(Easing.ease) });
       flicker.value = 0.4;
+      scratchBurst.value = 0;
       markColor.value = "#FFFFFF";
-      return () => undefined;
+      return;
     }
 
     filmOpacity.value = withTiming(1, { duration: 340, easing: Easing.out(Easing.ease) });
@@ -98,22 +103,31 @@ function FilmDustAndScratches({
       -1,
       false,
     );
+  }, [filmOpacity, flicker, isPlaying, markColor, scratchBurst]);
 
-    if (isEffectsActive) {
-      const shiftToRandomFilmColor = () => {
-        const nextColor = FILM_EFFECT_COLORS[Math.floor(Math.random() * FILM_EFFECT_COLORS.length)];
-        markColor.value = withTiming(nextColor, { duration: 260, easing: Easing.inOut(Easing.ease) });
-      };
-      shiftToRandomFilmColor();
-      colorInterval = setInterval(shiftToRandomFilmColor, 520);
-    } else {
-      markColor.value = withTiming("#FFFFFF", { duration: 220, easing: Easing.out(Easing.ease) });
+  const beatDuration = Math.max(240, 60000 / Math.max(1, bpm));
+  const beatIndex = Math.floor((playbackTime * 1000) / beatDuration);
+
+  useEffect(() => {
+    cancelAnimation(scratchBurst);
+    if (!isPlaying) {
+      scratchBurst.value = 0;
+      markColor.value = "#FFFFFF";
+      return;
     }
 
-    return () => {
-      if (colorInterval) clearInterval(colorInterval);
-    };
-  }, [filmOpacity, flicker, isEffectsActive, isPlaying, markColor]);
+    scratchBurst.value = 0;
+    scratchBurst.value = withSequence(
+      withTiming(1, { duration: Math.min(85, beatDuration * 0.18), easing: Easing.out(Easing.ease) }),
+      withTiming(0, { duration: Math.max(120, beatDuration * 0.82), easing: Easing.in(Easing.ease) }),
+    );
+    if (isEffectsActive) {
+      const nextColor = FILM_EFFECT_COLORS[Math.floor(Math.random() * FILM_EFFECT_COLORS.length)];
+      markColor.value = withTiming(nextColor, { duration: Math.min(180, beatDuration * 0.35), easing: Easing.inOut(Easing.ease) });
+    } else {
+      markColor.value = withTiming("#FFFFFF", { duration: Math.min(180, beatDuration * 0.35), easing: Easing.out(Easing.ease) });
+    }
+  }, [beatDuration, beatIndex, isEffectsActive, isPlaying, markColor, scratchBurst]);
 
   const overlayStyle = useAnimatedStyle(() => ({
     opacity: filmOpacity.value * (0.58 + flicker.value * 0.42),
@@ -122,6 +136,10 @@ function FilmDustAndScratches({
   const colorWashStyle = useAnimatedStyle(() => ({
     backgroundColor: markColor.value,
     opacity: isEffectsActive ? 0.13 : 0,
+  }));
+  const scratchBurstStyle = useAnimatedStyle(() => ({
+    opacity: 0.18 + scratchBurst.value * 0.82,
+    transform: [{ translateY: scratchBurst.value * -10 }],
   }));
 
   return (
@@ -144,20 +162,22 @@ function FilmDustAndScratches({
           ]}
         />
       ))}
-      {FILM_SCRATCHES.map((scratch, index) => (
-        <View
-          key={`scratch-${index}`}
-          style={[
-            styles.filmScratch,
-            {
-              left: scratch.left,
-              top: scratch.top,
-              height: scratch.height,
-              opacity: scratch.opacity,
-            },
-          ]}
-        />
-      ))}
+      <Animated.View style={[StyleSheet.absoluteFillObject, scratchBurstStyle]}>
+        {FILM_SCRATCHES.map((scratch, index) => (
+          <View
+            key={`scratch-${index}`}
+            style={[
+              styles.filmScratch,
+              {
+                left: scratch.left,
+                top: scratch.top,
+                height: scratch.height,
+                opacity: scratch.opacity,
+              },
+            ]}
+          />
+        ))}
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -441,7 +461,12 @@ export default function NowPlayingScreen() {
         colors={["rgba(8,8,18,0.18)", isDark ? "rgba(24,7,38,0.34)" : "rgba(12,12,30,0.34)", "rgba(8,8,18,0.58)"]}
         style={StyleSheet.absoluteFillObject}
       />
-      <FilmDustAndScratches isPlaying={isPlaying} isEffectsActive={isMicActive && isPlaying} />
+      <FilmDustAndScratches
+        isPlaying={isPlaying}
+        isEffectsActive={isMicActive && isPlaying}
+        bpm={currentTrack.bpm}
+        playbackTime={playbackTime}
+      />
 
       {/* Audio File Player — music at 90% of device volume (fixed) */}
       <AudioFilePlayer

@@ -52,9 +52,13 @@ describe("Now Playing wet slider and artwork composition", () => {
     expect(nowPlayingSource).toContain("if (!isPlaying)");
     expect(nowPlayingSource).toContain('markColor.value = "#FFFFFF"');
     expect(nowPlayingSource).toContain("const FILM_EFFECT_COLORS");
-    expect(nowPlayingSource).toContain("shiftToRandomFilmColor");
-    expect(nowPlayingSource).toContain("setInterval(shiftToRandomFilmColor, 520)");
-    expect(nowPlayingSource).toContain("<FilmDustAndScratches isPlaying={isPlaying} isEffectsActive={isMicActive && isPlaying} />");
+    expect(nowPlayingSource).toContain("const beatDuration = Math.max(240, 60000 / Math.max(1, bpm))");
+    expect(nowPlayingSource).toContain("const beatIndex = Math.floor((playbackTime * 1000) / beatDuration)");
+    expect(nowPlayingSource).toContain("const scratchBurst = useSharedValue(0)");
+    expect(nowPlayingSource).toContain("scratchBurst.value = withSequence");
+    expect(nowPlayingSource).toContain("FILM_EFFECT_COLORS[Math.floor(Math.random() * FILM_EFFECT_COLORS.length)]");
+    expect(nowPlayingSource).toContain("bpm={currentTrack.bpm}");
+    expect(nowPlayingSource).toContain("playbackTime={playbackTime}");
     expect(nowPlayingSource).toContain("styles.filmOverlay");
     expect(nowPlayingSource).toContain("styles.filmScratch");
     expect(nowPlayingSource).toContain("styles.contentLayer");
