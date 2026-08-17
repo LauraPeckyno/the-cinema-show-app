@@ -255,3 +255,5 @@
 - [x] Add b1.jpg between the streamingkeys header and biography paragraph at album-cover size
 - [x] Add playback-synced monochrome and active-effects color dust-and-scratches overlay to Now Playing artwork
 - [x] Synchronize Now Playing scratch bursts and active-effects color shifts to track BPM beats
+- [x] Randomize Now Playing dust and scratch positions throughout playback
+- [x] Restrict active-effects film colors to dust and scratches without tinting artwork

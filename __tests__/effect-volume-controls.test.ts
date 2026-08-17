@@ -57,6 +57,11 @@ describe("Now Playing wet slider and artwork composition", () => {
     expect(nowPlayingSource).toContain("const scratchBurst = useSharedValue(0)");
     expect(nowPlayingSource).toContain("scratchBurst.value = withSequence");
     expect(nowPlayingSource).toContain("FILM_EFFECT_COLORS[Math.floor(Math.random() * FILM_EFFECT_COLORS.length)]");
+    expect(nowPlayingSource).toContain("function createFilmDamageFrame()");
+    expect(nowPlayingSource).toContain("setDamageFrame(createFilmDamageFrame())");
+    expect(nowPlayingSource).toContain("const scratchColor = useSharedValue(\"#050505\")");
+    expect(nowPlayingSource).toContain("scratchColor.value = withTiming(nextColor");
+    expect(nowPlayingSource).not.toContain("filmColorWash");
     expect(nowPlayingSource).toContain("bpm={currentTrack.bpm}");
     expect(nowPlayingSource).toContain("playbackTime={playbackTime}");
     expect(nowPlayingSource).toContain("styles.filmOverlay");

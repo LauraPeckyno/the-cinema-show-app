@@ -38,32 +38,25 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-const FILM_DUST_SPECKS = [
-  { left: "7%", top: "9%", size: 2, opacity: 0.72 },
-  { left: "18%", top: "24%", size: 3, opacity: 0.52 },
-  { left: "30%", top: "13%", size: 2, opacity: 0.64 },
-  { left: "42%", top: "41%", size: 4, opacity: 0.56 },
-  { left: "55%", top: "18%", size: 2, opacity: 0.78 },
-  { left: "69%", top: "33%", size: 3, opacity: 0.58 },
-  { left: "82%", top: "12%", size: 2, opacity: 0.67 },
-  { left: "91%", top: "49%", size: 4, opacity: 0.45 },
-  { left: "11%", top: "62%", size: 3, opacity: 0.48 },
-  { left: "26%", top: "79%", size: 2, opacity: 0.69 },
-  { left: "48%", top: "71%", size: 4, opacity: 0.55 },
-  { left: "62%", top: "88%", size: 2, opacity: 0.76 },
-  { left: "77%", top: "65%", size: 3, opacity: 0.51 },
-  { left: "88%", top: "90%", size: 2, opacity: 0.63 },
-] as const;
-
-const FILM_SCRATCHES = [
-  { left: "13%", top: "4%", height: "29%", opacity: 0.32 },
-  { left: "37%", top: "39%", height: "44%", opacity: 0.28 },
-  { left: "58%", top: "7%", height: "51%", opacity: 0.38 },
-  { left: "76%", top: "48%", height: "32%", opacity: 0.24 },
-  { left: "92%", top: "19%", height: "46%", opacity: 0.31 },
-] as const;
-
 const FILM_EFFECT_COLORS = ["#FF4FA3", "#55E6FF", "#B68CFF", "#FFE36B", "#61F2B2", "#FF845C"];
+const filmPercent = (value: number) => `${value}%` as `${number}%`;
+
+function createFilmDamageFrame() {
+  return {
+    dust: Array.from({ length: 14 }, () => ({
+      left: filmPercent(4 + Math.round(Math.random() * 92)),
+      top: filmPercent(3 + Math.round(Math.random() * 94)),
+      size: 2 + Math.floor(Math.random() * 3),
+      opacity: 0.42 + Math.random() * 0.4,
+    })),
+    scratches: Array.from({ length: 5 }, () => ({
+      left: filmPercent(4 + Math.round(Math.random() * 92)),
+      top: filmPercent(2 + Math.round(Math.random() * 70)),
+      height: filmPercent(24 + Math.round(Math.random() * 36)),
+      opacity: 0.2 + Math.random() * 0.22,
+    })),
+  };
+}
 
 function FilmDustAndScratches({
   isPlaying,
@@ -80,6 +73,8 @@ function FilmDustAndScratches({
   const flicker = useSharedValue(0.4);
   const scratchBurst = useSharedValue(0);
   const markColor = useSharedValue("#FFFFFF");
+  const scratchColor = useSharedValue("#050505");
+  const [damageFrame, setDamageFrame] = useState(createFilmDamageFrame);
 
   useEffect(() => {
     cancelAnimation(filmOpacity);
@@ -90,6 +85,7 @@ function FilmDustAndScratches({
       flicker.value = 0.4;
       scratchBurst.value = 0;
       markColor.value = "#FFFFFF";
+      scratchColor.value = "#050505";
       return;
     }
 
@@ -103,7 +99,7 @@ function FilmDustAndScratches({
       -1,
       false,
     );
-  }, [filmOpacity, flicker, isPlaying, markColor, scratchBurst]);
+  }, [filmOpacity, flicker, isPlaying, markColor, scratchBurst, scratchColor]);
 
   const beatDuration = Math.max(240, 60000 / Math.max(1, bpm));
   const beatIndex = Math.floor((playbackTime * 1000) / beatDuration);
@@ -116,6 +112,7 @@ function FilmDustAndScratches({
       return;
     }
 
+    setDamageFrame(createFilmDamageFrame());
     scratchBurst.value = 0;
     scratchBurst.value = withSequence(
       withTiming(1, { duration: Math.min(85, beatDuration * 0.18), easing: Easing.out(Easing.ease) }),
@@ -124,19 +121,18 @@ function FilmDustAndScratches({
     if (isEffectsActive) {
       const nextColor = FILM_EFFECT_COLORS[Math.floor(Math.random() * FILM_EFFECT_COLORS.length)];
       markColor.value = withTiming(nextColor, { duration: Math.min(180, beatDuration * 0.35), easing: Easing.inOut(Easing.ease) });
+      scratchColor.value = withTiming(nextColor, { duration: Math.min(180, beatDuration * 0.35), easing: Easing.inOut(Easing.ease) });
     } else {
       markColor.value = withTiming("#FFFFFF", { duration: Math.min(180, beatDuration * 0.35), easing: Easing.out(Easing.ease) });
+      scratchColor.value = withTiming("#050505", { duration: Math.min(180, beatDuration * 0.35), easing: Easing.out(Easing.ease) });
     }
-  }, [beatDuration, beatIndex, isEffectsActive, isPlaying, markColor, scratchBurst]);
+  }, [beatDuration, beatIndex, isEffectsActive, isPlaying, markColor, scratchBurst, scratchColor]);
 
   const overlayStyle = useAnimatedStyle(() => ({
     opacity: filmOpacity.value * (0.58 + flicker.value * 0.42),
   }));
   const colorMarkStyle = useAnimatedStyle(() => ({ backgroundColor: markColor.value }));
-  const colorWashStyle = useAnimatedStyle(() => ({
-    backgroundColor: markColor.value,
-    opacity: isEffectsActive ? 0.13 : 0,
-  }));
+  const scratchColorStyle = useAnimatedStyle(() => ({ backgroundColor: scratchColor.value }));
   const scratchBurstStyle = useAnimatedStyle(() => ({
     opacity: 0.18 + scratchBurst.value * 0.82,
     transform: [{ translateY: scratchBurst.value * -10 }],
@@ -144,8 +140,7 @@ function FilmDustAndScratches({
 
   return (
     <Animated.View pointerEvents="none" style={[styles.filmOverlay, overlayStyle]}>
-      <Animated.View style={[styles.filmColorWash, colorWashStyle]} />
-      {FILM_DUST_SPECKS.map((speck, index) => (
+      {damageFrame.dust.map((speck, index) => (
         <Animated.View
           key={`dust-${index}`}
           style={[
@@ -163,8 +158,8 @@ function FilmDustAndScratches({
         />
       ))}
       <Animated.View style={[StyleSheet.absoluteFillObject, scratchBurstStyle]}>
-        {FILM_SCRATCHES.map((scratch, index) => (
-          <View
+        {damageFrame.scratches.map((scratch, index) => (
+          <Animated.View
             key={`scratch-${index}`}
             style={[
               styles.filmScratch,
@@ -174,6 +169,7 @@ function FilmDustAndScratches({
                 height: scratch.height,
                 opacity: scratch.opacity,
               },
+              scratchColorStyle,
             ]}
           />
         ))}
@@ -741,9 +737,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     zIndex: 2,
     overflow: "hidden",
-  },
-  filmColorWash: {
-    ...StyleSheet.absoluteFillObject,
   },
   filmDustSpeck: {
     position: "absolute",
