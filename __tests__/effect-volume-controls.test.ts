@@ -47,6 +47,19 @@ describe("Now Playing wet slider and artwork composition", () => {
     expect(nowPlayingSource).not.toContain("animatedMicGlowStyle");
   });
 
+  it("adds a playback-only dust-and-scratches overlay that is monochrome normally and color-shifting with active effects", () => {
+    expect(nowPlayingSource).toContain("function FilmDustAndScratches");
+    expect(nowPlayingSource).toContain("if (!isPlaying)");
+    expect(nowPlayingSource).toContain('markColor.value = "#FFFFFF"');
+    expect(nowPlayingSource).toContain("const FILM_EFFECT_COLORS");
+    expect(nowPlayingSource).toContain("shiftToRandomFilmColor");
+    expect(nowPlayingSource).toContain("setInterval(shiftToRandomFilmColor, 520)");
+    expect(nowPlayingSource).toContain("<FilmDustAndScratches isPlaying={isPlaying} isEffectsActive={isMicActive && isPlaying} />");
+    expect(nowPlayingSource).toContain("styles.filmOverlay");
+    expect(nowPlayingSource).toContain("styles.filmScratch");
+    expect(nowPlayingSource).toContain("styles.contentLayer");
+  });
+
   it("separates the title, timeline, play control, wet slider, and effects toggle with a consistent 40-point rhythm", () => {
     expect(nowPlayingSource).toMatch(/titleArea:\s*\{[\s\S]*?marginBottom: 40/);
     expect(nowPlayingSource).toMatch(/progressArea:\s*\{[\s\S]*?marginBottom: 40/);

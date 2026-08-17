@@ -38,6 +38,130 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+const FILM_DUST_SPECKS = [
+  { left: "7%", top: "9%", size: 2, opacity: 0.72 },
+  { left: "18%", top: "24%", size: 3, opacity: 0.52 },
+  { left: "30%", top: "13%", size: 2, opacity: 0.64 },
+  { left: "42%", top: "41%", size: 4, opacity: 0.56 },
+  { left: "55%", top: "18%", size: 2, opacity: 0.78 },
+  { left: "69%", top: "33%", size: 3, opacity: 0.58 },
+  { left: "82%", top: "12%", size: 2, opacity: 0.67 },
+  { left: "91%", top: "49%", size: 4, opacity: 0.45 },
+  { left: "11%", top: "62%", size: 3, opacity: 0.48 },
+  { left: "26%", top: "79%", size: 2, opacity: 0.69 },
+  { left: "48%", top: "71%", size: 4, opacity: 0.55 },
+  { left: "62%", top: "88%", size: 2, opacity: 0.76 },
+  { left: "77%", top: "65%", size: 3, opacity: 0.51 },
+  { left: "88%", top: "90%", size: 2, opacity: 0.63 },
+] as const;
+
+const FILM_SCRATCHES = [
+  { left: "13%", top: "4%", height: "29%", opacity: 0.32 },
+  { left: "37%", top: "39%", height: "44%", opacity: 0.28 },
+  { left: "58%", top: "7%", height: "51%", opacity: 0.38 },
+  { left: "76%", top: "48%", height: "32%", opacity: 0.24 },
+  { left: "92%", top: "19%", height: "46%", opacity: 0.31 },
+] as const;
+
+const FILM_EFFECT_COLORS = ["#FF4FA3", "#55E6FF", "#B68CFF", "#FFE36B", "#61F2B2", "#FF845C"];
+
+function FilmDustAndScratches({
+  isPlaying,
+  isEffectsActive,
+}: {
+  isPlaying: boolean;
+  isEffectsActive: boolean;
+}) {
+  const filmOpacity = useSharedValue(0);
+  const flicker = useSharedValue(0.4);
+  const markColor = useSharedValue("#FFFFFF");
+
+  useEffect(() => {
+    cancelAnimation(filmOpacity);
+    cancelAnimation(flicker);
+    let colorInterval: ReturnType<typeof setInterval> | null = null;
+
+    if (!isPlaying) {
+      filmOpacity.value = withTiming(0, { duration: 180, easing: Easing.out(Easing.ease) });
+      flicker.value = 0.4;
+      markColor.value = "#FFFFFF";
+      return () => undefined;
+    }
+
+    filmOpacity.value = withTiming(1, { duration: 340, easing: Easing.out(Easing.ease) });
+    flicker.value = withRepeat(
+      withSequence(
+        withTiming(0.88, { duration: 95, easing: Easing.linear }),
+        withTiming(0.38, { duration: 170, easing: Easing.linear }),
+        withTiming(0.68, { duration: 130, easing: Easing.linear }),
+      ),
+      -1,
+      false,
+    );
+
+    if (isEffectsActive) {
+      const shiftToRandomFilmColor = () => {
+        const nextColor = FILM_EFFECT_COLORS[Math.floor(Math.random() * FILM_EFFECT_COLORS.length)];
+        markColor.value = withTiming(nextColor, { duration: 260, easing: Easing.inOut(Easing.ease) });
+      };
+      shiftToRandomFilmColor();
+      colorInterval = setInterval(shiftToRandomFilmColor, 520);
+    } else {
+      markColor.value = withTiming("#FFFFFF", { duration: 220, easing: Easing.out(Easing.ease) });
+    }
+
+    return () => {
+      if (colorInterval) clearInterval(colorInterval);
+    };
+  }, [filmOpacity, flicker, isEffectsActive, isPlaying, markColor]);
+
+  const overlayStyle = useAnimatedStyle(() => ({
+    opacity: filmOpacity.value * (0.58 + flicker.value * 0.42),
+  }));
+  const colorMarkStyle = useAnimatedStyle(() => ({ backgroundColor: markColor.value }));
+  const colorWashStyle = useAnimatedStyle(() => ({
+    backgroundColor: markColor.value,
+    opacity: isEffectsActive ? 0.13 : 0,
+  }));
+
+  return (
+    <Animated.View pointerEvents="none" style={[styles.filmOverlay, overlayStyle]}>
+      <Animated.View style={[styles.filmColorWash, colorWashStyle]} />
+      {FILM_DUST_SPECKS.map((speck, index) => (
+        <Animated.View
+          key={`dust-${index}`}
+          style={[
+            styles.filmDustSpeck,
+            {
+              left: speck.left,
+              top: speck.top,
+              width: speck.size,
+              height: speck.size,
+              borderRadius: speck.size / 2,
+              opacity: speck.opacity,
+            },
+            colorMarkStyle,
+          ]}
+        />
+      ))}
+      {FILM_SCRATCHES.map((scratch, index) => (
+        <View
+          key={`scratch-${index}`}
+          style={[
+            styles.filmScratch,
+            {
+              left: scratch.left,
+              top: scratch.top,
+              height: scratch.height,
+              opacity: scratch.opacity,
+            },
+          ]}
+        />
+      ))}
+    </Animated.View>
+  );
+}
+
 function AnimatedButtonBorder({
   bpm,
   playbackTime,
@@ -317,6 +441,7 @@ export default function NowPlayingScreen() {
         colors={["rgba(8,8,18,0.18)", isDark ? "rgba(24,7,38,0.34)" : "rgba(12,12,30,0.34)", "rgba(8,8,18,0.58)"]}
         style={StyleSheet.absoluteFillObject}
       />
+      <FilmDustAndScratches isPlaying={isPlaying} isEffectsActive={isMicActive && isPlaying} />
 
       {/* Audio File Player — music at 90% of device volume (fixed) */}
       <AudioFilePlayer
@@ -348,7 +473,7 @@ export default function NowPlayingScreen() {
         onError={(err) => setMicError(err)}
       />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.contentLayer} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Back Button */}
         <View style={styles.header}>
           <Pressable
@@ -586,6 +711,25 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     width: "100%",
     height: "100%",
+  },
+  filmOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 2,
+    overflow: "hidden",
+  },
+  filmColorWash: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  filmDustSpeck: {
+    position: "absolute",
+  },
+  filmScratch: {
+    position: "absolute",
+    width: 1,
+    backgroundColor: "#050505",
+  },
+  contentLayer: {
+    zIndex: 3,
   },
   titleArea: {
     alignItems: "center",
