@@ -38,6 +38,69 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+function FilmReelJitter({
+  artworkUrl,
+  bpm,
+  playbackTime,
+  isPlaying,
+}: {
+  artworkUrl: string;
+  bpm: number;
+  playbackTime: number;
+  isPlaying: boolean;
+}) {
+  const reelX = useSharedValue(0);
+  const reelY = useSharedValue(0);
+  const reelRotation = useSharedValue(0);
+  const beatDuration = Math.max(240, 60000 / Math.max(1, bpm));
+  const beatIndex = Math.floor((playbackTime * 1000) / beatDuration);
+
+  useEffect(() => {
+    cancelAnimation(reelX);
+    cancelAnimation(reelY);
+    cancelAnimation(reelRotation);
+    if (!isPlaying || beatIndex % 4 !== 0) {
+      reelX.value = withTiming(0, { duration: 90, easing: Easing.out(Easing.ease) });
+      reelY.value = withTiming(0, { duration: 90, easing: Easing.out(Easing.ease) });
+      reelRotation.value = withTiming(0, { duration: 90, easing: Easing.out(Easing.ease) });
+      return;
+    }
+
+    const horizontalKick = beatIndex % 8 === 0 ? 2 : -1.5;
+    reelX.value = withSequence(
+      withTiming(horizontalKick, { duration: 34, easing: Easing.out(Easing.ease) }),
+      withTiming(0, { duration: 132, easing: Easing.inOut(Easing.ease) }),
+    );
+    reelY.value = withSequence(
+      withTiming(-1.5, { duration: 28, easing: Easing.out(Easing.ease) }),
+      withTiming(0, { duration: 138, easing: Easing.inOut(Easing.ease) }),
+    );
+    reelRotation.value = withSequence(
+      withTiming(0.22, { duration: 32, easing: Easing.out(Easing.ease) }),
+      withTiming(0, { duration: 136, easing: Easing.inOut(Easing.ease) }),
+    );
+  }, [beatIndex, isPlaying, reelRotation, reelX, reelY]);
+
+  const reelJitterStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: reelX.value },
+      { translateY: reelY.value },
+      { rotate: `${reelRotation.value}deg` },
+    ],
+  }));
+
+  return (
+    <Animated.View pointerEvents="none" style={[styles.reelJitterLayer, reelJitterStyle]}>
+      <Image
+        source={{ uri: artworkUrl }}
+        style={[styles.backgroundArtwork, { opacity: 0.75 }]}
+        contentFit="cover"
+        transition={300}
+      />
+    </Animated.View>
+  );
+}
+
 const FILM_EFFECT_COLORS = ["#FF4FA3", "#55E6FF", "#B68CFF", "#FFE36B", "#61F2B2", "#FF845C"];
 const filmPercent = (value: number) => `${value}%` as `${number}%`;
 
@@ -447,11 +510,11 @@ export default function NowPlayingScreen() {
 
   return (
     <ScreenContainer edges={["top", "bottom", "left", "right"]} containerClassName="bg-background">
-      <Image
-        source={{ uri: artworkUrl }}
-        style={[styles.backgroundArtwork, { opacity: 0.75 }]}
-        contentFit="cover"
-        transition={300}
+      <FilmReelJitter
+        artworkUrl={artworkUrl}
+        bpm={currentTrack.bpm}
+        playbackTime={playbackTime}
+        isPlaying={isPlaying}
       />
       <LinearGradient
         colors={["rgba(8,8,18,0.18)", isDark ? "rgba(24,7,38,0.34)" : "rgba(12,12,30,0.34)", "rgba(8,8,18,0.58)"]}
@@ -732,6 +795,10 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     width: "100%",
     height: "100%",
+  },
+  reelJitterLayer: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: "hidden",
   },
   filmOverlay: {
     ...StyleSheet.absoluteFillObject,

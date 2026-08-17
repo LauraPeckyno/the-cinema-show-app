@@ -69,6 +69,16 @@ describe("Now Playing wet slider and artwork composition", () => {
     expect(nowPlayingSource).toContain("styles.contentLayer");
   });
 
+  it("adds a subtle reel-jitter to artwork on BPM-synchronized downbeats without moving controls", () => {
+    expect(nowPlayingSource).toContain("function FilmReelJitter");
+    expect(nowPlayingSource).toContain("const beatIndex = Math.floor((playbackTime * 1000) / beatDuration)");
+    expect(nowPlayingSource).toContain("beatIndex % 4 !== 0");
+    expect(nowPlayingSource).toContain("const horizontalKick = beatIndex % 8 === 0 ? 2 : -1.5");
+    expect(nowPlayingSource).toContain("reelRotation.value = withSequence");
+    expect(nowPlayingSource).toContain("styles.reelJitterLayer");
+    expect(nowPlayingSource).toContain("<FilmReelJitter");
+  });
+
   it("separates the title, timeline, play control, wet slider, and effects toggle with a consistent 40-point rhythm", () => {
     expect(nowPlayingSource).toMatch(/titleArea:\s*\{[\s\S]*?marginBottom: 40/);
     expect(nowPlayingSource).toMatch(/progressArea:\s*\{[\s\S]*?marginBottom: 40/);

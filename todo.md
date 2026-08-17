@@ -257,3 +257,4 @@
 - [x] Synchronize Now Playing scratch bursts and active-effects color shifts to track BPM beats
 - [x] Randomize Now Playing dust and scratch positions throughout playback
 - [x] Restrict active-effects film colors to dust and scratches without tinting artwork
+- [x] Add a subtle BPM-synchronized artwork reel-jitter on downbeats
