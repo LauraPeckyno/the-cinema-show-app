@@ -252,3 +252,4 @@
 - [x] Restore visible playback and active-effects border animations on Now Playing controls
 - [x] Raise Corpse Parade, Sleep Deprivation, and Expiation wet returns slightly above music level
 - [x] Reconfirm and enforce background-music stop before every page transition
+- [x] Add b1.jpg between the streamingkeys header and biography paragraph at album-cover size

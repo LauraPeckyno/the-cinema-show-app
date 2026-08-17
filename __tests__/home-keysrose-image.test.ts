@@ -18,3 +18,16 @@ describe("Home screen keysrose artwork", () => {
     expect(homeSource).toContain("height: SCREEN_WIDTH * 0.9");
   });
 });
+
+describe("Home screen streamingkeys artwork", () => {
+  it("places b1.jpg between the streamingkeys header and biography in the album-cover container", () => {
+    expect(homeSource).toContain('const STREAMINGKEYS_ARTWORK_URL = "https://streamingkeys2.imaginaurium.workers.dev/b1.jpg"');
+    const sectionStart = homeSource.indexOf('title="streamingkeys"');
+    const artwork = homeSource.indexOf("source={{ uri: STREAMINGKEYS_ARTWORK_URL }}");
+    const biography = homeSource.indexOf("streamingkeys (aka Robert Peckyno)");
+    expect(artwork).toBeGreaterThan(sectionStart);
+    expect(artwork).toBeLessThan(biography);
+    expect(homeSource).toContain("style={styles.albumCoverImage}");
+    expect(homeSource).toContain("style={styles.albumCoverContainer}");
+  });
+});

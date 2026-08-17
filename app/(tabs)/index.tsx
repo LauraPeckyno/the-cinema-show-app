@@ -32,6 +32,7 @@ import { TRACKS } from "@/constants/tracks";
 
 const ALBUM_COVER_URL = "https://streamingkeys2.imaginaurium.workers.dev/cinemashow_cover.png";
 const KEYS_ROSE_URL = "https://streamingkeys2.imaginaurium.workers.dev/keysrose.jpg";
+const STREAMINGKEYS_ARTWORK_URL = "https://streamingkeys2.imaginaurium.workers.dev/b1.jpg";
 // Use cached local URI if pre-downloaded, otherwise falls back to remote
 const getAlbumCoverUri = () => getCachedUri(ALBUM_COVER_URL);
 
@@ -289,6 +290,18 @@ export default function HomeScreen() {
 
           {/* ─── streamingkeys Section ─── */}
           <ArtDecoHeader title="streamingkeys" color={colors.primary} textColor={colors.foreground} />
+
+          <View style={styles.albumCoverContainer}>
+            <View style={[styles.albumCoverBorder, { borderColor: colors.primary + "80" }]}>
+              <Image
+                source={{ uri: STREAMINGKEYS_ARTWORK_URL }}
+                style={styles.albumCoverImage}
+                resizeMode="cover"
+                accessibilityLabel="streamingkeys artist portrait at the piano"
+              />
+            </View>
+            <View style={[styles.albumCoverGlow, { backgroundColor: colors.primary + "15" }]} />
+          </View>
 
           <View style={styles.descriptionSection}>
             <Text style={[styles.description, { color: colors.muted }]}>
