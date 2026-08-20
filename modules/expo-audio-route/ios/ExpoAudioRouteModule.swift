@@ -13,6 +13,45 @@ public class ExpoAudioRouteModule: Module {
       return self.currentRoute()
     }
 
+    AsyncFunction("preferBuiltInMicrophoneAsync") { () -> [String: Any] in
+      let session = AVAudioSession.sharedInstance()
+
+      do {
+        // Preserve headset/Bluetooth output where possible while selecting the
+        // physical phone microphone as the preferred capture source.
+        try session.setCategory(.playAndRecord, mode: .default, options: [.allowBluetoothA2DP])
+        try session.setActive(true)
+
+        guard let builtInMic = session.availableInputs?.first(where: {
+          $0.portType == .builtInMic
+        }) else {
+          return [
+            "applied": false,
+            "available": false,
+            "platform": "ios",
+            "reason": "built_in_microphone_unavailable"
+          ]
+        }
+
+        try session.setPreferredInput(builtInMic)
+        let applied = session.preferredInput?.uid == builtInMic.uid
+
+        return [
+          "applied": applied,
+          "available": true,
+          "platform": "ios",
+          "reason": applied ? "built_in_microphone_preferred" : "system_route_override"
+        ]
+      } catch {
+        return [
+          "applied": false,
+          "available": false,
+          "platform": "ios",
+          "reason": "\(error.localizedDescription)"
+        ]
+      }
+    }
+
     OnStartObserving("onAudioRouteChange") {
       self.startListening()
     }

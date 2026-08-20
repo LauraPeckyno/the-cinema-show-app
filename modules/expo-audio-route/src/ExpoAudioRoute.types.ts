@@ -11,3 +11,10 @@ export type AudioRoute =
   | "wiredHeadset"
   | "bluetooth"
   | "unknown";
+
+export type BuiltInMicrophonePreferenceResult = {
+  applied: boolean;
+  available: boolean;
+  platform: "ios" | "android";
+  reason?: string;
+};

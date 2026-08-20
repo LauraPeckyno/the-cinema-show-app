@@ -26,6 +26,23 @@ class ExpoAudioRouteModule : Module() {
       return@AsyncFunction currentRoute()
     }
 
+    AsyncFunction("preferBuiltInMicrophoneAsync") {
+      val manager = audioManager
+      val builtInAvailable = manager?.getDevices(AudioManager.GET_DEVICES_INPUTS)?.any {
+        it.type == AudioDeviceInfo.TYPE_BUILTIN_MIC
+      } == true
+
+      // Android's WebView owns the AudioRecord created by getUserMedia(), so an
+      // Expo module cannot force its preferred device. The embedded Web API path
+      // selects a built-in input by deviceId before processing begins.
+      return@AsyncFunction mapOf(
+        "applied" to false,
+        "available" to builtInAvailable,
+        "platform" to "android",
+        "reason" to "webview_device_selection_required"
+      )
+    }
+
     OnStartObserving {
       startListening()
     }

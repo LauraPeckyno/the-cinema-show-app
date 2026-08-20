@@ -26,6 +26,64 @@ function getDefaultWetReturnGain(trackId: number, effectVolumeMultiplier: number
   return 0.80 * trackWetBoost * effectVolumeMultiplier;
 }
 
+const ACCESSORY_MICROPHONE_LABEL = /headset|headphone|earbud|airpod|bluetooth|\bbt\b|wired|usb/i;
+const BUILT_IN_MICROPHONE_LABEL = /built[- ]?in|internal|phone|device microphone|device mic/i;
+
+function audioInputConstraints(deviceId?: string): MediaTrackConstraints {
+  return {
+    echoCancellation: false,
+    noiseSuppression: false,
+    autoGainControl: false,
+    channelCount: 1,
+    sampleRate: 44100,
+    ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
+  };
+}
+
+function findBuiltInMicrophone(inputs: MediaDeviceInfo[]): MediaDeviceInfo | undefined {
+  const explicitBuiltIn = inputs.find((input) => BUILT_IN_MICROPHONE_LABEL.test(input.label));
+  if (explicitBuiltIn) return explicitBuiltIn;
+
+  // Some WebViews expose only a generic label when no accessory mic is present.
+  return inputs.length === 1 && !ACCESSORY_MICROPHONE_LABEL.test(inputs[0].label)
+    ? inputs[0]
+    : undefined;
+}
+
+async function requestBuiltInMicrophoneStream(): Promise<MediaStream> {
+  const defaultStream = await navigator.mediaDevices.getUserMedia({
+    audio: audioInputConstraints(),
+  });
+
+  try {
+    if (!navigator.mediaDevices.enumerateDevices) return defaultStream;
+
+    const inputs = (await navigator.mediaDevices.enumerateDevices()).filter(
+      (device) => device.kind === "audioinput",
+    );
+    const builtInMic = findBuiltInMicrophone(inputs);
+    const accessoryMicConnected = inputs.some((input) => ACCESSORY_MICROPHONE_LABEL.test(input.label));
+    const currentDeviceId = defaultStream.getAudioTracks()[0]?.getSettings?.().deviceId;
+
+    if (!builtInMic) {
+      if (accessoryMicConnected) {
+        throw new Error("Built-in microphone could not be identified. Disconnect the headset or Bluetooth microphone before activating effects.");
+      }
+      return defaultStream;
+    }
+
+    if (currentDeviceId === builtInMic.deviceId) return defaultStream;
+
+    defaultStream.getTracks().forEach((track) => track.stop());
+    return await navigator.mediaDevices.getUserMedia({
+      audio: audioInputConstraints(builtInMic.deviceId),
+    });
+  } catch (error) {
+    defaultStream.getTracks().forEach((track) => track.stop());
+    throw error;
+  }
+}
+
 /**
  * MicPassthrough — BOLD EDITION
  *
@@ -1022,13 +1080,7 @@ function WebMicPassthrough({
     try {
       stopWebPassthrough();
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-        },
-      });
+      const stream = await requestBuiltInMicrophoneStream();
       streamRef.current = stream;
 
       const ctx = new AudioContext();
@@ -1127,6 +1179,7 @@ function NativeMicPassthrough({
   onError,
 }: MicPassthroughProps) {
   const webViewRef = useRef<any>(null);
+  const startRequestRef = useRef(0);
   const [WebViewComponent, setWebViewComponent] = useState<any>(null);
   const [isReady, setIsReady] = useState(false);
   const [permissionGranted, setPermissionGranted] = useState(false);
@@ -1175,6 +1228,19 @@ function NativeMicPassthrough({
   const mix = 0.80; // not used for initial setup (buildDryWetChain uses fixed 25/80)
   const wetEffectVolume = Math.max(0.5, Math.min(1.5, effectVolumeMultiplier));
 
+  const preferNativeBuiltInMicrophone = useCallback(async () => {
+    try {
+      const AudioRouteModule = require("@/modules/expo-audio-route").default;
+      const result = await AudioRouteModule.preferBuiltInMicrophoneAsync();
+      if (!result?.applied && result?.reason) {
+        console.warn("[MicPassthrough] Native built-in microphone preference:", result.reason);
+      }
+    } catch (error) {
+      // Android WebView performs deviceId selection itself; Expo Go may not include this local module.
+      console.warn("[MicPassthrough] Built-in microphone preference unavailable:", error);
+    }
+  }, []);
+
   const htmlContent = `
 <!DOCTYPE html>
 <html>
@@ -1202,6 +1268,51 @@ function log(msg) {
   window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'log', message: msg }));
 }
 
+var accessoryMicLabel = /headset|headphone|earbud|airpod|bluetooth|\bbt\b|wired|usb/i;
+var builtInMicLabel = /built[- ]?in|internal|phone|device microphone|device mic/i;
+
+function inputConstraints(deviceId) {
+  var constraints = {
+    echoCancellation: false,
+    noiseSuppression: false,
+    autoGainControl: false,
+    channelCount: 1,
+    sampleRate: 44100
+  };
+  if (deviceId) constraints.deviceId = { exact: deviceId };
+  return constraints;
+}
+
+async function getPreferredBuiltInMicrophoneStream() {
+  var defaultStream = await navigator.mediaDevices.getUserMedia({ audio: inputConstraints() });
+  try {
+    if (!navigator.mediaDevices.enumerateDevices) return defaultStream;
+    var devices = await navigator.mediaDevices.enumerateDevices();
+    var inputs = devices.filter(function(device) { return device.kind === 'audioinput'; });
+    var builtInMic = inputs.find(function(input) { return builtInMicLabel.test(input.label); });
+    if (!builtInMic && inputs.length === 1 && !accessoryMicLabel.test(inputs[0].label)) {
+      builtInMic = inputs[0];
+    }
+    var accessoryMicConnected = inputs.some(function(input) { return accessoryMicLabel.test(input.label); });
+    var track = defaultStream.getAudioTracks()[0];
+    var currentDeviceId = track && track.getSettings ? track.getSettings().deviceId : null;
+
+    if (!builtInMic) {
+      if (accessoryMicConnected) {
+        throw new Error('Built-in microphone could not be identified. Disconnect the headset or Bluetooth microphone before activating effects.');
+      }
+      return defaultStream;
+    }
+
+    if (currentDeviceId === builtInMic.deviceId) return defaultStream;
+    defaultStream.getTracks().forEach(function(track) { track.stop(); });
+    return await navigator.mediaDevices.getUserMedia({ audio: inputConstraints(builtInMic.deviceId) });
+  } catch (error) {
+    defaultStream.getTracks().forEach(function(track) { track.stop(); });
+    throw error;
+  }
+}
+
 async function startPassthrough(trackId, bpm, intensity, vol, dryWetMix, effectVolumeMultiplier) {
   try {
     stopPassthrough();
@@ -1212,15 +1323,7 @@ async function startPassthrough(trackId, bpm, intensity, vol, dryWetMix, effectV
     }
 
     log('Requesting getUserMedia...');
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false,
-        channelCount: 1,
-        sampleRate: 44100
-      }
-    });
+    stream = await getPreferredBuiltInMicrophoneStream();
     log('Got media stream with ' + stream.getAudioTracks().length + ' audio tracks');
 
     audioCtx = new (window.AudioContext || window.webkitAudioContext)({
@@ -1361,15 +1464,24 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
   useEffect(() => {
     if (!webViewRef.current || !isReady || !permissionGranted) return;
 
+    const requestId = ++startRequestRef.current;
+
     if (isActive) {
-      const js = `startPassthrough(${trackId}, ${bpm}, ${intensity}, ${vol}, ${mix}, ${wetEffectVolume}); true;`;
-      webViewRef.current.injectJavaScript(js);
+      void (async () => {
+        await preferNativeBuiltInMicrophone();
+        if (requestId !== startRequestRef.current || !webViewRef.current) return;
+        const js = `startPassthrough(${trackId}, ${bpm}, ${intensity}, ${vol}, ${mix}, ${wetEffectVolume}); true;`;
+        webViewRef.current.injectJavaScript(js);
+      })();
     } else {
       webViewRef.current.injectJavaScript("stopPassthrough(); true;");
     }
   // Wet level has its own setDryWet update below. Keeping it out of this dependency
   // prevents slider movement from restarting the WebView and racing a later stop request.
-  }, [isActive, isReady, permissionGranted, trackId, bpm, intensity, vol, mix]);
+    return () => {
+      startRequestRef.current += 1;
+    };
+  }, [isActive, isReady, permissionGranted, trackId, bpm, intensity, vol, mix, preferNativeBuiltInMicrophone]);
 
   // Update volume and the shared pre-finish fade dynamically.
   useEffect(() => {
@@ -1412,14 +1524,6 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
         }}
         androidPermissionsRequest={(resources: string[], grant: (resources: string[]) => void) => {
           grant(resources);
-        }}
-        onLoadEnd={() => {
-          if (isActive && isReady && permissionGranted) {
-            const js = `startPassthrough(${trackId}, ${bpm}, ${intensity}, ${vol}, ${mix}, ${wetEffectVolume}); true;`;
-            setTimeout(() => {
-              webViewRef.current?.injectJavaScript(js);
-            }, 300);
-          }
         }}
       />
     </View>

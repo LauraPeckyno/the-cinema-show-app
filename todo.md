@@ -260,3 +260,4 @@
 - [x] Add a subtle BPM-synchronized artwork reel-jitter on downbeats
 - [x] Change artwork reel-jitter to rare randomized 30–60 second playback events
 - [x] Conduct and report a focused application security review
+- [x] Prefer the phone built-in microphone and avoid headset or Bluetooth microphones for effects capture when platform APIs permit

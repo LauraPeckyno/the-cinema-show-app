@@ -135,7 +135,7 @@ describe("Universal pre-finish microphone fade", () => {
 
 describe("Wet slider microphone lifecycle", () => {
   it("keeps wet-volume updates out of the native start-stop dependency while routing them through setDryWet", () => {
-    expect(micPassthroughSource).toContain("}, [isActive, isReady, permissionGranted, trackId, bpm, intensity, vol, mix]);");
+    expect(micPassthroughSource).toContain("}, [isActive, isReady, permissionGranted, trackId, bpm, intensity, vol, mix, preferNativeBuiltInMicrophone]);");
     expect(micPassthroughSource).toContain("setDryWet(${mix}, ${trackId}, ${wetEffectVolume}); true;");
     expect(micPassthroughSource).toContain("}, [mix, trackId, wetEffectVolume, isReady, isActive]);");
     expect(micPassthroughSource).toContain('webViewRef.current.injectJavaScript("stopPassthrough(); true;")');
