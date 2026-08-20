@@ -26,7 +26,7 @@ describe("Global wet-effect volume control", () => {
     expect(micPassthroughSource).toContain("effectVolumeMultiplier?: number");
     expect(micPassthroughSource).toContain("wetGain.gain.value = getDefaultWetReturnGain(trackId, effectVolumeMultiplier)");
     expect(micPassthroughSource).toContain("chain.wetGain.gain.setValueAtTime(getDefaultWetReturnGain(trackId, effectVolumeMultiplier), t)");
-    expect(micPassthroughSource).toContain("startPassthrough(${trackId}, ${bpm}, ${intensity}, ${vol}, ${mix}, ${wetEffectVolume})");
+    expect(micPassthroughSource).toContain("startPassthrough(${trackId}, ${bpm}, ${intensity}, ${vol}, ${mix}, ${wetEffectVolume}, ${tightGate})");
   });
 });
 
@@ -85,6 +85,14 @@ describe("Now Playing wet slider and artwork composition", () => {
     expect(nowPlayingSource).toMatch(/progressArea:\s*\{[\s\S]*?marginBottom: 40/);
     expect(nowPlayingSource).toMatch(/controlsRow:\s*\{[\s\S]*?marginBottom: 40/);
     expect(nowPlayingSource).toMatch(/effectSliderArea:\s*\{[\s\S]*?marginBottom: 40/);
+  });
+
+  it("places a user-controlled Open/Tight Gate switch below the Effects button", () => {
+    expect(nowPlayingSource).toContain("const [isTightGate, setIsTightGate] = useState(false)");
+    expect(nowPlayingSource).toContain("tightGate={isTightGate}");
+    expect(nowPlayingSource).toContain(">Gate</Text>");
+    expect(nowPlayingSource).toContain(">Open</Text>");
+    expect(nowPlayingSource).toContain(">Tight</Text>");
   });
 
   it("uses full white playback borders and active-effects color-shifting borders instead of moving pixels", () => {

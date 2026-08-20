@@ -263,3 +263,5 @@
 - [x] Prefer the phone built-in microphone and avoid headset or Bluetooth microphones for effects capture when platform APIs permit
 - [x] Display the active microphone with built-in mic guidance on Now Playing
 - [x] Keep effects active with a stricter noise gate when an accessory microphone cannot be replaced
+- [x] Remove automatic microphone status detection and indicator
+- [x] Add a manual Open/Tight Gate switch below the Now Playing Effects button

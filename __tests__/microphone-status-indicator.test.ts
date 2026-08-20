@@ -5,12 +5,11 @@ import path from "node:path";
 const projectRoot = path.resolve(__dirname, "..");
 const nowPlayingSource = fs.readFileSync(path.join(projectRoot, "app/now-playing.tsx"), "utf8");
 
-describe("Now Playing microphone status indicator", () => {
-  it("shows the selected microphone state and built-in microphone guidance", () => {
-    expect(nowPlayingSource).toContain('const [microphoneInput, setMicrophoneInput] = useState<MicrophoneInputStatus>("unknown")');
-    expect(nowPlayingSource).toContain('label: "Microphone: Built-in"');
-    expect(nowPlayingSource).toContain('label: "Microphone: Accessory (Strict Gate)"');
-    expect(nowPlayingSource).toContain("Use built-in mic for best results.");
-    expect(nowPlayingSource).toContain("onInputDeviceChange={setMicrophoneInput}");
+describe("Now Playing manual Gate switch", () => {
+  it("places Open and Tight gate controls below the Effects button", () => {
+    expect(nowPlayingSource).toContain("const [isTightGate, setIsTightGate] = useState(false)");
+    expect(nowPlayingSource).toContain("tightGate={isTightGate}");
+    expect(nowPlayingSource).not.toContain("Microphone: Built-in");
+    expect(nowPlayingSource).not.toContain("Use built-in mic for best results.");
   });
 });

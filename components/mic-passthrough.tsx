@@ -14,7 +14,7 @@ interface MicPassthroughProps {
   shouldFadeOut?: boolean; // fades all mic output over the final two seconds of music playback
   onLevelUpdate?: (level: number) => void;
   onError?: (error: string) => void;
-  onInputDeviceChange?: (status: MicrophoneInputStatus) => void;
+  tightGate?: boolean;
 }
 
 function getDefaultDryReturnGain(trackId: number): number {
@@ -27,15 +27,6 @@ function getDefaultWetReturnGain(trackId: number, effectVolumeMultiplier: number
   return 0.80 * trackWetBoost * effectVolumeMultiplier;
 }
 
-const ACCESSORY_MICROPHONE_LABEL = /headset|headphone|earbud|airpod|bluetooth|\bbt\b|wired|usb/i;
-const BUILT_IN_MICROPHONE_LABEL = /built[- ]?in|internal|phone|device microphone|device mic/i;
-export type MicrophoneInputStatus = "builtIn" | "accessoryStrict" | "unknown";
-
-type PreferredMicrophoneCapture = {
-  stream: MediaStream;
-  inputStatus: MicrophoneInputStatus;
-};
-
 function audioInputConstraints(deviceId?: string): MediaTrackConstraints {
   return {
     echoCancellation: false,
@@ -45,55 +36,6 @@ function audioInputConstraints(deviceId?: string): MediaTrackConstraints {
     sampleRate: 44100,
     ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
   };
-}
-
-function findBuiltInMicrophone(inputs: MediaDeviceInfo[]): MediaDeviceInfo | undefined {
-  const explicitBuiltIn = inputs.find((input) => BUILT_IN_MICROPHONE_LABEL.test(input.label));
-  if (explicitBuiltIn) return explicitBuiltIn;
-
-  // Some WebViews expose only a generic label when no accessory mic is present.
-  return inputs.length === 1 && !ACCESSORY_MICROPHONE_LABEL.test(inputs[0].label)
-    ? inputs[0]
-    : undefined;
-}
-
-async function requestBuiltInMicrophoneStream(): Promise<PreferredMicrophoneCapture> {
-  const defaultStream = await navigator.mediaDevices.getUserMedia({
-    audio: audioInputConstraints(),
-  });
-
-  try {
-    if (!navigator.mediaDevices.enumerateDevices) {
-      return { stream: defaultStream, inputStatus: "unknown" };
-    }
-
-    const inputs = (await navigator.mediaDevices.enumerateDevices()).filter(
-      (device) => device.kind === "audioinput",
-    );
-    const builtInMic = findBuiltInMicrophone(inputs);
-    const accessoryMicConnected = inputs.some((input) => ACCESSORY_MICROPHONE_LABEL.test(input.label));
-    const currentDeviceId = defaultStream.getAudioTracks()[0]?.getSettings?.().deviceId;
-
-    if (!builtInMic) {
-      if (accessoryMicConnected) {
-        return { stream: defaultStream, inputStatus: "accessoryStrict" };
-      }
-      return { stream: defaultStream, inputStatus: "unknown" };
-    }
-
-    if (currentDeviceId === builtInMic.deviceId) {
-      return { stream: defaultStream, inputStatus: "builtIn" };
-    }
-
-    defaultStream.getTracks().forEach((track) => track.stop());
-    const builtInStream = await navigator.mediaDevices.getUserMedia({
-      audio: audioInputConstraints(builtInMic.deviceId),
-    });
-    return { stream: builtInStream, inputStatus: "builtIn" };
-  } catch (error) {
-    defaultStream.getTracks().forEach((track) => track.stop());
-    throw error;
-  }
 }
 
 /**
@@ -113,7 +55,7 @@ export function MicPassthrough({
  trackId,
  bpm,
  effectIntensity,
-  effectVolumeMultiplier = 1.0,
+ effectVolumeMultiplier = 1.0,
  micSensitivity,
  masterVolume,
  musicVolume,
@@ -121,7 +63,7 @@ export function MicPassthrough({
  shouldFadeOut = false,
  onLevelUpdate,
  onError,
-  onInputDeviceChange,
+  tightGate = false,
 }: MicPassthroughProps) {
  if (Platform.OS === "web") {
     return (
@@ -138,7 +80,7 @@ export function MicPassthrough({
         shouldFadeOut={shouldFadeOut}
         onLevelUpdate={onLevelUpdate}
         onError={onError}
-        onInputDeviceChange={onInputDeviceChange}
+        tightGate={tightGate}
       />
     );
   }
@@ -157,7 +99,7 @@ export function MicPassthrough({
       shouldFadeOut={shouldFadeOut}
       onLevelUpdate={onLevelUpdate}
       onError={onError}
-      onInputDeviceChange={onInputDeviceChange}
+      tightGate={tightGate}
     />
   );
 }
@@ -1046,7 +988,7 @@ function WebMicPassthrough({
   shouldFadeOut = false,
   onLevelUpdate,
   onError,
-  onInputDeviceChange,
+  tightGate = false,
 }: MicPassthroughProps) {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
@@ -1092,13 +1034,18 @@ function WebMicPassthrough({
     if (wetGainRef.current) wetGainRef.current.gain.value = getDefaultWetReturnGain(trackId, effectVolumeMultiplier);
   }, [dryWetMix, trackId, effectVolumeMultiplier]);
 
+  useEffect(() => {
+    const inputGate = chainRef.current?.effectChain?.inputGate;
+    if (inputGate) inputGate.threshold.value = tightGate ? -2 : -14;
+  }, [tightGate]);
+
   async function startWebPassthrough() {
     try {
       stopWebPassthrough();
 
-      const capture = await requestBuiltInMicrophoneStream();
-      const stream = capture.stream;
-      onInputDeviceChange?.(capture.inputStatus);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: audioInputConstraints(),
+      });
       streamRef.current = stream;
 
       const ctx = new AudioContext();
@@ -1123,7 +1070,7 @@ function WebMicPassthrough({
         "ctx", "source", "trackId", "bpm", "intensity", "dryWetMix", "effectVolumeMultiplier", "strictAccessoryGate",
         buildEffectChainJS() + "\n" + buildDryWetChainJS() + "\nreturn buildDryWetChain(ctx, source, trackId, bpm, intensity, dryWetMix, effectVolumeMultiplier, strictAccessoryGate);"
       );
-      const chain = buildFn(ctx, source, trackId, bpm, intensity, mix, effectVolumeMultiplier, capture.inputStatus === "accessoryStrict");
+      const chain = buildFn(ctx, source, trackId, bpm, intensity, mix, effectVolumeMultiplier, tightGate);
       chainRef.current = chain;
       dryGainRef.current = chain.dryGain;
       wetGainRef.current = chain.wetGain;
@@ -1195,7 +1142,7 @@ function NativeMicPassthrough({
   shouldFadeOut = false,
   onLevelUpdate,
   onError,
-  onInputDeviceChange,
+  tightGate = false,
 }: MicPassthroughProps) {
   const webViewRef = useRef<any>(null);
   const startRequestRef = useRef(0);
@@ -1247,19 +1194,6 @@ function NativeMicPassthrough({
   const mix = 0.80; // not used for initial setup (buildDryWetChain uses fixed 25/80)
   const wetEffectVolume = Math.max(0.5, Math.min(1.5, effectVolumeMultiplier));
 
-  const preferNativeBuiltInMicrophone = useCallback(async () => {
-    try {
-      const AudioRouteModule = require("@/modules/expo-audio-route").default;
-      const result = await AudioRouteModule.preferBuiltInMicrophoneAsync();
-      if (!result?.applied && result?.reason) {
-        console.warn("[MicPassthrough] Native built-in microphone preference:", result.reason);
-      }
-    } catch (error) {
-      // Android WebView performs deviceId selection itself; Expo Go may not include this local module.
-      console.warn("[MicPassthrough] Built-in microphone preference unavailable:", error);
-    }
-  }, []);
-
   const htmlContent = `
 <!DOCTYPE html>
 <html>
@@ -1287,9 +1221,6 @@ function log(msg) {
   window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'log', message: msg }));
 }
 
-var accessoryMicLabel = /headset|headphone|earbud|airpod|bluetooth|\bbt\b|wired|usb/i;
-var builtInMicLabel = /built[- ]?in|internal|phone|device microphone|device mic/i;
-
 function inputConstraints(deviceId) {
   var constraints = {
     echoCancellation: false,
@@ -1302,38 +1233,7 @@ function inputConstraints(deviceId) {
   return constraints;
 }
 
-async function getPreferredBuiltInMicrophoneStream() {
-  var defaultStream = await navigator.mediaDevices.getUserMedia({ audio: inputConstraints() });
-  try {
-    if (!navigator.mediaDevices.enumerateDevices) return { stream: defaultStream, inputStatus: 'unknown' };
-    var devices = await navigator.mediaDevices.enumerateDevices();
-    var inputs = devices.filter(function(device) { return device.kind === 'audioinput'; });
-    var builtInMic = inputs.find(function(input) { return builtInMicLabel.test(input.label); });
-    if (!builtInMic && inputs.length === 1 && !accessoryMicLabel.test(inputs[0].label)) {
-      builtInMic = inputs[0];
-    }
-    var accessoryMicConnected = inputs.some(function(input) { return accessoryMicLabel.test(input.label); });
-    var track = defaultStream.getAudioTracks()[0];
-    var currentDeviceId = track && track.getSettings ? track.getSettings().deviceId : null;
-
-    if (!builtInMic) {
-      if (accessoryMicConnected) {
-        return { stream: defaultStream, inputStatus: 'accessoryStrict' };
-      }
-      return { stream: defaultStream, inputStatus: 'unknown' };
-    }
-
-    if (currentDeviceId === builtInMic.deviceId) return { stream: defaultStream, inputStatus: 'builtIn' };
-    defaultStream.getTracks().forEach(function(track) { track.stop(); });
-    var builtInStream = await navigator.mediaDevices.getUserMedia({ audio: inputConstraints(builtInMic.deviceId) });
-    return { stream: builtInStream, inputStatus: 'builtIn' };
-  } catch (error) {
-    defaultStream.getTracks().forEach(function(track) { track.stop(); });
-    throw error;
-  }
-}
-
-async function startPassthrough(trackId, bpm, intensity, vol, dryWetMix, effectVolumeMultiplier) {
+async function startPassthrough(trackId, bpm, intensity, vol, dryWetMix, effectVolumeMultiplier, tightGate) {
   try {
     stopPassthrough();
     log('Starting BOLD mic passthrough for track ' + trackId);
@@ -1343,9 +1243,7 @@ async function startPassthrough(trackId, bpm, intensity, vol, dryWetMix, effectV
     }
 
     log('Requesting getUserMedia...');
-    var capture = await getPreferredBuiltInMicrophoneStream();
-    stream = capture.stream;
-    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'input-status', status: capture.inputStatus }));
+    stream = await navigator.mediaDevices.getUserMedia({ audio: inputConstraints() });
     log('Got media stream with ' + stream.getAudioTracks().length + ' audio tracks');
 
     audioCtx = new (window.AudioContext || window.webkitAudioContext)({
@@ -1366,7 +1264,7 @@ async function startPassthrough(trackId, bpm, intensity, vol, dryWetMix, effectV
     outputGain.gain.value = 0;
     outputGain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 4.0);
 
-    chain = buildDryWetChain(audioCtx, source, trackId, bpm, intensity, dryWetMix, effectVolumeMultiplier, capture.inputStatus === 'accessoryStrict');
+    chain = buildDryWetChain(audioCtx, source, trackId, bpm, intensity, dryWetMix, effectVolumeMultiplier, tightGate);
     chain.output.connect(outputGain);
     outputGain.connect(audioCtx.destination);
 
@@ -1404,7 +1302,7 @@ async function startPassthrough(trackId, bpm, intensity, vol, dryWetMix, effectV
       retryCount++;
       log('Retrying in 500ms (attempt ' + retryCount + '/' + MAX_RETRIES + ')');
       setTimeout(function() {
-        startPassthrough(trackId, bpm, intensity, vol, dryWetMix, effectVolumeMultiplier);
+        startPassthrough(trackId, bpm, intensity, vol, dryWetMix, effectVolumeMultiplier, tightGate);
       }, 500);
     } else {
       window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: errMsg }));
@@ -1452,6 +1350,12 @@ function setDryWet(mix, trackId, effectVolumeMultiplier) {
   }
 }
 
+function setGate(tightGate) {
+  if (chain && chain.effectChain && chain.effectChain.inputGate && audioCtx) {
+    chain.effectChain.inputGate.threshold.setValueAtTime(tightGate ? -2 : -14, audioCtx.currentTime);
+  }
+}
+
 // Signal ready
 window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
 </script>
@@ -1473,9 +1377,6 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
         case "error":
           onError?.(data.message);
           break;
-        case "input-status":
-          onInputDeviceChange?.(data.status);
-          break;
         case "log":
           console.log("[MicPassthrough WebView]", data.message);
           break;
@@ -1483,7 +1384,7 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
     } catch (e) {
       // ignore parse errors
     }
-  }, [onLevelUpdate, onError, onInputDeviceChange]);
+  }, [onLevelUpdate, onError]);
 
   // Start/stop passthrough when isActive changes
   useEffect(() => {
@@ -1492,21 +1393,17 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
     const requestId = ++startRequestRef.current;
 
     if (isActive) {
-      void (async () => {
-        await preferNativeBuiltInMicrophone();
-        if (requestId !== startRequestRef.current || !webViewRef.current) return;
-        const js = `startPassthrough(${trackId}, ${bpm}, ${intensity}, ${vol}, ${mix}, ${wetEffectVolume}); true;`;
-        webViewRef.current.injectJavaScript(js);
-      })();
+      const js = `startPassthrough(${trackId}, ${bpm}, ${intensity}, ${vol}, ${mix}, ${wetEffectVolume}, ${tightGate}); true;`;
+      webViewRef.current.injectJavaScript(js);
     } else {
       webViewRef.current.injectJavaScript("stopPassthrough(); true;");
     }
-  // Wet level has its own setDryWet update below. Keeping it out of this dependency
-  // prevents slider movement from restarting the WebView and racing a later stop request.
+  // Wet level and gate mode each update through dedicated messages below. Keeping both
+  // out of this dependency avoids restarting the WebView while the user adjusts controls.
     return () => {
       startRequestRef.current += 1;
     };
-  }, [isActive, isReady, permissionGranted, trackId, bpm, intensity, vol, mix, preferNativeBuiltInMicrophone]);
+  }, [isActive, isReady, permissionGranted, trackId, bpm, intensity, vol, mix]);
 
   // Update volume and the shared pre-finish fade dynamically.
   useEffect(() => {
@@ -1519,6 +1416,11 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
     if (!webViewRef.current || !isReady || !isActive) return;
     webViewRef.current.injectJavaScript(`setDryWet(${mix}, ${trackId}, ${wetEffectVolume}); true;`);
   }, [mix, trackId, wetEffectVolume, isReady, isActive]);
+
+  useEffect(() => {
+    if (!webViewRef.current || !isReady || !isActive) return;
+    webViewRef.current.injectJavaScript(`setGate(${tightGate}); true;`);
+  }, [tightGate, isReady, isActive]);
 
   // Don't render WebView until we have permission and the component
   if (!WebViewComponent || !permissionGranted) return null;

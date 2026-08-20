@@ -29,7 +29,7 @@ import { AudioFilePlayer } from "@/components/audio-file-player";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useKeepAwake } from "expo-keep-awake";
 import { reportTrackDuration } from "@/hooks/use-track-durations";
-import { MicPassthrough, type MicrophoneInputStatus } from "@/components/mic-passthrough";
+import { MicPassthrough } from "@/components/mic-passthrough";
 import { TRACK_ARTWORK } from "@/constants/track-artwork";
 
 function formatTime(seconds: number): string {
@@ -327,7 +327,7 @@ export default function NowPlayingScreen() {
   const router = useRouter();
   const colors = useColors();
   const [micError, setMicError] = useState<string | null>(null);
-  const [microphoneInput, setMicrophoneInput] = useState<MicrophoneInputStatus>("unknown");
+  const [isTightGate, setIsTightGate] = useState(false);
   const [showHeadphoneWarning, setShowHeadphoneWarning] = useState(false);
   const { route: audioRoute, isHeadphonesConnected, wasDisconnected, clearDisconnectedFlag } = useHeadphoneDetection();
   const {
@@ -522,13 +522,6 @@ export default function NowPlayingScreen() {
       : currentTrack.durationEstimate;
   const artworkUrl = TRACK_ARTWORK[currentTrack.id];
   const shouldFadeMicOutput = isPlaying && trackDuration > 0 && playbackTime >= Math.max(0, trackDuration - 2);
-  const microphoneStatus = !isMicActive
-    ? { label: "Microphone: Standby", color: colors.muted }
-    : microphoneInput === "builtIn"
-      ? { label: "Microphone: Built-in", color: colors.success }
-      : microphoneInput === "accessoryStrict"
-        ? { label: "Microphone: Accessory (Strict Gate)", color: colors.warning }
-        : { label: "Microphone: Detecting", color: colors.muted };
 
   return (
     <ScreenContainer edges={["top", "bottom", "left", "right"]} containerClassName="bg-background">
@@ -575,7 +568,7 @@ export default function NowPlayingScreen() {
         shouldFadeOut={shouldFadeMicOutput}
         onLevelUpdate={dispatchMicLevel}
         onError={(err) => setMicError(err)}
-        onInputDeviceChange={setMicrophoneInput}
+        tightGate={isTightGate}
       />
 
       <ScrollView style={styles.contentLayer} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -675,11 +668,6 @@ export default function NowPlayingScreen() {
           </View>
         </View>
 
-        <View style={[styles.microphoneStatusCard, { borderColor: microphoneStatus.color + "55", backgroundColor: "#0A0A14B8" }]}>
-          <Text style={[styles.microphoneStatusText, { color: microphoneStatus.color }]}>{microphoneStatus.label}</Text>
-          <Text style={[styles.microphoneHintText, { color: colors.muted }]}>Use built-in mic for best results.</Text>
-        </View>
-
         {/* Mic Error Message */}
         {micError && (
           <View style={[styles.micErrorArea, { backgroundColor: colors.error + '15', borderColor: colors.error + '40' }]}>
@@ -724,6 +712,35 @@ export default function NowPlayingScreen() {
               />
             </View>
           </Animated.View>
+          <View style={styles.gateControl}>
+            <Text style={[styles.gateLabel, { color: colors.muted }]}>Gate</Text>
+            <View style={[styles.gateSwitch, { borderColor: isTightGate ? colors.warning : colors.border }]}> 
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ selected: !isTightGate }}
+                onPress={() => setIsTightGate(false)}
+                style={({ pressed }) => [
+                  styles.gateOption,
+                  !isTightGate && { backgroundColor: effectColor + "30" },
+                  pressed && { opacity: 0.78 },
+                ]}
+              >
+                <Text style={[styles.gateOptionText, { color: !isTightGate ? effectColor : colors.muted }]}>Open</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ selected: isTightGate }}
+                onPress={() => setIsTightGate(true)}
+                style={({ pressed }) => [
+                  styles.gateOption,
+                  isTightGate && { backgroundColor: colors.warning + "30" },
+                  pressed && { opacity: 0.78 },
+                ]}
+              >
+                <Text style={[styles.gateOptionText, { color: isTightGate ? colors.warning : colors.muted }]}>Tight</Text>
+              </Pressable>
+            </View>
+          </View>
         </View>
       </ScrollView>
 
@@ -930,27 +947,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontVariant: ["tabular-nums"],
   },
-  microphoneStatusCard: {
-    alignSelf: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    marginHorizontal: 24,
-    marginBottom: 16,
-  },
-  microphoneStatusText: {
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
-  },
-  microphoneHintText: {
-    marginTop: 2,
-    fontSize: 10,
-    fontWeight: "500",
-  },
   playButton: {
     width: 72,
     height: 72,
@@ -1021,6 +1017,33 @@ const styles = StyleSheet.create({
   micToggleLabel: {
     fontSize: 15,
     fontWeight: "600",
+  },
+  gateControl: {
+    alignItems: "center",
+    marginTop: 14,
+  },
+  gateLabel: {
+    marginBottom: 6,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.7,
+    textTransform: "uppercase",
+  },
+  gateSwitch: {
+    flexDirection: "row",
+    borderWidth: 1,
+    borderRadius: 18,
+    overflow: "hidden",
+  },
+  gateOption: {
+    minWidth: 74,
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  gateOptionText: {
+    fontSize: 12,
+    fontWeight: "700",
   },
   modalOverlay: {
     flex: 1,
