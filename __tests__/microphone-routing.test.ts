@@ -19,7 +19,8 @@ describe("built-in microphone preference", () => {
     expect(micSource).toContain("navigator.mediaDevices.enumerateDevices()");
     expect(micSource).toContain("deviceId: { exact: deviceId }");
     expect(micSource).toContain("ACCESSORY_MICROPHONE_LABEL");
-    expect(micSource).toContain("Disconnect the headset or Bluetooth microphone before activating effects.");
+    expect(micSource).toContain('inputStatus: "accessoryStrict"');
+    expect(micSource).toContain("strictAccessoryGate ? -2 : -14");
   });
 
   it("applies iOS built-in microphone routing before native WebView capture", () => {

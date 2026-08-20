@@ -29,7 +29,7 @@ import { AudioFilePlayer } from "@/components/audio-file-player";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useKeepAwake } from "expo-keep-awake";
 import { reportTrackDuration } from "@/hooks/use-track-durations";
-import { MicPassthrough } from "@/components/mic-passthrough";
+import { MicPassthrough, type MicrophoneInputStatus } from "@/components/mic-passthrough";
 import { TRACK_ARTWORK } from "@/constants/track-artwork";
 
 function formatTime(seconds: number): string {
@@ -327,6 +327,7 @@ export default function NowPlayingScreen() {
   const router = useRouter();
   const colors = useColors();
   const [micError, setMicError] = useState<string | null>(null);
+  const [microphoneInput, setMicrophoneInput] = useState<MicrophoneInputStatus>("unknown");
   const [showHeadphoneWarning, setShowHeadphoneWarning] = useState(false);
   const { route: audioRoute, isHeadphonesConnected, wasDisconnected, clearDisconnectedFlag } = useHeadphoneDetection();
   const {
@@ -521,6 +522,13 @@ export default function NowPlayingScreen() {
       : currentTrack.durationEstimate;
   const artworkUrl = TRACK_ARTWORK[currentTrack.id];
   const shouldFadeMicOutput = isPlaying && trackDuration > 0 && playbackTime >= Math.max(0, trackDuration - 2);
+  const microphoneStatus = !isMicActive
+    ? { label: "Microphone: Standby", color: colors.muted }
+    : microphoneInput === "builtIn"
+      ? { label: "Microphone: Built-in", color: colors.success }
+      : microphoneInput === "accessoryStrict"
+        ? { label: "Microphone: Accessory (Strict Gate)", color: colors.warning }
+        : { label: "Microphone: Detecting", color: colors.muted };
 
   return (
     <ScreenContainer edges={["top", "bottom", "left", "right"]} containerClassName="bg-background">
@@ -567,6 +575,7 @@ export default function NowPlayingScreen() {
         shouldFadeOut={shouldFadeMicOutput}
         onLevelUpdate={dispatchMicLevel}
         onError={(err) => setMicError(err)}
+        onInputDeviceChange={setMicrophoneInput}
       />
 
       <ScrollView style={styles.contentLayer} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -664,6 +673,11 @@ export default function NowPlayingScreen() {
             <Text style={[styles.effectSliderBound, { color: colors.muted }]}>1.0×</Text>
             <Text style={[styles.effectSliderBound, { color: colors.muted }]}>1.5×</Text>
           </View>
+        </View>
+
+        <View style={[styles.microphoneStatusCard, { borderColor: microphoneStatus.color + "55", backgroundColor: "#0A0A14B8" }]}>
+          <Text style={[styles.microphoneStatusText, { color: microphoneStatus.color }]}>{microphoneStatus.label}</Text>
+          <Text style={[styles.microphoneHintText, { color: colors.muted }]}>Use built-in mic for best results.</Text>
         </View>
 
         {/* Mic Error Message */}
@@ -915,6 +929,27 @@ const styles = StyleSheet.create({
   effectSliderBound: {
     fontSize: 11,
     fontVariant: ["tabular-nums"],
+  },
+  microphoneStatusCard: {
+    alignSelf: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginHorizontal: 24,
+    marginBottom: 16,
+  },
+  microphoneStatusText: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+  },
+  microphoneHintText: {
+    marginTop: 2,
+    fontSize: 10,
+    fontWeight: "500",
   },
   playButton: {
     width: 72,
