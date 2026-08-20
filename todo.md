@@ -265,3 +265,4 @@
 - [x] Keep effects active with a stricter noise gate when an accessory microphone cannot be replaced
 - [x] Remove automatic microphone status detection and indicator
 - [x] Add a manual Open/Tight Gate switch below the Now Playing Effects button
+- [x] Add a one-time first-interaction Gate guidance tooltip

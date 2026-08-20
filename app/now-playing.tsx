@@ -28,6 +28,7 @@ import { useAudioEngine } from "@/lib/audio-engine";
 import { AudioFilePlayer } from "@/components/audio-file-player";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useKeepAwake } from "expo-keep-awake";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { reportTrackDuration } from "@/hooks/use-track-durations";
 import { MicPassthrough } from "@/components/mic-passthrough";
 import { TRACK_ARTWORK } from "@/constants/track-artwork";
@@ -37,6 +38,8 @@ function formatTime(seconds: number): string {
   const s = Math.floor(seconds % 60);
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
+
+const GATE_GUIDANCE_STORAGE_KEY = "@the-cinema-show/gate-guidance-seen-v1";
 
 function FilmReelJitter({
   artworkUrl,
@@ -328,6 +331,8 @@ export default function NowPlayingScreen() {
   const colors = useColors();
   const [micError, setMicError] = useState<string | null>(null);
   const [isTightGate, setIsTightGate] = useState(false);
+  const [showGateGuidance, setShowGateGuidance] = useState(false);
+  const gateGuidanceSeenRef = useRef(false);
   const [showHeadphoneWarning, setShowHeadphoneWarning] = useState(false);
   const { route: audioRoute, isHeadphonesConnected, wasDisconnected, clearDisconnectedFlag } = useHeadphoneDetection();
   const {
@@ -488,6 +493,25 @@ export default function NowPlayingScreen() {
       onPanResponderMove: (event) => updateWetEffectVolume(event.nativeEvent.locationX),
     }),
   ).current;
+
+  useEffect(() => {
+    let mounted = true;
+    void AsyncStorage.getItem(GATE_GUIDANCE_STORAGE_KEY)
+      .then((value) => {
+        if (mounted && value === "true") gateGuidanceSeenRef.current = true;
+      })
+      .catch(() => undefined);
+    return () => { mounted = false; };
+  }, []);
+
+  const handleGateChange = useCallback((tight: boolean) => {
+    setIsTightGate(tight);
+    if (gateGuidanceSeenRef.current) return;
+
+    gateGuidanceSeenRef.current = true;
+    setShowGateGuidance(true);
+    void AsyncStorage.setItem(GATE_GUIDANCE_STORAGE_KEY, "true").catch(() => undefined);
+  }, []);
 
   if (!currentTrack) {
     return (
@@ -718,7 +742,7 @@ export default function NowPlayingScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ selected: !isTightGate }}
-                onPress={() => setIsTightGate(false)}
+                onPress={() => handleGateChange(false)}
                 style={({ pressed }) => [
                   styles.gateOption,
                   !isTightGate && { backgroundColor: effectColor + "30" },
@@ -730,7 +754,7 @@ export default function NowPlayingScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ selected: isTightGate }}
-                onPress={() => setIsTightGate(true)}
+                onPress={() => handleGateChange(true)}
                 style={({ pressed }) => [
                   styles.gateOption,
                   isTightGate && { backgroundColor: colors.warning + "30" },
@@ -743,6 +767,29 @@ export default function NowPlayingScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={showGateGuidance}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowGateGuidance(false)}
+      >
+        <View style={styles.gateTooltipOverlay}>
+          <View style={[styles.gateTooltipCard, { backgroundColor: "#12121FEF", borderColor: effectColor + "88" }]}>
+            <Text style={[styles.gateTooltipTitle, { color: effectColor }]}>Gate Guide</Text>
+            <Text style={[styles.gateTooltipText, { color: colors.foreground }]}>
+              Use the Open Gate for normal environments and over-ear headphones that use your phone&apos;s built-in mic. (Preferred if possible){"\n\n"}
+              If you use earbuds with a mic and there is feedback, use the Tight Gate and turn down the effect volume until listening is comfortable.
+            </Text>
+            <Pressable
+              onPress={() => setShowGateGuidance(false)}
+              style={({ pressed }) => [styles.gateTooltipDismiss, { borderColor: effectColor }, pressed && { opacity: 0.72 }]}
+            >
+              <Text style={[styles.gateTooltipDismissText, { color: effectColor }]}>Got it</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       {/* Headphone Disconnection Warning Modal */}
       <Modal
@@ -1044,6 +1091,45 @@ const styles = StyleSheet.create({
   gateOptionText: {
     fontSize: 12,
     fontWeight: "700",
+  },
+  gateTooltipOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 28,
+    backgroundColor: "rgba(0,0,0,0.56)",
+  },
+  gateTooltipCard: {
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingHorizontal: 22,
+    paddingVertical: 20,
+  },
+  gateTooltipTitle: {
+    marginBottom: 10,
+    fontSize: 15,
+    fontWeight: "800",
+    letterSpacing: 1,
+    textAlign: "center",
+    textTransform: "uppercase",
+  },
+  gateTooltipText: {
+    fontSize: 14,
+    lineHeight: 21,
+    textAlign: "center",
+  },
+  gateTooltipDismiss: {
+    alignSelf: "center",
+    marginTop: 18,
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingHorizontal: 22,
+    paddingVertical: 8,
+  },
+  gateTooltipDismissText: {
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
   },
   modalOverlay: {
     flex: 1,

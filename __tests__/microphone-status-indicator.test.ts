@@ -12,4 +12,14 @@ describe("Now Playing manual Gate switch", () => {
     expect(nowPlayingSource).not.toContain("Microphone: Built-in");
     expect(nowPlayingSource).not.toContain("Use built-in mic for best results.");
   });
+
+  it("shows the requested Gate guidance only on the first user interaction", () => {
+    expect(nowPlayingSource).toContain('const GATE_GUIDANCE_STORAGE_KEY = "@the-cinema-show/gate-guidance-seen-v1"');
+    expect(nowPlayingSource).toContain("AsyncStorage.getItem(GATE_GUIDANCE_STORAGE_KEY)");
+    expect(nowPlayingSource).toContain("gateGuidanceSeenRef.current = true");
+    expect(nowPlayingSource).toContain("setShowGateGuidance(true)");
+    expect(nowPlayingSource).toContain("Use the Open Gate for normal environments and over-ear headphones");
+    expect(nowPlayingSource).toContain("If you use earbuds with a mic and there is feedback, use the Tight Gate");
+    expect(nowPlayingSource).toContain("Got it");
+  });
 });
