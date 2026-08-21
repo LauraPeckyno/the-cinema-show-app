@@ -133,6 +133,14 @@ describe("Universal pre-finish microphone fade", () => {
   });
 });
 
+describe("Independent microphone effects activation", () => {
+  it("allows microphone effects to start even when music playback is paused", () => {
+    expect(nowPlayingSource).toContain("isActive={isMicActive}");
+    expect(nowPlayingSource).not.toContain("isActive={isMicActive && isPlaying}");
+    expect(nowPlayingSource).toContain("active independently of music playback");
+  });
+});
+
 describe("Wet slider microphone lifecycle", () => {
   it("keeps wet-volume and Gate updates out of the native start-stop dependency", () => {
     expect(micPassthroughSource).toContain("}, [isActive, isReady, permissionGranted, trackId, bpm, intensity, vol, mix]);");

@@ -266,3 +266,5 @@
 - [x] Remove automatic microphone status detection and indicator
 - [x] Add a manual Open/Tight Gate switch below the Now Playing Effects button
 - [x] Add a one-time first-interaction Gate guidance tooltip
+- [x] Allow microphone effects to activate independently of music playback
+- [x] Allow microphone effects to activate independently of music playback

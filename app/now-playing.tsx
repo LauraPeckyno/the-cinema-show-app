@@ -577,10 +577,9 @@ export default function NowPlayingScreen() {
         onDuration={handleSCDuration}
       />
 
-      {/* Mic Audio Passthrough — effects at 50% of music volume, +8dB mic gain */}
-      {/* Effects only start when track is actually playing */}
+      {/* Mic Audio Passthrough — active independently of music playback. */}
       <MicPassthrough
-        isActive={isMicActive && isPlaying}
+        isActive={isMicActive}
         trackId={currentTrack.id}
         bpm={currentTrack.bpm}
         effectIntensity={effectIntensity}
