@@ -4,9 +4,9 @@ import type { ExpoConfig } from "expo/config";
 
 // Bundle ID format: space.manus.<project_name_dots>.<timestamp>
 // e.g., "my-app" created at 2024-01-15 10:30:45 -> "space.manus.my.app.t20240115103045"
-// Bundle ID can only contain letters, numbers, and dots
+// Bundle ID can only contain letters, numbers, and dots - was space.manus.the.cinema.show.app.t20260308222644
 // Android requires each dot-separated segment to start with a letter
-const rawBundleId = "space.manus.the.cinema.show.app.t20260308222644";
+const rawBundleId = "com.streamingkeys.cinemashow";
 const bundleId =
   rawBundleId
     .replace(/[-_]/g, ".") // Replace hyphens/underscores with dots
