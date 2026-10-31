@@ -1,4 +1,5 @@
 import { Platform } from "react-native";
+import * as FileSystem from "expo-file-system/legacy";
 
 /**
  * Audio & Asset Cache
@@ -135,8 +136,6 @@ async function _doDownloadWeb(remoteUrl: string): Promise<string> {
  */
 async function _doDownloadNative(remoteUrl: string): Promise<string> {
   try {
-    const FileSystem = await import("expo-file-system/legacy");
-
     // Generate a safe filename from the URL
     const filename = _urlToFilename(remoteUrl);
     const localUri = (FileSystem.cacheDirectory || "") + "audio-cache/" + filename;

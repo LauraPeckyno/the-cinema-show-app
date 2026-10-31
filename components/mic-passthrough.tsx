@@ -1,6 +1,11 @@
 import React, { useRef, useEffect, useCallback, useState } from "react";
 import { View, StyleSheet, Platform } from "react-native";
 
+// Load the WebView with the main bundle (not as a lazily downloaded chunk, which
+// failed on Android with "Requiring unknown module"). Native only.
+const NativeWebView: any =
+  Platform.OS === "web" ? null : require("react-native-webview").WebView;
+
 interface MicPassthroughProps {
   isActive: boolean;
   trackId: number;
@@ -1155,9 +1160,8 @@ function NativeMicPassthrough({
     let mounted = true;
     (async () => {
       try {
-        const mod = await import("react-native-webview");
-        if (mounted) {
-          setWebViewComponent(() => mod.default || mod.WebView);
+        if (mounted && NativeWebView) {
+          setWebViewComponent(() => NativeWebView);
         }
       } catch (e) {
         console.warn("react-native-webview not available for mic passthrough");
