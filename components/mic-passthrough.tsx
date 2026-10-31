@@ -1166,8 +1166,10 @@ function NativeMicPassthrough({
     return () => { mounted = false; };
   }, []);
 
-  // Request native mic permission BEFORE WebView tries getUserMedia
+  // Request native mic permission the first time the user turns the mic on,
+  // BEFORE the WebView tries getUserMedia (not when Now Playing opens).
   useEffect(() => {
+    if (!isActive || permissionGranted) return;
     let mounted = true;
     (async () => {
       try {
@@ -1186,7 +1188,7 @@ function NativeMicPassthrough({
       }
     })();
     return () => { mounted = false; };
-  }, []);
+  }, [isActive, permissionGranted]);
 
   const intensity = effectIntensity / 100;
   // Mic-output master at 0.80x music volume; native path matches web
@@ -1437,6 +1439,8 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
         domStorageEnabled={true}
         mediaPlaybackRequiresUserAction={false}
         allowsInlineMediaPlayback={true}
+        // The app already holds the OS mic permission; skip WebKit's second "localhost" prompt.
+        mediaCapturePermissionGrantType="grant"
         mixedContentMode="never"
         originWhitelist={["https://localhost", "about:*"]}
         onShouldStartLoadWithRequest={(req: { url?: string }) => {

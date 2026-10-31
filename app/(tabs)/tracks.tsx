@@ -224,6 +224,18 @@ export default function TracksScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+        {/* Back to Home */}
+        <Pressable
+          onPress={() => router.navigate("/(tabs)" as any)}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Back to Home"
+          style={({ pressed }) => [styles.homeButton, pressed && { opacity: 0.6 }]}
+        >
+          <FontAwesome name="chevron-left" size={13} color={colors.primary} />
+          <Text style={[styles.homeButtonText, { color: colors.primary }]}>Home</Text>
+        </Pressable>
+
         {/* Start the Show button */}
         <View style={styles.instructionArea}>
           <Pressable
@@ -297,6 +309,21 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "#05050D",
     zIndex: 10,
+  },
+  homeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  homeButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    letterSpacing: 1,
+    textTransform: "uppercase",
   },
   instructionArea: {
     alignItems: "center",

@@ -631,7 +631,7 @@ export default function NowPlayingScreen() {
               {formatTime(playbackTime)}
             </Text>
             <Text style={[styles.timeText, { color: colors.muted }]}>
-              {trackDuration > 0 ? `-${formatTime(displayDuration - playbackTime)}` : formatTime(displayDuration)}
+              {`-${formatTime(Math.max(0, displayDuration - playbackTime))}`}
             </Text>
           </View>
         </View>

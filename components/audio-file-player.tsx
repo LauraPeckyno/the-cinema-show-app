@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useCallback, useState } from "react";
 import { Platform } from "react-native";
 import { Track } from "@/constants/tracks";
 import { getCachedUri } from "@/lib/audio-cache";
@@ -220,6 +220,7 @@ function NativeAudioFilePlayer({
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const trackUrlRef = useRef<string>("");
   const isReadyRef = useRef(false);
+  const [ready, setReady] = useState(false);
   const hasFinishedRef = useRef(false);
   const listenerSubRef = useRef<any>(null);
 
@@ -254,6 +255,7 @@ function NativeAudioFilePlayer({
         // Ensure audio plays in silent mode
         await setAudioModeAsync({ playsInSilentMode: true });
 
+        setReady(false);
         const player = createAudioPlayer({ uri: url });
         if (!mounted) {
           player.remove();
@@ -271,6 +273,7 @@ function NativeAudioFilePlayer({
           // Detect when player is ready (has duration)
           if (!isReadyRef.current && status.isLoaded && status.duration > 0) {
             isReadyRef.current = true;
+            setReady(true);
             onDuration?.(status.duration * 1000);
             onReady?.();
           }
@@ -339,7 +342,7 @@ function NativeAudioFilePlayer({
         progressIntervalRef.current = null;
       }
     }
-  }, [isPlaying]);
+  }, [isPlaying, ready]);
 
   // Volume control
   useEffect(() => {
