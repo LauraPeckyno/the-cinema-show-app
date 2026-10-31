@@ -8,6 +8,9 @@
  */
 
 import { Platform } from "react-native";
+import * as ExpoAudio from "expo-audio";
+import AudioModule from "expo-audio/build/AudioModule";
+import { createRecordingOptions } from "expo-audio/build/utils/options";
 
 export interface MicEngineCallbacks {
   onLevelUpdate: (level: number) => void;
@@ -90,9 +93,6 @@ class MicEngine {
 
   private async startNative(): Promise<boolean> {
     try {
-      // Import expo-audio modules
-      const ExpoAudio = await import("expo-audio");
-
       // Request permission first
       const permStatus = await ExpoAudio.requestRecordingPermissionsAsync();
       if (!permStatus.granted) {
@@ -110,8 +110,6 @@ class MicEngine {
 
       // Access AudioModule to create a recorder outside of a hook
       // AudioModule is the native module with AudioRecorder constructor
-      const AudioModule = (await import("expo-audio/build/AudioModule")).default;
-      const { createRecordingOptions } = await import("expo-audio/build/utils/options");
 
       // Build recording options with metering enabled
       const recordingOptions = {
@@ -222,7 +220,6 @@ class MicEngine {
     // Reset audio mode to disable recording (allows other apps to use mic)
     if (Platform.OS !== "web") {
       try {
-        const ExpoAudio = await import("expo-audio");
         await ExpoAudio.setAudioModeAsync({
           allowsRecording: false,
         });

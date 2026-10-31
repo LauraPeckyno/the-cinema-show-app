@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useCallback, useState } from "react";
 import { Platform } from "react-native";
+import { createAudioPlayer, setAudioModeAsync } from "expo-audio";
 import { Track } from "@/constants/tracks";
 import { getCachedUri } from "@/lib/audio-cache";
 
@@ -250,7 +251,6 @@ function NativeAudioFilePlayer({
 
     (async () => {
       try {
-        const { createAudioPlayer, setAudioModeAsync } = await import("expo-audio");
 
         // Ensure audio plays in silent mode
         await setAudioModeAsync({ playsInSilentMode: true });

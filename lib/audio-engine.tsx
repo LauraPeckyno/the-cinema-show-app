@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useCallback, useRef, useEffect } from "react";
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ExpoAudio from "expo-audio";
 import { Track } from "@/constants/tracks";
 
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -267,7 +268,6 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
         dispatch({ type: "SET_MIC_PERMISSION", granted: true });
         return true;
       }
-      const ExpoAudio = await import("expo-audio");
       const status = await ExpoAudio.requestRecordingPermissionsAsync();
       dispatch({ type: "SET_MIC_PERMISSION", granted: status.granted });
       return status.granted;
@@ -301,7 +301,6 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
         dispatch({ type: "SET_MIC_ACTIVE", active: true });
         dispatch({ type: "SET_MIC_PERMISSION", granted: true });
       } else {
-        const ExpoAudio = await import("expo-audio");
         const status = await ExpoAudio.requestRecordingPermissionsAsync();
         if (status.granted) {
           dispatch({ type: "SET_MIC_PERMISSION", granted: true });

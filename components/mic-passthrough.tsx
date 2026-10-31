@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useCallback, useState } from "react";
 import { View, StyleSheet, Platform } from "react-native";
+import * as ExpoAudio from "expo-audio";
 
 // Load the WebView with the main bundle (not as a lazily downloaded chunk, which
 // failed on Android with "Requiring unknown module"). Native only.
@@ -1177,7 +1178,6 @@ function NativeMicPassthrough({
     let mounted = true;
     (async () => {
       try {
-        const ExpoAudio = await import("expo-audio");
         const status = await ExpoAudio.requestRecordingPermissionsAsync();
         if (mounted) {
           setPermissionGranted(status.granted);
