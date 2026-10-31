@@ -139,11 +139,16 @@ export default function HomeScreen() {
       const fadeSteps = 6;
       projectorFadeIntervalRef.current = setInterval(() => {
         fadeStep += 1;
-        projectorPlayer.volume = Math.max(0, 0.15 * (1 - fadeStep / fadeSteps));
-        if (fadeStep >= fadeSteps) {
+        try {
+          projectorPlayer.volume = Math.max(0, 0.15 * (1 - fadeStep / fadeSteps));
+          if (fadeStep >= fadeSteps) {
+            clearProjectorFade();
+            projectorPlayer.pause();
+            projectorPlayer.seekTo(0).catch(() => {});
+          }
+        } catch {
+          // Player released (screen left or app closed) — stop fading.
           clearProjectorFade();
-          projectorPlayer.pause();
-          projectorPlayer.seekTo(0);
         }
       }, 100);
     }, 1400);

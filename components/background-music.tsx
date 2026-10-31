@@ -25,21 +25,39 @@ export function BackgroundMusic({
 }: BackgroundMusicProps) {
   const player = useAudioPlayer(source);
 
+  // The player is released when this component unmounts (or the app is
+  // backgrounded and torn down). Calls after that throw "shared object that
+  // was already released", so every call goes through this guard.
+  const safely = (fn: () => unknown) => {
+    try {
+      const result = fn();
+      if (result && typeof (result as Promise<unknown>).catch === "function") {
+        (result as Promise<unknown>).catch(() => {});
+      }
+    } catch {
+      // Player already released; nothing to do.
+    }
+  };
+
   useEffect(() => {
-    player.loop = true;
+    safely(() => {
+      player.loop = true;
+    });
     setAudioModeAsync({ playsInSilentMode: true }).catch((error) => {
       console.warn("Unable to configure background audio mode:", error);
     });
   }, [player]);
 
   useEffect(() => {
-    player.volume = muted ? 0 : Math.max(0, Math.min(1, volume / 100));
+    safely(() => {
+      player.volume = muted ? 0 : Math.max(0, Math.min(1, volume / 100));
+    });
   }, [muted, player, volume]);
 
   useEffect(() => {
     const stopImmediately = () => {
-      player.pause();
-      player.seekTo(0);
+      safely(() => player.pause());
+      safely(() => player.seekTo(0));
     };
     onStopReady?.(stopImmediately);
     return () => {
@@ -50,13 +68,13 @@ export function BackgroundMusic({
 
   useEffect(() => {
     if (stopped) {
-      player.pause();
-      player.seekTo(0);
+      safely(() => player.pause());
+      safely(() => player.seekTo(0));
       return;
     }
 
-    player.seekTo(0);
-    player.play();
+    safely(() => player.seekTo(0));
+    safely(() => player.play());
   }, [player, restartKey, stopped]);
 
   return null;
