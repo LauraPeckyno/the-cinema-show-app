@@ -1199,7 +1199,7 @@ function NativeMicPassthrough({
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; media-src *;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; media-src blob: mediastream: data:; img-src data:;">
   <style>body { margin: 0; background: transparent; }</style>
 </head>
 <body>
@@ -1437,20 +1437,27 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
         domStorageEnabled={true}
         mediaPlaybackRequiresUserAction={false}
         allowsInlineMediaPlayback={true}
-        mixedContentMode="always"
-        originWhitelist={["*"]}
+        mixedContentMode="never"
+        originWhitelist={["https://localhost", "about:*"]}
+        onShouldStartLoadWithRequest={(req: { url?: string }) => {
+          const url = req?.url ?? "";
+          // Only the inline engine page may load; block every other navigation.
+          return url.startsWith("https://localhost") || url.startsWith("about:");
+        }}
         style={styles.webview}
         androidLayerType="hardware"
         setSupportMultipleWindows={false}
-        allowFileAccess={true}
+        allowFileAccess={false}
         webviewDebuggingEnabled={__DEV__}
         onPermissionRequest={(event: any) => {
-          if (event?.nativeEvent?.resources) {
-            event.nativeEvent.grant(event.nativeEvent.resources);
-          }
+          const resources: string[] = event?.nativeEvent?.resources ?? [];
+          const audioOnly = resources.filter((r) => /audio/i.test(r));
+          if (audioOnly.length) event.nativeEvent.grant(audioOnly);
+          else event?.nativeEvent?.deny?.();
         }}
         androidPermissionsRequest={(resources: string[], grant: (resources: string[]) => void) => {
-          grant(resources);
+          // Grant microphone capture only; refuse camera and anything else.
+          grant(resources.filter((r) => /audio/i.test(r)));
         }}
       />
     </View>

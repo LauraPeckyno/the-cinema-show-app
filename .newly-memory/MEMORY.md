@@ -1,0 +1,1 @@
+- [The Cinema Show app](cinema-show-app.md): imported Manus-built album player; keeps its own NativeWind/expo-router stack
