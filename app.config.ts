@@ -2,38 +2,13 @@
 import "./scripts/load-env.js";
 import type { ExpoConfig } from "expo/config";
 
-// Bundle ID format: space.manus.<project_name_dots>.<timestamp>
-// e.g., "my-app" created at 2024-01-15 10:30:45 -> "space.manus.my.app.t20240115103045"
-// Bundle ID can only contain letters, numbers, and dots - was space.manus.the.cinema.show.app.t20260308222644
-// Android requires each dot-separated segment to start with a letter
-const rawBundleId = "com.streamingkeys.cinemashow";
-const bundleId =
-  rawBundleId
-    .replace(/[-_]/g, ".") // Replace hyphens/underscores with dots
-    .replace(/[^a-zA-Z0-9.]/g, "") // Remove invalid chars
-    .replace(/\.+/g, ".") // Collapse consecutive dots
-    .replace(/^\.+|\.+$/g, "") // Trim leading/trailing dots
-    .toLowerCase()
-    .split(".")
-    .map((segment) => {
-      // Android requires each segment to start with a letter
-      // Prefix with 'x' if segment starts with a digit
-      return /^[a-zA-Z]/.test(segment) ? segment : "x" + segment;
-    })
-    .join(".");
-// Deep link scheme for the app (e.g. cinemashow://now-playing)
-const schemeFromBundleId = "cinemashow";
-
 const env = {
-  // App branding - update these values directly (do not use env vars)
   appName: "The Cinema Show",
   appSlug: "the-cinema-show-app",
-  // S3 URL of the app logo - set this to the URL returned by generate_image when creating custom logo
-  // Leave empty to use the default icon from assets/images/icon.png
-  logoUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663370669968/37PMRWSJK3Cabs7JyhEAG5/cinema-show-icon-cHdTo6xKAnxcGNVgVYNMeu.png",
-  scheme: schemeFromBundleId,
-  iosBundleId: bundleId,
-  androidPackage: bundleId,
+  // Deep link scheme for the app (e.g. cinemashow://now-playing)
+  scheme: "cinemashow",
+  iosBundleId: "com.streamingkeys.cinemashow",
+  androidPackage: "com.streamingkeys.cinemashow",
 };
 
 const config: ExpoConfig = {
