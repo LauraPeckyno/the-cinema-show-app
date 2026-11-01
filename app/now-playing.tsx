@@ -20,6 +20,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useHeadphoneDetection } from "@/hooks/use-headphone-detection";
 import { useRouter } from "expo-router";
+import { initialWindowMetrics, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { ScreenContainer } from "@/components/screen-container";
@@ -328,6 +329,10 @@ function AnimatedButtonBorder({
 export default function NowPlayingScreen() {
   useKeepAwake();
   const router = useRouter();
+  // A full-screen modal can report a 0 top inset on iOS, so fall back to the
+  // window's measured status-bar height to keep the back button tappable.
+  const insets = useSafeAreaInsets();
+  const safeTop = Math.max(insets.top, initialWindowMetrics?.insets.top ?? 0);
   const colors = useColors();
   const [micError, setMicError] = useState<string | null>(null);
   const [isTightGate, setIsTightGate] = useState(false);
@@ -548,7 +553,7 @@ export default function NowPlayingScreen() {
   const shouldFadeMicOutput = isPlaying && trackDuration > 0 && playbackTime >= Math.max(0, trackDuration - 2);
 
   return (
-    <ScreenContainer edges={["top", "bottom", "left", "right"]} containerClassName="bg-background">
+    <ScreenContainer edges={["bottom", "left", "right"]} containerClassName="bg-background">
       <FilmReelJitter
         artworkUrl={artworkUrl}
         isPlaying={isPlaying}
@@ -596,9 +601,12 @@ export default function NowPlayingScreen() {
 
       <ScrollView style={styles.contentLayer} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Back Button */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: safeTop + 8 }]}>
           <Pressable
             onPress={() => { stopPlayback(); router.back(); }}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Back to tracks"
             style={({ pressed }) => [
               styles.backButton,
               pressed && { opacity: 0.6 },
