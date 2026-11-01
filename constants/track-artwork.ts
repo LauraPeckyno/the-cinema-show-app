@@ -1,18 +1,20 @@
 /**
- * Track artwork URLs for the film strip display.
- * Generated cinematic artwork representing each song title.
+ * Track artwork URLs for the film strip display, hosted on the
+ * StreamingKeys Cloudflare worker. Keyed by track id (see constants/tracks.ts).
  */
+const BASE = "https://streamingkeys2.imaginaurium.workers.dev";
+
 export const TRACK_ARTWORK: Record<number, string> = {
-  1: "https://d2xsxph8kpxj0f.cloudfront.net/310519663370669968/37PMRWSJK3Cabs7JyhEAG5/track-01-corpse-parade-P6cPyKvRjihpjh9ssEUj6u.webp",
-  2: "https://d2xsxph8kpxj0f.cloudfront.net/310519663370669968/37PMRWSJK3Cabs7JyhEAG5/track-02-sleep-deprivation-PGnfCAW23eunUSJkA4oYtF.webp",
-  3: "https://d2xsxph8kpxj0f.cloudfront.net/310519663370669968/37PMRWSJK3Cabs7JyhEAG5/track-03-mutation-madness-BzFEEGQfHoaSmE74YCgSNz.webp",
-  4: "https://d2xsxph8kpxj0f.cloudfront.net/310519663370669968/37PMRWSJK3Cabs7JyhEAG5/track-04-krampus-wishes-NgKGLN2ECKX8pbB7ASZ2Vd.webp",
-  5: "https://d2xsxph8kpxj0f.cloudfront.net/310519663370669968/37PMRWSJK3Cabs7JyhEAG5/track-05-corpse-grating-6GTzzd5mXct5cUNNFXYEGZ.webp",
-  6: "https://d2xsxph8kpxj0f.cloudfront.net/310519663370669968/37PMRWSJK3Cabs7JyhEAG5/track-06-expiation-iF5CVrEnm45TiQheRgQBFx.webp",
-  7: "https://d2xsxph8kpxj0f.cloudfront.net/310519663370669968/37PMRWSJK3Cabs7JyhEAG5/track-08-recessional-Mms4FZt4FqFAbwwVRpbfsQ.webp",
-  8: "https://d2xsxph8kpxj0f.cloudfront.net/310519663370669968/37PMRWSJK3Cabs7JyhEAG5/track-07-road-show-iUT5wHGsStrJgkCf9Qij9t.webp",
-  9: "https://d2xsxph8kpxj0f.cloudfront.net/310519663370669968/37PMRWSJK3Cabs7JyhEAG5/track-09-excitement-elimination-VAQLi2HKWHVL2KfN3Tjgyo.webp",
-  10: "https://d2xsxph8kpxj0f.cloudfront.net/310519663370669968/37PMRWSJK3Cabs7JyhEAG5/track-10-piano-fandango-PNqPvStQRSgWhEMmyEYw4t.webp",
-  11: "https://d2xsxph8kpxj0f.cloudfront.net/310519663370669968/37PMRWSJK3Cabs7JyhEAG5/track-11-much-ado-R74887cpAX24UouYjmNn2n.webp",
-  12: "https://d2xsxph8kpxj0f.cloudfront.net/310519663370669968/37PMRWSJK3Cabs7JyhEAG5/track-12-brothers-dwCTt3VK5jQs7tud33J59j.webp",
+  1: `${BASE}/B_corpseparade.jpg`, // Corpse Parade
+  2: `${BASE}/B_sleepdeprivation.jpg`, // Sleep Deprivation
+  3: `${BASE}/B_mutation.jpg`, // Mutation and Madness
+  4: `${BASE}/B_krampuswishes.jpg`, // Krampus Wishes
+  5: `${BASE}/B_investigation.jpg`, // Investigation Station
+  6: `${BASE}/B_expiation.jpg`, // Expiation
+  7: `${BASE}/A_recessional.jpg`, // Recessional
+  8: `${BASE}/A_roadshow.jpg`, // Road Show
+  9: `${BASE}/A_excitement.jpg`, // Excitement and Elimination
+  10: `${BASE}/A_pianofandango.jpg`, // Piano Fandango
+  11: `${BASE}/A_muchado.jpg`, // Much Ado
+  12: `${BASE}/A_theme4new.jpg`, // Theme for New Beginnings
 };
