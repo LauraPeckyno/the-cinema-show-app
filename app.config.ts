@@ -1,6 +1,6 @@
 // Load environment variables with proper priority (system > .env)
 import "./scripts/load-env.js";
-import type { ExpoConfig } from "expo/config";
+import type { ConfigContext, ExpoConfig } from "expo/config";
 
 const env = {
   appName: "The Cinema Show",
@@ -100,4 +100,20 @@ const config: ExpoConfig = {
   },
 };
 
-export default config;
+/**
+ * Newly's release pipeline passes the build number (ios.buildNumber /
+ * android.versionCode) in through the incoming config at release time.
+ * Keep those so each TestFlight / Play upload carries the number the store
+ * expects; everything else, including the bundle ID, stays as defined above.
+ */
+export default ({ config: incoming }: ConfigContext): ExpoConfig => ({
+  ...config,
+  ios: {
+    ...config.ios,
+    ...(incoming.ios?.buildNumber ? { buildNumber: incoming.ios.buildNumber } : {}),
+  },
+  android: {
+    ...config.android,
+    ...(incoming.android?.versionCode ? { versionCode: incoming.android.versionCode } : {}),
+  },
+});
