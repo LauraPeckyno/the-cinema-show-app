@@ -1,2 +1,3 @@
 - [The Cinema Show app](cinema-show-app.md): imported Manus-built album player; keeps its own NativeWind/expo-router stack
 - [Bundle ID](bundle-id.md): ships as com.streamingkeys.cinemashow; never the old space.manus ID
+- [Android EventEmitter error](android-eventemitter-error.md): investigated; preview bundle-reload timing, not app code
