@@ -203,7 +203,7 @@ export default function HomeScreen() {
         <View style={styles.container}>
           {/* ─── Title Section ─── */}
           <View style={styles.titleSection}>
-            <Text style={[styles.subtitle, { color: colors.primary }]}>
+            <Text accessibilityRole="header" style={[styles.subtitle, { color: colors.primary }]}>
               Now Playing
             </Text>
             <Text style={[styles.title, { color: colors.foreground, fontFamily: fontsLoaded ? "PlayfairDisplay-Bold" : undefined }]}>
@@ -214,6 +214,9 @@ export default function HomeScreen() {
           {/* ─── Music Mute/Unmute Button ─── */}
           <Pressable
             onPress={() => setIsMuted((prev) => !prev)}
+            accessibilityRole="switch"
+            accessibilityLabel="Background music"
+            accessibilityState={{ checked: !isMuted }}
             style={({ pressed }) => [
               styles.muteButton,
               {
@@ -224,7 +227,7 @@ export default function HomeScreen() {
               },
             ]}
           >
-            <Text style={[styles.muteIcon, { color: isMuted ? colors.muted : colors.primary }]}>
+            <Text style={[styles.muteIcon, { color: isMuted ? colors.muted : colors.primary }]} accessibilityElementsHidden importantForAccessibility="no">
               {isMuted ? "\u{1F507}" : "\u{1F50A}"}
             </Text>
             <Text style={[styles.muteLabel, { color: isMuted ? colors.muted : colors.primary }]}>
@@ -239,6 +242,7 @@ export default function HomeScreen() {
             <View style={[styles.albumCoverBorder, { borderColor: colors.primary + "80" }]}>
               <Image
                 source={{ uri: getAlbumCoverUri() }}
+                accessibilityLabel="The Cinema Show album cover"
                 style={styles.albumCoverImage}
                 resizeMode="cover"
               />
@@ -249,6 +253,9 @@ export default function HomeScreen() {
           {/* ─── Ticket Button (above The Experience) ─── */}
           <Pressable
             onPress={handleTicketPress}
+            accessibilityRole="button"
+            accessibilityLabel="Enter the Theatre"
+            accessibilityHint="Opens the track list"
             style={({ pressed }) => [
               styles.ticketButton,
               {
@@ -317,7 +324,10 @@ export default function HomeScreen() {
                 stopBackgroundMusic();
                 void Linking.openURL('https://streamingkeys.com');
               }}
-              style={({ pressed }) => [{ marginTop: 12, opacity: pressed ? 0.6 : 1 }]}
+              accessibilityRole="link"
+              accessibilityLabel="Visit streamingkeys.com"
+              hitSlop={10}
+              style={({ pressed }) => [{ marginTop: 12, minHeight: 44, justifyContent: "center", opacity: pressed ? 0.6 : 1 }]}
             >
               <Text style={{ color: colors.primary, fontSize: 15, textAlign: 'center', textDecorationLine: 'underline' }}>
                 streamingkeys.com

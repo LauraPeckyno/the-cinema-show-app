@@ -114,7 +114,7 @@ export function ArtDecoHeader({
   textColor?: string;
 }) {
   return (
-    <View style={styles.headerContainer}>
+    <View style={styles.headerContainer} accessible accessibilityRole="header" accessibilityLabel={title}>
       <View style={[styles.headerLine, { backgroundColor: color + "60" }]} />
       <View style={styles.headerDiamond}>
         <Svg width={12} height={12} viewBox="0 0 12 12">

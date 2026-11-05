@@ -53,6 +53,9 @@ function FilmCell({ track, onPress }: { track: Track; onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={track.title}
+      accessibilityHint="Opens this track in the player"
       style={({ pressed }) => [
         styles.filmCell,
         pressed && { transform: [{ scale: 0.95 }], opacity: 0.8 },
@@ -60,6 +63,7 @@ function FilmCell({ track, onPress }: { track: Track; onPress: () => void }) {
     >
       <Image
         source={{ uri: artworkUrl }}
+        accessible={false}
         style={styles.cellImage}
         contentFit="cover"
         transition={300}
@@ -221,6 +225,9 @@ export default function TracksScreen() {
         <View style={styles.instructionArea}>
           <Pressable
             onPress={handleStartTheShow}
+            accessibilityRole="button"
+            accessibilityLabel="Start the Show"
+            accessibilityHint="Plays the whole album from the first track"
             style={({ pressed }) => [
               styles.startShowButton,
               pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] },

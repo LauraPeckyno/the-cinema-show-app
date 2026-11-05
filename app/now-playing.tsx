@@ -46,6 +46,9 @@ function formatTime(seconds: number): string {
 const ART_GOLD = "#E2B84F";
 
 const GATE_GUIDANCE_STORAGE_KEY = "@the-cinema-show/gate-guidance-seen-v1";
+/** Effected-mic return relative to the music: far left and far right of the Effect Volume slider. */
+const EFFECT_VOLUME_MIN = 0.2;
+const EFFECT_VOLUME_MAX = 2.0;
 
 function FilmReelJitter({
   artworkUrl,
@@ -524,8 +527,12 @@ export default function NowPlayingScreen() {
   const wetSliderWidthRef = useRef(1);
   const updateWetEffectVolume = useCallback((locationX: number) => {
     const normalized = Math.max(0, Math.min(1, locationX / wetSliderWidthRef.current));
-    setEffectVolumeMultiplier(0.5 + normalized);
+    const value = EFFECT_VOLUME_MIN + normalized * (EFFECT_VOLUME_MAX - EFFECT_VOLUME_MIN);
+    setEffectVolumeMultiplier(Math.round(value * 10) / 10);
   }, [setEffectVolumeMultiplier]);
+  const effectSliderPercent =
+    ((Math.max(EFFECT_VOLUME_MIN, Math.min(EFFECT_VOLUME_MAX, effectVolumeMultiplier)) - EFFECT_VOLUME_MIN) /
+      (EFFECT_VOLUME_MAX - EFFECT_VOLUME_MIN)) * 100;
 
   const wetSliderResponder = useRef(
     PanResponder.create({
@@ -566,6 +573,8 @@ export default function NowPlayingScreen() {
           <Text style={[styles.emptyText, { color: colors.muted }]}>No track selected</Text>
           <Pressable
             onPress={() => { stopPlayback(); router.back(); }}
+            accessibilityRole="button"
+            accessibilityLabel="Select a track"
             style={({ pressed }) => [
               styles.backButtonEmpty,
               { borderColor: colors.primary },
@@ -598,12 +607,14 @@ export default function NowPlayingScreen() {
         pointerEvents="none"
         style={[StyleSheet.absoluteFillObject, { backgroundColor: TRACK_BACKGROUND[currentTrack.id] ?? "#2A261D" }]}
       />
+      <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFillObject}>
       <FilmDustAndScratches
         isPlaying={isPlaying}
         isEffectsActive={isMicActive && isPlaying}
         bpm={currentTrack.bpm}
         playbackTime={playbackTime}
       />
+      </View>
 
       {/* Audio File Player — music at 90% of device volume (fixed) */}
       <AudioFilePlayer
@@ -661,10 +672,23 @@ export default function NowPlayingScreen() {
         </View>
 
         {/* Cover art between the title and the progress bar */}
-        <FilmReelJitter artworkUrl={artworkUrl} isPlaying={isPlaying} />
+        <View accessible accessibilityRole="image" accessibilityLabel={`Cover art for ${currentTrack.title}`}>
+          <FilmReelJitter artworkUrl={artworkUrl} isPlaying={isPlaying} />
+        </View>
 
         {/* Progress Bar with Times */}
-        <View style={styles.progressArea}>
+        <View
+          style={styles.progressArea}
+          accessible
+          accessibilityRole="progressbar"
+          accessibilityLabel="Track progress"
+          accessibilityValue={{
+            min: 0,
+            max: Math.max(1, Math.round(displayDuration)),
+            now: Math.round(playbackTime),
+            text: `${formatTime(playbackTime)} played, ${formatTime(Math.max(0, displayDuration - playbackTime))} remaining`,
+          }}
+        >
           <View style={[styles.progressTrack, { backgroundColor: ART_GOLD }]}>
             <View
               style={[
@@ -674,10 +698,10 @@ export default function NowPlayingScreen() {
             />
           </View>
           <View style={styles.progressTimeRow}>
-            <Text style={[styles.timeText, { color: colors.muted }]}>
+            <Text style={[styles.timeText, { color: colors.foreground }]}>
               {formatTime(playbackTime)}
             </Text>
-            <Text style={[styles.timeText, { color: colors.muted }]}>
+            <Text style={[styles.timeText, { color: colors.foreground }]}>
               {`-${formatTime(Math.max(0, displayDuration - playbackTime))}`}
             </Text>
           </View>
@@ -704,6 +728,9 @@ export default function NowPlayingScreen() {
           <View style={styles.playButtonFrame}>
             <Pressable
               onPress={togglePlayback}
+              accessibilityRole="button"
+              accessibilityLabel={isLoading ? "Loading track" : isPlaying ? "Pause" : "Play"}
+              accessibilityState={{ busy: isLoading }}
               style={({ pressed }) => [
                 styles.playButton,
                 { backgroundColor: effectColor },
@@ -747,30 +774,13 @@ export default function NowPlayingScreen() {
           </Pressable>
         </View>
 
-        {/* Global effected-mic return slider: 0.5× at left, 1.0× center, 1.5× at right. */}
-        <View style={styles.effectSliderArea}>
-          <View style={styles.effectSliderHeading}>
-            <Text style={[styles.effectSliderLabel, { color: colors.foreground }]}>Effect Volume</Text>
-            <Text style={[styles.effectSliderValue, { color: effectColor }]}>{effectVolumeMultiplier.toFixed(1)}×</Text>
-          </View>
-          <View
-            style={[styles.effectSliderTrack, { backgroundColor: ART_GOLD }]}
-            onLayout={(event) => { wetSliderWidthRef.current = Math.max(1, event.nativeEvent.layout.width); }}
-            {...wetSliderResponder.panHandlers}
-          >
-            <View style={[styles.effectSliderFill, { width: `${(effectVolumeMultiplier - 0.5) * 100}%`, backgroundColor: effectColor }]} />
-            <View style={[styles.effectSliderThumb, { left: `${(effectVolumeMultiplier - 0.5) * 100}%`, borderColor: effectColor, backgroundColor: colors.background }]} />
-          </View>
-          <View style={styles.effectSliderBounds}>
-            <Text style={[styles.effectSliderBound, { color: colors.muted }]}>0.5×</Text>
-            <Text style={[styles.effectSliderBound, { color: colors.muted }]}>1.0×</Text>
-            <Text style={[styles.effectSliderBound, { color: colors.muted }]}>1.5×</Text>
-          </View>
-        </View>
-
         {/* Mic Error Message */}
         {micError && (
-          <View style={[styles.micErrorArea, { backgroundColor: colors.error + '15', borderColor: colors.error + '40' }]}>
+          <View
+            accessibilityRole="alert"
+            accessibilityLiveRegion="polite"
+            style={[styles.micErrorArea, { backgroundColor: colors.error + '15', borderColor: colors.error + '40' }]}
+          >
             <Text style={[styles.micErrorText, { color: colors.error }]}>
               {"\u26A0\uFE0F"} {micError}
             </Text>
@@ -783,6 +793,12 @@ export default function NowPlayingScreen() {
             <View style={styles.micToggleFrame}>
               <Pressable
                 onPress={() => { setMicError(null); toggleMic(); }}
+                accessibilityRole="switch"
+                accessibilityLabel="Microphone effects"
+                accessibilityState={{ checked: isMicActive }}
+                accessibilityHint={isMicActive
+                  ? "Turns off the microphone so you only hear the music"
+                  : "Turns on the microphone so you hear your surroundings with the track's effects"}
                 style={({ pressed }) => [
                   styles.micToggleButton,
                   {
@@ -797,7 +813,7 @@ export default function NowPlayingScreen() {
                   size={32}
                   color={isMicActive ? effectColor : ART_GOLD}
                 />
-                <Text style={[styles.micToggleLabel, { color: isMicActive ? effectColor : ART_GOLD, textAlign: 'center' }]}> 
+                <Text style={[styles.micToggleLabel, { color: isMicActive ? effectColor : ART_GOLD, textAlign: 'center' }]}>
                   {isMicActive ? "Tap to Deactivate" : "Listen Normally or\nTap to Activate"}
                 </Text>
               </Pressable>
@@ -814,11 +830,17 @@ export default function NowPlayingScreen() {
             </View>
           </Animated.View>
           <View style={styles.gateControl}>
-            <Text style={[styles.gateLabel, { color: colors.muted }]}>Gate</Text>
-            <View style={[styles.gateSwitch, { borderColor: isTightGate ? colors.warning : colors.border }]}> 
+            <Text style={[styles.gateLabel, { color: colors.foreground }]} importantForAccessibility="no" accessibilityElementsHidden>Gate</Text>
+            <View
+              accessibilityRole="radiogroup"
+              accessibilityLabel="Microphone gate"
+              style={[styles.gateSwitch, { borderColor: isTightGate ? colors.warning : colors.border }]}
+            >
               <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ selected: !isTightGate }}
+                accessibilityRole="radio"
+                accessibilityLabel="Open gate"
+                accessibilityHint="For normal rooms and headphones that use the phone's microphone"
+                accessibilityState={{ selected: !isTightGate, checked: !isTightGate }}
                 onPress={() => handleGateChange(false)}
                 style={({ pressed }) => [
                   styles.gateOption,
@@ -826,11 +848,13 @@ export default function NowPlayingScreen() {
                   pressed && { opacity: 0.78 },
                 ]}
               >
-                <Text style={[styles.gateOptionText, { color: !isTightGate ? effectColor : colors.muted }]}>Open</Text>
+                <Text style={[styles.gateOptionText, { color: !isTightGate ? effectColor : colors.foreground }]}>Open</Text>
               </Pressable>
               <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ selected: isTightGate }}
+                accessibilityRole="radio"
+                accessibilityLabel="Tight gate"
+                accessibilityHint="Reduces feedback with earbud microphones"
+                accessibilityState={{ selected: isTightGate, checked: isTightGate }}
                 onPress={() => handleGateChange(true)}
                 style={({ pressed }) => [
                   styles.gateOption,
@@ -838,9 +862,48 @@ export default function NowPlayingScreen() {
                   pressed && { opacity: 0.78 },
                 ]}
               >
-                <Text style={[styles.gateOptionText, { color: isTightGate ? colors.warning : colors.muted }]}>Tight</Text>
+                <Text style={[styles.gateOptionText, { color: isTightGate ? colors.warning : colors.foreground }]}>Tight</Text>
               </Pressable>
             </View>
+          </View>
+        </View>
+
+        {/* Global effected-mic return slider: 0.2× at left, 2.0× at right (relative to the music). */}
+        <View style={styles.effectSliderArea}>
+          <View style={styles.effectSliderHeading} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            <Text style={[styles.effectSliderLabel, { color: colors.foreground }]}>Effect Volume</Text>
+            <Text style={[styles.effectSliderValue, { color: effectColor }]}>{effectVolumeMultiplier.toFixed(1)}×</Text>
+          </View>
+          <View
+            accessible
+            accessibilityRole="adjustable"
+            accessibilityLabel="Effect volume"
+            accessibilityHint="Swipe up or down to change how loud the effected microphone is compared with the music"
+            accessibilityValue={{
+              min: Math.round(EFFECT_VOLUME_MIN * 10),
+              max: Math.round(EFFECT_VOLUME_MAX * 10),
+              now: Math.round(effectVolumeMultiplier * 10),
+              text: `${effectVolumeMultiplier.toFixed(1)} times the music`,
+            }}
+            accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
+            onAccessibilityAction={(event) => {
+              const step = event.nativeEvent.actionName === "increment" ? 0.1 : event.nativeEvent.actionName === "decrement" ? -0.1 : 0;
+              if (step === 0) return;
+              const next = Math.round((effectVolumeMultiplier + step) * 10) / 10;
+              setEffectVolumeMultiplier(Math.max(EFFECT_VOLUME_MIN, Math.min(EFFECT_VOLUME_MAX, next)));
+            }}
+            style={styles.effectSliderHitArea}
+            onLayout={(event) => { wetSliderWidthRef.current = Math.max(1, event.nativeEvent.layout.width); }}
+            {...wetSliderResponder.panHandlers}
+          >
+            <View pointerEvents="none" style={[styles.effectSliderTrack, { backgroundColor: ART_GOLD }]}>
+              <View style={[styles.effectSliderFill, { width: `${effectSliderPercent}%`, backgroundColor: effectColor }]} />
+              <View style={[styles.effectSliderThumb, { left: `${effectSliderPercent}%`, borderColor: effectColor, backgroundColor: colors.background }]} />
+            </View>
+          </View>
+          <View style={styles.effectSliderBounds} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            <Text style={[styles.effectSliderBound, { color: colors.foreground }]}>{EFFECT_VOLUME_MIN.toFixed(1)}×</Text>
+            <Text style={[styles.effectSliderBound, { color: colors.foreground }]}>{EFFECT_VOLUME_MAX.toFixed(1)}×</Text>
           </View>
         </View>
       </ScrollView>
@@ -851,15 +914,17 @@ export default function NowPlayingScreen() {
         animationType="fade"
         onRequestClose={() => setShowGateGuidance(false)}
       >
-        <View style={styles.gateTooltipOverlay}>
+        <View style={styles.gateTooltipOverlay} accessibilityViewIsModal>
           <View style={[styles.gateTooltipCard, { backgroundColor: "#12121FEF", borderColor: effectColor + "88" }]}>
-            <Text style={[styles.gateTooltipTitle, { color: effectColor }]}>Gate Guide</Text>
+            <Text accessibilityRole="header" style={[styles.gateTooltipTitle, { color: effectColor }]}>Gate Guide</Text>
             <Text style={[styles.gateTooltipText, { color: colors.foreground }]}>
               Use the Open Gate for normal environments and over-ear headphones that use your phone&apos;s built-in mic. (Preferred if possible){"\n\n"}
               If you use earbuds with a mic and there is feedback, use the Tight Gate and turn down the effect volume until listening is comfortable.
             </Text>
             <Pressable
               onPress={() => setShowGateGuidance(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Got it, close gate guide"
               style={({ pressed }) => [styles.gateTooltipDismiss, { borderColor: effectColor }, pressed && { opacity: 0.72 }]}
             >
               <Text style={[styles.gateTooltipDismissText, { color: effectColor }]}>Got it</Text>
@@ -875,10 +940,10 @@ export default function NowPlayingScreen() {
         animationType="fade"
         onRequestClose={handleDismissHeadphoneWarning}
       >
-        <View style={styles.modalOverlay}>
+        <View style={styles.modalOverlay} accessibilityViewIsModal>
           <View style={[styles.modalContent, { backgroundColor: "#1A1A2E", borderColor: colors.warning }]}>
-            <Text style={styles.modalIcon}>{"\u{1F3A7}"}</Text>
-            <Text style={[styles.modalTitle, { color: colors.warning }]}>
+            <Text style={styles.modalIcon} accessibilityElementsHidden importantForAccessibility="no">{"\u{1F3A7}"}</Text>
+            <Text accessibilityRole="header" style={[styles.modalTitle, { color: colors.warning }]}>
               Headphones Disconnected
             </Text>
             <Text style={[styles.modalMessage, { color: colors.foreground }]}>
@@ -890,6 +955,8 @@ export default function NowPlayingScreen() {
             <View style={styles.modalButtons}>
               <Pressable
                 onPress={handleDismissHeadphoneWarning}
+                accessibilityRole="button"
+                accessibilityLabel="Dismiss"
                 style={({ pressed }) => [
                   styles.modalButton,
                   { borderColor: colors.border },
@@ -901,6 +968,8 @@ export default function NowPlayingScreen() {
               {isHeadphonesConnected && (
                 <Pressable
                   onPress={handleReconnectAndResume}
+                  accessibilityRole="button"
+                  accessibilityLabel="Resume playback"
                   style={({ pressed }) => [
                     styles.modalButton,
                     { borderColor: colors.success, backgroundColor: colors.success + "20" },
@@ -1018,7 +1087,8 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   timeText: {
-    fontSize: 12,
+    fontSize: 13,
+    fontWeight: "600",
     fontVariant: ["tabular-nums"],
   },
   controlsRow: {
@@ -1048,6 +1118,10 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     fontVariant: ["tabular-nums"],
   },
+  effectSliderHitArea: {
+    minHeight: 44,
+    justifyContent: "center",
+  },
   effectSliderTrack: {
     height: 8,
     borderRadius: 4,
@@ -1073,7 +1147,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   effectSliderBound: {
-    fontSize: 11,
+    fontSize: 12,
+    fontWeight: "600",
     fontVariant: ["tabular-nums"],
   },
   playButton: {
@@ -1170,17 +1245,19 @@ const styles = StyleSheet.create({
   gateSwitch: {
     flexDirection: "row",
     borderWidth: 1,
-    borderRadius: 18,
+    borderRadius: 22,
     overflow: "hidden",
   },
   gateOption: {
-    minWidth: 74,
+    minWidth: 80,
+    minHeight: 44,
     alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
   gateOptionText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
   },
   gateTooltipOverlay: {

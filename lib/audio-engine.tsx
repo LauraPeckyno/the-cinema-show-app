@@ -13,7 +13,7 @@ export interface AudioEngineState {
   micPermissionGranted: boolean;
   micSensitivity: number; // fixed at 100 (max gain, +15dB)
   effectIntensity: number; // fixed at 100 (full effect processing)
-  effectVolumeMultiplier: number; // global wet-effect level, 0.5–1.5 with 1.0 as default
+  effectVolumeMultiplier: number; // global wet-effect level, 0.2–2.0 with 1.0 as default
   masterVolume: number; // fixed at 100 — overall output controlled by device volume
   musicVolume: number; // fixed at 90 — music at 90% of device volume
   dryWetMix: number; // fixed at 100 — fully wet (effected mic output)
@@ -110,7 +110,7 @@ function audioReducer(state: AudioEngineState, action: AudioAction): AudioEngine
     case "SET_EFFECT_INTENSITY":
       return { ...state, effectIntensity: action.value };
     case "SET_EFFECT_VOLUME_MULTIPLIER":
-      return { ...state, effectVolumeMultiplier: Math.max(0.5, Math.min(1.5, action.value)) };
+      return { ...state, effectVolumeMultiplier: Math.max(0.2, Math.min(2.0, action.value)) };
     case "SET_MASTER_VOLUME":
       return { ...state, masterVolume: action.value };
     case "SET_MUSIC_VOLUME":

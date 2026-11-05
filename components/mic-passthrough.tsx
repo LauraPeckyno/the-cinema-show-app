@@ -12,7 +12,7 @@ interface MicPassthroughProps {
   trackId: number;
   bpm: number;
   effectIntensity: number; // 0-100
-  effectVolumeMultiplier?: number; // 0.5–1.5 global wet-effect level
+  effectVolumeMultiplier?: number; // 0.2–2.0 global wet-effect level
   micSensitivity: number; // 0-100 (fixed at 100 = +15dB gain)
   masterVolume: number; // 0-100 — overall output volume (device-controlled)
   musicVolume: number; // 0-100 — music track volume (effects capped at 30% of this)
@@ -1218,7 +1218,7 @@ function NativeMicPassthrough({
   // Mic-output master at 0.80x music volume; native path matches web
   const vol = (musicVolume / 100) * 0.80;
   const mix = 0.80; // not used for initial setup (buildDryWetChain uses fixed 25/80)
-  const wetEffectVolume = Math.max(0.5, Math.min(1.5, effectVolumeMultiplier));
+  const wetEffectVolume = Math.max(0.2, Math.min(2.0, effectVolumeMultiplier));
 
   const htmlContent = `
 <!DOCTYPE html>
