@@ -8,13 +8,19 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withTimi
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useAudioEngine } from "@/lib/audio-engine";
-import { ALBUM_PLAYBACK_QUEUE, DARK_TRACKS, LIGHT_TRACKS, Track } from "@/constants/tracks";
+import { ALBUM_PLAYBACK_QUEUE, TRACKS, Track } from "@/constants/tracks";
 import { TRACK_ARTWORK } from "@/constants/track-artwork";
 import { preDownload, preDownloadAll } from "@/lib/audio-cache";
 import { BackgroundMusic } from "@/components/background-music";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SPROCKET_SIZE = 8;
+
+/** Filmstrip order on the track select screen (by track id). */
+const FILMSTRIP_ORDER = [12, 7, 8, 9, 10, 11, 1, 2, 3, 4, 5, 6];
+const FILMSTRIP_TRACKS = FILMSTRIP_ORDER.map((id) => TRACKS.find((t) => t.id === id)).filter(
+  (t): t is Track => Boolean(t)
+);
 
 const ALBUM_MUSIC_URL = "https://streamingkeys2.imaginaurium.workers.dev/sh3.mp3";
 const ALBUM_MUSIC_VOLUME = 25;
@@ -89,40 +95,20 @@ function SprocketHoles({ count, color }: { count: number; color?: string }) {
   );
 }
 
-/** A complete film strip (one side of the album) */
-function FilmStrip({ tracks, side, onTrackPress }: { tracks: Track[]; side: "dark" | "light"; onTrackPress: (track: Track) => void }) {
-  const colors = useColors();
-  const isDark = side === "dark";
-  const stripColor = isDark ? "#1A0A0A" : "#F5F5F5";
-  const borderColor = isDark ? "#8B0000" : "#CCCCCC";
-  const sprocketColor = isDark ? "#333" : "#AAAAAA";
-  const sprocketCount = tracks.length * 4;
+/** One full-width film strip, white at the top fading to black at the bottom */
+function FilmStrip({ tracks, onTrackPress }: { tracks: Track[]; onTrackPress: (track: Track) => void }) {
+  const sprocketCount = tracks.length * 6;
 
   return (
-    <View style={[styles.filmStrip, { backgroundColor: stripColor, borderColor }]}>
-      {/* Left sprocket holes */}
-      <SprocketHoles count={sprocketCount} color={sprocketColor} />
-
-      {/* Film frames */}
+    <View style={styles.filmStrip}>
+      <LinearGradient colors={["#FFFFFF", "#000000"]} style={StyleSheet.absoluteFillObject} />
+      <SprocketHoles count={sprocketCount} color="#777777" />
       <View style={styles.framesColumn}>
-        {/* Side label */}
-        <View style={[styles.sideLabel, { borderBottomColor: borderColor }]}>
-          <Text style={[styles.sideLabelText, { color: isDark ? "#E57373" : "#333333" }]}>
-            {isDark ? "DARK" : "LIGHT"}
-          </Text>
-        </View>
-
         {tracks.map((track) => (
-          <FilmCell
-            key={track.id}
-            track={track}
-            onPress={() => onTrackPress(track)}
-          />
+          <FilmCell key={track.id} track={track} onPress={() => onTrackPress(track)} />
         ))}
       </View>
-
-      {/* Right sprocket holes */}
-      <SprocketHoles count={sprocketCount} color={sprocketColor} />
+      <SprocketHoles count={sprocketCount} color="#777777" />
     </View>
   );
 }
@@ -252,18 +238,9 @@ export default function TracksScreen() {
           </Text>
         </View>
 
-        {/* Two film strips side by side */}
+        {/* Single full-width film strip */}
         <View style={styles.stripsContainer}>
-          <FilmStrip
-            tracks={LIGHT_TRACKS}
-            side="light"
-            onTrackPress={handleTrackPress}
-          />
-          <FilmStrip
-            tracks={DARK_TRACKS}
-            side="dark"
-            onTrackPress={handleTrackPress}
-          />
+          <FilmStrip tracks={FILMSTRIP_TRACKS} onTrackPress={handleTrackPress} />
         </View>
 
         <View style={styles.buyAlbumSection}>
@@ -351,10 +328,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   stripsContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
     paddingHorizontal: 12,
-    gap: 12,
   },
   buyAlbumSection: {
     alignItems: "center",
@@ -410,15 +384,15 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   filmStrip: {
-    flex: 1,
     flexDirection: "row",
+    borderColor: "#555555",
     borderWidth: 1,
     borderRadius: 4,
     overflow: "hidden",
     paddingVertical: 8,
   },
   sprocketColumn: {
-    width: 14,
+    width: 20,
     alignItems: "center",
     justifyContent: "space-evenly",
     paddingVertical: 4,
@@ -435,23 +409,11 @@ const styles = StyleSheet.create({
   framesColumn: {
     flex: 1,
     paddingVertical: 4,
-    gap: 6,
-  },
-  sideLabel: {
-    alignItems: "center",
-    paddingBottom: 6,
-    marginBottom: 2,
-    borderBottomWidth: 1,
-    marginHorizontal: 4,
-  },
-  sideLabelText: {
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 3,
+    gap: 10,
   },
   filmCell: {
     width: "100%",
-    aspectRatio: 1,
+    aspectRatio: 4 / 3,
     borderRadius: 2,
     overflow: "hidden",
     backgroundColor: "#111",
@@ -479,7 +441,7 @@ const styles = StyleSheet.create({
   },
   titleText: {
     color: "#FFFFFF",
-    fontSize: 11,
+    fontSize: 15,
     fontWeight: "700",
     textAlign: "center",
     letterSpacing: 0.3,
