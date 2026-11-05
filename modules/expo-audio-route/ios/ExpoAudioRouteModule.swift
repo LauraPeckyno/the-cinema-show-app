@@ -4,6 +4,11 @@ import AVFoundation
 public class ExpoAudioRouteModule: Module {
   private var routeChangeObserver: NSObjectProtocol?
 
+  // Every kind of personal listening device iOS reports: wired, Lightning/USB-C,
+  // and all Bluetooth profiles (A2DP music, HFP headset, LE audio).
+  private static let wiredPorts: Set<AVAudioSession.Port> = [.headphones, .headsetMic, .usbAudio]
+  private static let bluetoothPorts: Set<AVAudioSession.Port> = [.bluetoothA2DP, .bluetoothLE, .bluetoothHFP]
+
   public func definition() -> ModuleDefinition {
     Name("ExpoAudioRoute")
 
@@ -14,34 +19,9 @@ public class ExpoAudioRouteModule: Module {
     }
 
     AsyncFunction("preferBuiltInMicrophoneAsync") { () -> [String: Any] in
-      let session = AVAudioSession.sharedInstance()
-
       do {
-        // Preserve headset/Bluetooth output where possible while selecting the
-        // physical phone microphone as the preferred capture source.
-        try session.setCategory(.playAndRecord, mode: .default, options: [.allowBluetoothA2DP])
-        try session.setActive(true)
-
-        guard let builtInMic = session.availableInputs?.first(where: {
-          $0.portType == .builtInMic
-        }) else {
-          return [
-            "applied": false,
-            "available": false,
-            "platform": "ios",
-            "reason": "built_in_microphone_unavailable"
-          ]
-        }
-
-        try session.setPreferredInput(builtInMic)
-        let applied = session.preferredInput?.uid == builtInMic.uid
-
-        return [
-          "applied": applied,
-          "available": true,
-          "platform": "ios",
-          "reason": applied ? "built_in_microphone_preferred" : "system_route_override"
-        ]
+        try self.configureSession()
+        return self.preferBuiltInMic()
       } catch {
         return [
           "applied": false,
@@ -54,20 +34,18 @@ public class ExpoAudioRouteModule: Module {
 
     // WebKit switches the shared session to a call-style route when the effects
     // web view opens the microphone, which sends the music to the quiet earpiece.
-    // Put playback back on the loudspeaker (or headphones) at full level.
+    // Put playback back on the headphones (or loudspeaker) at full level and keep
+    // the phone's own microphone as the input.
     AsyncFunction("keepMusicPlaybackAsync") { () -> [String: Any] in
-      let session = AVAudioSession.sharedInstance()
       do {
-        try session.setCategory(
-          .playAndRecord,
-          mode: .default,
-          options: [.defaultToSpeaker, .allowBluetoothA2DP, .mixWithOthers]
-        )
-        try session.setActive(true)
-        if session.currentRoute.outputs.first?.portType == .builtInReceiver {
+        try self.configureSession()
+        let session = AVAudioSession.sharedInstance()
+        if !self.headphonesConnected(),
+           session.currentRoute.outputs.first?.portType == .builtInReceiver {
           try session.overrideOutputAudioPort(.speaker)
         }
-        return ["applied": true, "route": self.currentRoute()]
+        let mic = self.preferBuiltInMic()
+        return ["applied": true, "route": self.currentRoute(), "builtInMic": mic["applied"] ?? false]
       } catch {
         return ["applied": false, "reason": error.localizedDescription]
       }
@@ -82,22 +60,75 @@ public class ExpoAudioRouteModule: Module {
     }
   }
 
-  private func currentRoute() -> String {
+  /// Play-and-record with high-quality Bluetooth (A2DP) output. HFP is left off on
+  /// purpose so Bluetooth headphones keep music quality and never become the mic.
+  private func configureSession() throws {
     let session = AVAudioSession.sharedInstance()
-    let outputs = session.currentRoute.outputs
+    try session.setCategory(
+      .playAndRecord,
+      mode: .default,
+      options: [.defaultToSpeaker, .allowBluetoothA2DP, .mixWithOthers]
+    )
+    try session.setActive(true)
+  }
 
+  /// Use the phone's own microphone instead of a headset or earbud mic: less
+  /// leakage of the music back into the effects.
+  private func preferBuiltInMic() -> [String: Any] {
+    let session = AVAudioSession.sharedInstance()
+    guard let builtInMic = session.availableInputs?.first(where: { $0.portType == .builtInMic }) else {
+      return ["applied": false, "available": false, "platform": "ios", "reason": "built_in_microphone_unavailable"]
+    }
+    do {
+      try session.setPreferredInput(builtInMic)
+    } catch {
+      return ["applied": false, "available": true, "platform": "ios", "reason": error.localizedDescription]
+    }
+    let applied = session.preferredInput?.uid == builtInMic.uid
+    return [
+      "applied": applied,
+      "available": true,
+      "platform": "ios",
+      "reason": applied ? "built_in_microphone_preferred" : "system_route_override"
+    ]
+  }
+
+  /// True when any headphones are attached, even if iOS is momentarily routing
+  /// sound elsewhere (it does while the microphone starts up).
+  private func headphonesConnected() -> Bool {
+    return connectedKind() != nil
+  }
+
+  private func connectedKind() -> String? {
+    let session = AVAudioSession.sharedInstance()
+    let outputs = session.currentRoute.outputs.map { $0.portType }
+    let inputs = (session.availableInputs ?? []).map { $0.portType } + session.currentRoute.inputs.map { $0.portType }
+
+    if outputs.contains(where: { Self.bluetoothPorts.contains($0) }) || inputs.contains(.bluetoothHFP) {
+      return "bluetooth"
+    }
+    if outputs.contains(where: { Self.wiredPorts.contains($0) })
+      || inputs.contains(.headsetMic)
+      || inputs.contains(.usbAudio) {
+      return "wiredHeadset"
+    }
+    return nil
+  }
+
+  private func currentRoute() -> String {
+    if let kind = connectedKind() {
+      return kind
+    }
+    let outputs = AVAudioSession.sharedInstance().currentRoute.outputs
     guard let firstOutput = outputs.first else {
       return "speaker"
     }
-
     switch firstOutput.portType {
-    case .headphones, .headsetMic:
-      return "wiredHeadset"
-    case .bluetoothA2DP, .bluetoothLE, .bluetoothHFP:
-      return "bluetooth"
     case .builtInSpeaker, .builtInReceiver:
       return "speaker"
     default:
+      // AirPlay, car audio, HDMI and the like: not headphones, but not the
+      // phone's speaker either, so the app does not treat it as a disconnect.
       return "unknown"
     }
   }

@@ -1143,6 +1143,16 @@ function keepMusicPlayback() {
   }
 }
 
+/** Ask the phone to record from its own microphone rather than a headset mic. */
+function preferPhoneMicrophone() {
+  try {
+    const AudioRouteModule = require("@/modules/expo-audio-route").default;
+    AudioRouteModule?.preferBuiltInMicrophoneAsync?.().catch(() => {});
+  } catch {
+    // Native module unavailable (e.g. web).
+  }
+}
+
 // ─── Native Implementation (WebView with Web Audio API) ─────────────────────
 
 function NativeMicPassthrough({
@@ -1249,6 +1259,33 @@ function inputConstraints(deviceId) {
   return constraints;
 }
 
+// Headset and earbud mics sit next to the speakers and pick up the music, so
+// when the browser opened one of them and the phone's own mic is available,
+// reopen on the phone's mic instead.
+var ACCESSORY_MIC = /headset|headphone|bluetooth|airpods|buds|beats|usb|wired|earpiece|hands-?free|hfp|sco/i;
+async function preferBuiltInMic(current) {
+  try {
+    var track = current.getAudioTracks()[0];
+    var label = (track && track.label) || '';
+    if (!ACCESSORY_MIC.test(label)) return current;
+    var devices = await navigator.mediaDevices.enumerateDevices();
+    var builtIn = devices.find(function(d) {
+      return d.kind === 'audioinput' && d.deviceId && d.label && !ACCESSORY_MIC.test(d.label);
+    });
+    if (!builtIn) {
+      log('Only an accessory mic is available: ' + label);
+      return current;
+    }
+    var next = await navigator.mediaDevices.getUserMedia({ audio: inputConstraints(builtIn.deviceId) });
+    current.getTracks().forEach(function(t) { t.stop(); });
+    log('Switched mic from "' + label + '" to "' + builtIn.label + '"');
+    return next;
+  } catch (e) {
+    log('Built-in mic selection skipped: ' + (e && e.message));
+    return current;
+  }
+}
+
 async function startPassthrough(trackId, bpm, intensity, vol, dryWetMix, effectVolumeMultiplier, tightGate) {
   try {
     stopPassthrough();
@@ -1261,6 +1298,7 @@ async function startPassthrough(trackId, bpm, intensity, vol, dryWetMix, effectV
     log('Requesting getUserMedia...');
     stream = await navigator.mediaDevices.getUserMedia({ audio: inputConstraints() });
     log('Got media stream with ' + stream.getAudioTracks().length + ' audio tracks');
+    stream = await preferBuiltInMic(stream);
 
     audioCtx = new (window.AudioContext || window.webkitAudioContext)({
       sampleRate: 44100,
@@ -1414,6 +1452,7 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
     const requestId = ++startRequestRef.current;
 
     if (isActive) {
+      preferPhoneMicrophone();
       const js = `startPassthrough(${trackId}, ${bpm}, ${intensity}, ${vol}, ${mix}, ${wetEffectVolume}, ${tightGate}); true;`;
       webViewRef.current.injectJavaScript(js);
     } else {

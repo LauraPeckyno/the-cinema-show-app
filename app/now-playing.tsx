@@ -416,12 +416,20 @@ export default function NowPlayingScreen() {
     updateMicLevel(adjustedLevel, adjustedLevel);
   }, [micSensitivity]);
 
-  // Headphone disconnection detection — auto-pause mic
+  // Headphones (wired, Bluetooth or any other kind) keep everything playing.
+  // Only once the phone has confirmed there are no headphones at all does it
+  // stop all sound — music and mic — and ask the listener to reconnect.
+  const resumeAfterHeadphonesRef = useRef({ music: false, mic: false });
   useEffect(() => {
-    if (wasDisconnected && isMicActive) {
-      toggleMic();
-      setShowHeadphoneWarning(true);
+    if (!wasDisconnected) return;
+    if (!isMicActive && !isPlaying) {
+      clearDisconnectedFlag();
+      return;
     }
+    resumeAfterHeadphonesRef.current = { music: isPlaying, mic: isMicActive };
+    if (isMicActive) toggleMic();
+    if (isPlaying) setPlaying(false);
+    setShowHeadphoneWarning(true);
   }, [wasDisconnected]);
 
   const handleDismissHeadphoneWarning = useCallback(() => {
@@ -432,10 +440,11 @@ export default function NowPlayingScreen() {
   const handleReconnectAndResume = useCallback(() => {
     setShowHeadphoneWarning(false);
     clearDisconnectedFlag();
-    if (isHeadphonesConnected && !isMicActive) {
-      toggleMic();
-    }
-  }, [clearDisconnectedFlag, isHeadphonesConnected, isMicActive, toggleMic]);
+    if (!isHeadphonesConnected) return;
+    const resume = resumeAfterHeadphonesRef.current;
+    if (resume.mic && !isMicActive) toggleMic();
+    if (resume.music && !isPlaying) setPlaying(true);
+  }, [clearDisconnectedFlag, isHeadphonesConnected, isMicActive, isPlaying, setPlaying, toggleMic]);
 
   const handleSCReady = useCallback(() => {
     setLoading(false);
@@ -873,10 +882,10 @@ export default function NowPlayingScreen() {
               Headphones Disconnected
             </Text>
             <Text style={[styles.modalMessage, { color: colors.foreground }]}>
-              Microphone has been paused to prevent audio feedback through the speakers.
+              No headphones were found, so all sound has been stopped to prevent feedback through the speakers.
             </Text>
             <Text style={[styles.modalHint, { color: colors.muted }]}>
-              Reconnect your headphones to resume the ambient audio experience.
+              Connect any headphones (wired or Bluetooth) to resume the ambient audio experience.
             </Text>
             <View style={styles.modalButtons}>
               <Pressable
@@ -898,7 +907,7 @@ export default function NowPlayingScreen() {
                     pressed && { opacity: 0.7 },
                   ]}
                 >
-                  <Text style={[styles.modalButtonText, { color: colors.success }]}>Resume Mic</Text>
+                  <Text style={[styles.modalButtonText, { color: colors.success }]}>Resume</Text>
                 </Pressable>
               )}
             </View>

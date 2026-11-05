@@ -71,9 +71,11 @@ class ExpoAudioRouteModule : Module() {
       when (device.type) {
         AudioDeviceInfo.TYPE_WIRED_HEADSET,
         AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
-        AudioDeviceInfo.TYPE_USB_HEADSET -> return "wiredHeadset"
+        AudioDeviceInfo.TYPE_USB_HEADSET,
+        AudioDeviceInfo.TYPE_USB_DEVICE -> return "wiredHeadset"
         AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
         AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+        AudioDeviceInfo.TYPE_HEARING_AID,
         AudioDeviceInfo.TYPE_BLE_HEADSET,
         AudioDeviceInfo.TYPE_BLE_SPEAKER -> return "bluetooth"
       }
