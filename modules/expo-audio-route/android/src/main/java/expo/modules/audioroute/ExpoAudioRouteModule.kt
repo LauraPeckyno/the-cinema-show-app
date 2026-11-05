@@ -43,6 +43,17 @@ class ExpoAudioRouteModule : Module() {
       )
     }
 
+    // Chromium's WebView puts the phone in call mode when getUserMedia() opens
+    // the microphone, which lowers and reroutes the music. Return to normal
+    // media playback; the microphone keeps recording in normal mode.
+    AsyncFunction("keepMusicPlaybackAsync") {
+      val manager = audioManager ?: return@AsyncFunction mapOf("applied" to false, "reason" to "no_audio_manager")
+      if (manager.mode != AudioManager.MODE_NORMAL) {
+        manager.mode = AudioManager.MODE_NORMAL
+      }
+      return@AsyncFunction mapOf("applied" to true, "route" to currentRoute())
+    }
+
     OnStartObserving {
       startListening()
     }

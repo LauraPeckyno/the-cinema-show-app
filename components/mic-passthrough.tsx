@@ -1133,6 +1133,16 @@ function WebMicPassthrough({
   return null;
 }
 
+/** Keeps the music at full level on the loudspeaker while the mic is open. */
+function keepMusicPlayback() {
+  try {
+    const AudioRouteModule = require("@/modules/expo-audio-route").default;
+    AudioRouteModule?.keepMusicPlaybackAsync?.().catch(() => {});
+  } catch {
+    // Native module unavailable (e.g. web); nothing to restore.
+  }
+}
+
 // ─── Native Implementation (WebView with Web Audio API) ─────────────────────
 
 function NativeMicPassthrough({
@@ -1376,6 +1386,11 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
           setIsReady(true);
           break;
         case "started":
+          // Opening the mic switches the phone to call-style audio, which turns the
+          // music down. Restore normal playback now and once more after the web
+          // view finishes settling its own audio route.
+          keepMusicPlayback();
+          setTimeout(keepMusicPlayback, 700);
           break;
         case "level":
           onLevelUpdate?.(data.level);

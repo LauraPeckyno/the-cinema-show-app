@@ -8,6 +8,7 @@ import {
 declare class ExpoAudioRouteModule extends NativeModule<ExpoAudioRouteModuleEvents> {
   getCurrentRouteAsync(): Promise<AudioRoute>;
   preferBuiltInMicrophoneAsync(): Promise<BuiltInMicrophonePreferenceResult>;
+  keepMusicPlaybackAsync(): Promise<{ applied: boolean; route?: AudioRoute; reason?: string }>;
 }
 
 // This call loads the native module object from the JSI.

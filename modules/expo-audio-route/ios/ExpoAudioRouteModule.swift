@@ -52,6 +52,27 @@ public class ExpoAudioRouteModule: Module {
       }
     }
 
+    // WebKit switches the shared session to a call-style route when the effects
+    // web view opens the microphone, which sends the music to the quiet earpiece.
+    // Put playback back on the loudspeaker (or headphones) at full level.
+    AsyncFunction("keepMusicPlaybackAsync") { () -> [String: Any] in
+      let session = AVAudioSession.sharedInstance()
+      do {
+        try session.setCategory(
+          .playAndRecord,
+          mode: .default,
+          options: [.defaultToSpeaker, .allowBluetoothA2DP, .mixWithOthers]
+        )
+        try session.setActive(true)
+        if session.currentRoute.outputs.first?.portType == .builtInReceiver {
+          try session.overrideOutputAudioPort(.speaker)
+        }
+        return ["applied": true, "route": self.currentRoute()]
+      } catch {
+        return ["applied": false, "reason": error.localizedDescription]
+      }
+    }
+
     OnStartObserving("onAudioRouteChange") {
       self.startListening()
     }

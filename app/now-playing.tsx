@@ -42,6 +42,9 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+/** Bright gold from the album artwork, used for inactive controls so they stay visible. */
+const ART_GOLD = "#E2B84F";
+
 const GATE_GUIDANCE_STORAGE_KEY = "@the-cinema-show/gate-guidance-seen-v1";
 
 function FilmReelJitter({
@@ -644,7 +647,7 @@ export default function NowPlayingScreen() {
 
         {/* Progress Bar with Times */}
         <View style={styles.progressArea}>
-          <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
+          <View style={[styles.progressTrack, { backgroundColor: ART_GOLD }]}>
             <View
               style={[
                 styles.progressFill,
@@ -733,7 +736,7 @@ export default function NowPlayingScreen() {
             <Text style={[styles.effectSliderValue, { color: effectColor }]}>{effectVolumeMultiplier.toFixed(1)}×</Text>
           </View>
           <View
-            style={[styles.effectSliderTrack, { backgroundColor: colors.border }]}
+            style={[styles.effectSliderTrack, { backgroundColor: ART_GOLD }]}
             onLayout={(event) => { wetSliderWidthRef.current = Math.max(1, event.nativeEvent.layout.width); }}
             {...wetSliderResponder.panHandlers}
           >
@@ -765,8 +768,8 @@ export default function NowPlayingScreen() {
                 style={({ pressed }) => [
                   styles.micToggleButton,
                   {
-                    backgroundColor: isMicActive ? effectColor + "25" : colors.surface,
-                    borderColor: isMicActive ? effectColor : colors.border,
+                    backgroundColor: isMicActive ? effectColor + "25" : "rgba(0,0,0,0.35)",
+                    borderColor: isMicActive ? effectColor : ART_GOLD,
                   },
                   pressed && { opacity: 0.8 },
                 ]}
@@ -774,9 +777,9 @@ export default function NowPlayingScreen() {
                 <IconSymbol
                   name={isMicActive ? "mic.fill" : "mic.slash.fill"}
                   size={32}
-                  color={isMicActive ? effectColor : colors.muted}
+                  color={isMicActive ? effectColor : ART_GOLD}
                 />
-                <Text style={[styles.micToggleLabel, { color: isMicActive ? effectColor : colors.muted, textAlign: 'center' }]}> 
+                <Text style={[styles.micToggleLabel, { color: isMicActive ? effectColor : ART_GOLD, textAlign: 'center' }]}> 
                   {isMicActive ? "Tap to Deactivate" : "Listen Normally or\nTap to Activate"}
                 </Text>
               </Pressable>
