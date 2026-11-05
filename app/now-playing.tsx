@@ -272,6 +272,7 @@ function AnimatedButtonBorder({
   isEffectsActive,
   effectColor,
   borderRadius,
+  baseColor = "#FFFFFF",
 }: {
   bpm: number;
   playbackTime: number;
@@ -279,8 +280,12 @@ function AnimatedButtonBorder({
   isEffectsActive: boolean;
   effectColor: string;
   borderRadius: number;
+  baseColor?: string;
 }) {
-  const borderColor = useSharedValue("transparent");
+  // Fade through a clear version of the base colour, never clear black, so the
+  // outline never flashes dark mid-transition.
+  const clearBase = baseColor + "00";
+  const borderColor = useSharedValue(clearBase);
   const borderPulse = useSharedValue(1);
 
   useEffect(() => {
@@ -302,7 +307,7 @@ function AnimatedButtonBorder({
         withRepeat(barSyncedColorCycle, -1, false),
       );
     } else if (isPlaying) {
-      borderColor.value = withTiming("#FFFFFF", { duration: 1000, easing: Easing.inOut(Easing.ease) });
+      borderColor.value = withTiming(baseColor, { duration: 1000, easing: Easing.inOut(Easing.ease) });
       borderPulse.value = withRepeat(
         withSequence(
           withTiming(1.6, { duration: Math.max(250, barDuration * 0.42), easing: Easing.out(Easing.ease) }),
@@ -313,9 +318,9 @@ function AnimatedButtonBorder({
       );
     } else {
       borderPulse.value = withTiming(1, { duration: 180 });
-      borderColor.value = withTiming("transparent", { duration: 220, easing: Easing.out(Easing.ease) });
+      borderColor.value = withTiming(clearBase, { duration: 220, easing: Easing.out(Easing.ease) });
     }
-  }, [bpm, effectColor, isEffectsActive, isPlaying]);
+  }, [baseColor, bpm, effectColor, isEffectsActive, isPlaying]);
 
   const animatedBorderStyle = useAnimatedStyle(() => ({
     borderColor: borderColor.value,
@@ -575,7 +580,11 @@ export default function NowPlayingScreen() {
   const shouldFadeMicOutput = isPlaying && trackDuration > 0 && playbackTime >= Math.max(0, trackDuration - 2);
 
   return (
-    <ScreenContainer edges={["bottom", "left", "right"]} containerClassName="bg-background">
+    <ScreenContainer
+      edges={["bottom", "left", "right"]}
+      containerClassName="bg-background"
+      style={{ backgroundColor: TRACK_BACKGROUND[currentTrack.id] ?? "#2A261D" }}
+    >
       <View
         pointerEvents="none"
         style={[StyleSheet.absoluteFillObject, { backgroundColor: TRACK_BACKGROUND[currentTrack.id] ?? "#2A261D" }]}
@@ -791,6 +800,7 @@ export default function NowPlayingScreen() {
                 isEffectsActive={isMicActive && isPlaying}
                 effectColor={effectColor}
                 borderRadius={32}
+                baseColor={ART_GOLD}
               />
             </View>
           </Animated.View>
