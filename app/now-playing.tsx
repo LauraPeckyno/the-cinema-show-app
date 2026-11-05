@@ -32,7 +32,7 @@ import { useKeepAwake } from "expo-keep-awake";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { reportTrackDuration } from "@/hooks/use-track-durations";
 import { MicPassthrough } from "@/components/mic-passthrough";
-import { TRACK_ARTWORK } from "@/constants/track-artwork";
+import { TRACK_ARTWORK, TRACK_BACKGROUND } from "@/constants/track-artwork";
 import { ORDERED_TRACKS } from "@/constants/tracks";
 import * as Haptics from "expo-haptics";
 
@@ -110,10 +110,11 @@ function FilmReelJitter({
   }));
 
   return (
-    <Animated.View pointerEvents="none" style={[styles.reelJitterLayer, reelJitterStyle]}>
+    <Animated.View pointerEvents="none" style={[styles.artworkFrame, reelJitterStyle]}>
       <Image
         source={{ uri: artworkUrl }}
-        style={[styles.backgroundArtwork, { opacity: 0.75 }]}
+        style={styles.artworkImage}
+        accessibilityIgnoresInvertColors
         contentFit="cover"
         transition={300}
       />
@@ -562,7 +563,6 @@ export default function NowPlayingScreen() {
   }
 
   const effectColor = currentTrack.effect.color;
-  const isDark = currentTrack.side === "dark";
   const displayDuration = trackDuration > 0
     ? trackDuration
     : currentTrack.durationMs > 0
@@ -573,13 +573,9 @@ export default function NowPlayingScreen() {
 
   return (
     <ScreenContainer edges={["bottom", "left", "right"]} containerClassName="bg-background">
-      <FilmReelJitter
-        artworkUrl={artworkUrl}
-        isPlaying={isPlaying}
-      />
-      <LinearGradient
-        colors={["rgba(8,8,18,0.18)", isDark ? "rgba(24,7,38,0.34)" : "rgba(12,12,30,0.34)", "rgba(8,8,18,0.58)"]}
-        style={StyleSheet.absoluteFillObject}
+      <View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFillObject, { backgroundColor: TRACK_BACKGROUND[currentTrack.id] ?? "#2A261D" }]}
       />
       <FilmDustAndScratches
         isPlaying={isPlaying}
@@ -636,12 +632,15 @@ export default function NowPlayingScreen() {
           </Pressable>
         </View>
 
-        {/* Track title over the full-screen artwork */}
+        {/* Track title */}
         <View style={styles.titleArea}>
           <Text style={[styles.trackTitle, { color: colors.foreground }]} numberOfLines={2}>
             {currentTrack.title}
           </Text>
         </View>
+
+        {/* Cover art between the title and the progress bar */}
+        <FilmReelJitter artworkUrl={artworkUrl} isPlaying={isPlaying} />
 
         {/* Progress Bar with Times */}
         <View style={styles.progressArea}>
@@ -937,14 +936,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
   },
-  backgroundArtwork: {
-    ...StyleSheet.absoluteFillObject,
+  artworkFrame: {
+    alignSelf: "center",
     width: "100%",
-    height: "100%",
+    maxWidth: 420,
+    paddingHorizontal: 24,
+    marginBottom: 28,
   },
-  reelJitterLayer: {
-    ...StyleSheet.absoluteFillObject,
-    overflow: "hidden",
+  artworkImage: {
+    width: "100%",
+    aspectRatio: 1,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(201, 168, 76, 0.35)",
   },
   filmOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -965,7 +969,7 @@ const styles = StyleSheet.create({
   titleArea: {
     alignItems: "center",
     paddingHorizontal: 24,
-    marginBottom: 40,
+    marginBottom: 20,
   },
   trackTitle: {
     fontSize: 24,

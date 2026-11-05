@@ -18,3 +18,22 @@ export const TRACK_ARTWORK: Record<number, string> = {
   11: `${BASE}/A_muchado.jpg`, // Much Ado
   12: `${BASE}/A_theme4new.jpg`, // Theme for New Beginnings
 };
+
+/**
+ * Solid Now Playing background per track, sampled from the dark frame of each
+ * cover so the page blends into the artwork.
+ */
+export const TRACK_BACKGROUND: Record<number, string> = {
+  1: "#2A261D", // Corpse Parade
+  2: "#2A271D", // Sleep Deprivation
+  3: "#29271D", // Mutation and Madness
+  4: "#212C1E", // Krampus Wishes
+  5: "#2B291E", // Investigation Station
+  6: "#29281C", // Expiation
+  7: "#332D23", // Recessional
+  8: "#352D21", // Road Show
+  9: "#342D22", // Excitement and Elimination
+  10: "#352C21", // Piano Fandango
+  11: "#342D22", // Much Ado
+  12: "#1D2A2E", // Theme for New Beginnings
+};
