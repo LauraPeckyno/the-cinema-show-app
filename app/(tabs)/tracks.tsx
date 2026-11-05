@@ -8,7 +8,7 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withTimi
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useAudioEngine } from "@/lib/audio-engine";
-import { ALBUM_PLAYBACK_QUEUE, TRACKS, Track } from "@/constants/tracks";
+import { ALBUM_PLAYBACK_QUEUE, ORDERED_TRACKS, Track } from "@/constants/tracks";
 import { TRACK_ARTWORK } from "@/constants/track-artwork";
 import { preDownload, preDownloadAll } from "@/lib/audio-cache";
 import { BackgroundMusic } from "@/components/background-music";
@@ -16,11 +16,6 @@ import { BackgroundMusic } from "@/components/background-music";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SPROCKET_SIZE = 8;
 
-/** Filmstrip order on the track select screen (by track id). */
-const FILMSTRIP_ORDER = [12, 7, 8, 9, 10, 11, 1, 2, 3, 4, 5, 6];
-const FILMSTRIP_TRACKS = FILMSTRIP_ORDER.map((id) => TRACKS.find((t) => t.id === id)).filter(
-  (t): t is Track => Boolean(t)
-);
 
 const ALBUM_MUSIC_URL = "https://streamingkeys2.imaginaurium.workers.dev/sh3.mp3";
 const ALBUM_MUSIC_VOLUME = 25;
@@ -168,7 +163,7 @@ export default function TracksScreen() {
   const handleStartTheShow = async () => {
     // Pause the direct player before pre-download and route change begin.
     stopBackgroundMusic();
-    // Light Side begins the album (Recessional); Dark Side follows after it.
+    // The album plays in filmstrip order, starting with Theme for New Beginnings.
     const firstTrack = ALBUM_PLAYBACK_QUEUE[0];
     await preDownload(firstTrack.audioUrl);
     startAlbumPlayback(ALBUM_PLAYBACK_QUEUE);
@@ -240,7 +235,7 @@ export default function TracksScreen() {
 
         {/* Single full-width film strip */}
         <View style={styles.stripsContainer}>
-          <FilmStrip tracks={FILMSTRIP_TRACKS} onTrackPress={handleTrackPress} />
+          <FilmStrip tracks={ORDERED_TRACKS} onTrackPress={handleTrackPress} />
         </View>
 
         <View style={styles.buyAlbumSection}>

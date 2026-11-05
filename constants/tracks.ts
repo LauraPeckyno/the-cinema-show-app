@@ -211,10 +211,11 @@ export const TRACKS: Track[] = [
 export const DARK_TRACKS = TRACKS.filter((t) => t.side === "dark");
 export const LIGHT_TRACKS = TRACKS.filter((t) => t.side === "light");
 
-// Start on the Light Side with Recessional, keep every screen-side grouping intact,
-// and reserve Theme for New Beginnings as the final Start the Show track only.
-export const ALBUM_PLAYBACK_QUEUE = [
-  ...LIGHT_TRACKS.filter((track) => track.id !== 12),
-  ...DARK_TRACKS,
-  TRACKS.find((track) => track.id === 12)!,
-];
+/** The album order, used by the filmstrip, "Start the Show" and prior/next (by track id). */
+export const PLAYBACK_ORDER = [12, 7, 8, 9, 10, 11, 1, 2, 3, 4, 5, 6];
+export const ORDERED_TRACKS: Track[] = PLAYBACK_ORDER.map((id) => TRACKS.find((t) => t.id === id)).filter(
+  (t): t is Track => Boolean(t)
+);
+
+// "Start the Show" plays the album in filmstrip order.
+export const ALBUM_PLAYBACK_QUEUE = ORDERED_TRACKS;

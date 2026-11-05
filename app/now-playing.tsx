@@ -33,6 +33,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { reportTrackDuration } from "@/hooks/use-track-durations";
 import { MicPassthrough } from "@/components/mic-passthrough";
 import { TRACK_ARTWORK } from "@/constants/track-artwork";
+import { ORDERED_TRACKS } from "@/constants/tracks";
+import * as Haptics from "expo-haptics";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -356,6 +358,7 @@ export default function NowPlayingScreen() {
     setLoading,
     updateMicLevel,
     advanceToNextTrack,
+    skipTrack,
     stopPlayback,
   } = useAudioEngine();
 
@@ -375,7 +378,21 @@ export default function NowPlayingScreen() {
     trackDuration,
     isLoading,
     isAlbumMode,
+    albumQueue,
+    albumQueueIndex,
   } = state;
+
+  // Prior / next move through the album queue, or the album order for a single track.
+  const skipList = isAlbumMode && albumQueue.length > 0 ? albumQueue : ORDERED_TRACKS;
+  const skipIndex = isAlbumMode ? albumQueueIndex : skipList.findIndex((t) => t.id === currentTrack?.id);
+  const hasPrior = skipIndex > 0;
+  const hasNext = skipIndex >= 0 && skipIndex < skipList.length - 1;
+  const resumeAfterSkipRef = useRef(false);
+  const handleSkip = useCallback((direction: 1 | -1) => {
+    resumeAfterSkipRef.current = isPlaying;
+    Haptics.selectionAsync().catch(() => {});
+    skipTrack(direction);
+  }, [isPlaying, skipTrack]);
 
   // Stop all playback when leaving this screen (unmount, hardware back, gesture dismiss)
   useEffect(() => {
@@ -413,8 +430,10 @@ export default function NowPlayingScreen() {
 
   const handleSCReady = useCallback(() => {
     setLoading(false);
-    // In album mode, auto-play when a new track becomes ready
-    if (isAlbumMode && !isPlaying) {
+    // In album mode, or after skipping from a playing track, auto-play when the new track is ready
+    const resume = resumeAfterSkipRef.current;
+    resumeAfterSkipRef.current = false;
+    if ((isAlbumMode || resume) && !isPlaying) {
       setPlaying(true);
     }
   }, [setLoading, isAlbumMode, isPlaying, setPlaying]);
@@ -644,8 +663,23 @@ export default function NowPlayingScreen() {
           </View>
         </View>
 
-        {/* Control Buttons: Play only */}
+        {/* Control Buttons: Prior / Play / Next */}
         <View style={styles.controlsRow}>
+          <Pressable
+            onPress={() => handleSkip(-1)}
+            disabled={!hasPrior}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Prior track"
+            accessibilityState={{ disabled: !hasPrior }}
+            style={({ pressed }) => [
+              styles.skipButton,
+              { borderColor: effectColor, opacity: hasPrior ? 1 : 0.3 },
+              pressed && { transform: [{ scale: 0.92 }], opacity: 0.7 },
+            ]}
+          >
+            <IconSymbol name="backward.end.fill" size={24} color="#FFFFFF" />
+          </Pressable>
           {/* Play/Pause */}
           <View style={styles.playButtonFrame}>
             <Pressable
@@ -676,6 +710,21 @@ export default function NowPlayingScreen() {
               borderRadius={36}
             />
           </View>
+          <Pressable
+            onPress={() => handleSkip(1)}
+            disabled={!hasNext}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Next track"
+            accessibilityState={{ disabled: !hasNext }}
+            style={({ pressed }) => [
+              styles.skipButton,
+              { borderColor: effectColor, opacity: hasNext ? 1 : 0.3 },
+              pressed && { transform: [{ scale: 0.92 }], opacity: 0.7 },
+            ]}
+          >
+            <IconSymbol name="forward.end.fill" size={24} color="#FFFFFF" />
+          </Pressable>
         </View>
 
         {/* Global effected-mic return slider: 0.5× at left, 1.0× center, 1.5× at right. */}
@@ -1014,6 +1063,15 @@ const styles = StyleSheet.create({
     elevation: 6,
     position: "relative",
     overflow: "hidden",
+  },
+  skipButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(10,10,20,0.6)",
   },
   playButtonFrame: {
     width: 72,

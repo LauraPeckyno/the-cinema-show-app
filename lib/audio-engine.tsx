@@ -2,7 +2,7 @@ import React, { createContext, useContext, useReducer, useCallback, useRef, useE
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ExpoAudio from "expo-audio";
-import { Track } from "@/constants/tracks";
+import { ORDERED_TRACKS, Track } from "@/constants/tracks";
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
@@ -76,6 +76,7 @@ type AudioAction =
   | { type: "SET_ERROR"; error: string | null }
   | { type: "SET_ALBUM_QUEUE"; queue: Track[]; startIndex: number }
   | { type: "ADVANCE_ALBUM_QUEUE" }
+  | { type: "SKIP_TRACK"; direction: 1 | -1 }
   | { type: "CLEAR_ALBUM_QUEUE" }
   | { type: "STOP_PLAYBACK" };
 
@@ -184,6 +185,28 @@ function audioReducer(state: AudioEngineState, action: AudioAction): AudioEngine
         dryWetMix: savedDryWet,
       };
     }
+    case "SKIP_TRACK": {
+      // Album mode moves through the album queue; a single track moves through the album order.
+      const list = state.isAlbumMode && state.albumQueue.length > 0 ? state.albumQueue : ORDERED_TRACKS;
+      const currentIndex = state.isAlbumMode
+        ? state.albumQueueIndex
+        : list.findIndex((t) => t.id === state.currentTrack?.id);
+      const targetIndex = currentIndex + action.direction;
+      if (currentIndex < 0 || targetIndex < 0 || targetIndex >= list.length) return state;
+      const target = list[targetIndex];
+      const savedDryWet = state.trackDryWetMap[target.id] != null ? state.trackDryWetMap[target.id] : 50;
+      return {
+        ...state,
+        albumQueueIndex: state.isAlbumMode ? targetIndex : state.albumQueueIndex,
+        currentTrack: target,
+        playbackProgress: 0,
+        playbackTime: 0,
+        trackDuration: 0,
+        isPlaying: false,
+        isLoading: true,
+        dryWetMix: savedDryWet,
+      };
+    }
     case "CLEAR_ALBUM_QUEUE":
       return {
         ...state,
@@ -236,6 +259,7 @@ interface AudioEngineContextType {
   // Album queue helpers
   startAlbumPlayback: (tracks: Track[]) => void;
   advanceToNextTrack: () => boolean; // returns true if advanced, false if queue exhausted
+  skipTrack: (direction: 1 | -1) => void;
   clearAlbumQueue: () => void;
   stopPlayback: () => void;
 }
@@ -380,6 +404,10 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
     return true;
   }, []);
 
+  const skipTrack = useCallback((direction: 1 | -1) => {
+    dispatch({ type: "SKIP_TRACK", direction });
+  }, []);
+
   const clearAlbumQueue = useCallback(() => {
     dispatch({ type: "CLEAR_ALBUM_QUEUE" });
   }, []);
@@ -416,6 +444,7 @@ export function AudioEngineProvider({ children }: { children: React.ReactNode })
         updateMicLevel,
         startAlbumPlayback,
         advanceToNextTrack,
+        skipTrack,
         clearAlbumQueue,
         stopPlayback,
       }}

@@ -14,6 +14,8 @@ const MAPPING = {
   "info.circle.fill": "info",
   "play.fill": "play-arrow",
   "pause.fill": "pause",
+  "backward.end.fill": "skip-previous",
+  "forward.end.fill": "skip-next",
   "stop.fill": "stop",
   "mic.fill": "mic",
   "mic.slash.fill": "mic-off",
