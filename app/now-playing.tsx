@@ -19,7 +19,7 @@ import Animated, {
   interpolateColor,
 } from "react-native-reanimated";
 import { useHeadphoneDetection } from "@/hooks/use-headphone-detection";
-import { useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import { initialWindowMetrics, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -412,6 +412,17 @@ export default function NowPlayingScreen() {
       stopPlayback();
     };
   }, []);
+
+  // A swipe or the Android Back button starts closing the screen before it
+  // unmounts. Turn the mic off right then, while the mic engine can still be
+  // told to close its recording, so the next track starts cleanly.
+  const navigation = useNavigation();
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("beforeRemove", () => {
+      stopPlayback();
+    });
+    return unsubscribe;
+  }, [navigation, stopPlayback]);
 
   const dispatchMicLevel = useCallback((level: number) => {
     const sensitivity = micSensitivity / 100;

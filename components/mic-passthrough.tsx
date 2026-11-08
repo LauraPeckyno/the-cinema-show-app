@@ -1143,11 +1143,19 @@ function keepMusicPlayback() {
   }
 }
 
-/** Ask the phone to record from its own microphone rather than a headset mic. */
-function preferPhoneMicrophone() {
+/**
+ * Ask the phone to record from its own microphone rather than a headset mic.
+ * Resolves once the phone has applied it (or after a short cap), so recording
+ * only starts after the audio route has stopped changing.
+ */
+async function preferPhoneMicrophone(): Promise<void> {
   try {
     const AudioRouteModule = require("@/modules/expo-audio-route").default;
-    AudioRouteModule?.preferBuiltInMicrophoneAsync?.().catch(() => {});
+    const request = AudioRouteModule?.preferBuiltInMicrophoneAsync?.();
+    if (!request) return;
+    await Promise.race([request.catch(() => undefined), new Promise((r) => setTimeout(r, 800))]);
+    // Let the route change notification settle before the web view opens the mic.
+    await new Promise((r) => setTimeout(r, 250));
   } catch {
     // Native module unavailable (e.g. web).
   }
@@ -1171,6 +1179,10 @@ function NativeMicPassthrough({
   tightGate = false,
 }: MicPassthroughProps) {
   const webViewRef = useRef<any>(null);
+  // The last mounted web view, kept after React clears webViewRef so the mic can
+  // still be told to stop while the screen is closing.
+  const lastWebViewRef = useRef<any>(null);
+  const micOpenRef = useRef(false);
   const startRequestRef = useRef(0);
   const [WebViewComponent, setWebViewComponent] = useState<any>(null);
   const [isReady, setIsReady] = useState(false);
@@ -1325,6 +1337,7 @@ async function startPassthrough(trackId, bpm, intensity, vol, dryWetMix, effectV
     analyser = chain.analyser;
     running = true;
     retryCount = 0;
+    watchForInterruptions(trackId, bpm, intensity, vol, dryWetMix, effectVolumeMultiplier, tightGate);
 
     // Send level data to React Native at ~20fps
     var dataArray = new Uint8Array(analyser.frequencyBinCount);
@@ -1364,7 +1377,51 @@ async function startPassthrough(trackId, bpm, intensity, vol, dryWetMix, effectV
   }
 }
 
+// The phone can cut the recording off (a call, Siri, an audio route change). When
+// that happens while the mic should be on, reopen it instead of going silent.
+var recoveries = 0;
+var MAX_RECOVERIES = 4;
+var recoveryTimer = null;
+function watchForInterruptions(trackId, bpm, intensity, vol, dryWetMix, effectVolumeMultiplier, tightGate) {
+  var restart = function(reason) {
+    if (!running || recoveryTimer) return;
+    if (recoveries >= MAX_RECOVERIES) {
+      log('Mic interrupted too often (' + reason + '); giving up');
+      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: 'The microphone was interrupted. Tap the mic button to turn it back on.' }));
+      return;
+    }
+    recoveries++;
+    log('Mic interrupted (' + reason + '); reopening, attempt ' + recoveries);
+    recoveryTimer = setTimeout(function() {
+      recoveryTimer = null;
+      if (running) startPassthrough(trackId, bpm, intensity, vol, dryWetMix, effectVolumeMultiplier, tightGate);
+    }, 600);
+  };
+  var track = stream && stream.getAudioTracks()[0];
+  if (track) {
+    track.onended = function() { restart('track ended'); };
+  }
+  if (audioCtx) {
+    audioCtx.onstatechange = function() {
+      if (!running || !audioCtx) return;
+      if (audioCtx.state === 'interrupted' || audioCtx.state === 'suspended') {
+        setTimeout(function() {
+          if (!running || !audioCtx) return;
+          audioCtx.resume().catch(function() { restart('audio ' + audioCtx.state); });
+        }, 300);
+      } else if (audioCtx.state === 'closed') {
+        restart('audio closed');
+      }
+    };
+  }
+  // Mic stayed healthy for a while: allow fresh recoveries later.
+  setTimeout(function() { if (running) recoveries = 0; }, 20000);
+}
+
 function stopPassthrough() {
+  if (recoveryTimer) { clearTimeout(recoveryTimer); recoveryTimer = null; }
+  if (stream) { stream.getTracks().forEach(function(t) { t.onended = null; }); }
+  if (audioCtx) { audioCtx.onstatechange = null; }
   running = false;
   if (meteringInterval) { clearInterval(meteringInterval); meteringInterval = null; }
   if (stream) { stream.getTracks().forEach(function(t) { t.stop(); }); stream = null; }
@@ -1452,11 +1509,19 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
     const requestId = ++startRequestRef.current;
 
     if (isActive) {
-      preferPhoneMicrophone();
-      const js = `startPassthrough(${trackId}, ${bpm}, ${intensity}, ${vol}, ${mix}, ${wetEffectVolume}, ${tightGate}); true;`;
-      webViewRef.current.injectJavaScript(js);
+      const js = `recoveries = 0; startPassthrough(${trackId}, ${bpm}, ${intensity}, ${vol}, ${mix}, ${wetEffectVolume}, ${tightGate}); true;`;
+      void preferPhoneMicrophone().then(() => {
+        // A newer start/stop (or leaving the screen) replaced this request.
+        if (requestId !== startRequestRef.current || !webViewRef.current) return;
+        micOpenRef.current = true;
+        webViewRef.current.injectJavaScript(js);
+      });
     } else {
       webViewRef.current.injectJavaScript("stopPassthrough(); true;");
+      if (micOpenRef.current) {
+        micOpenRef.current = false;
+        keepMusicPlayback();
+      }
     }
   // Wet level and gate mode each update through dedicated messages below. Keeping both
   // out of this dependency avoids restarting the WebView while the user adjusts controls.
@@ -1464,6 +1529,23 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
       startRequestRef.current += 1;
     };
   }, [isActive, isReady, permissionGranted, trackId, bpm, intensity, vol, mix]);
+
+  // Leaving Now Playing with the mic still on must close the recording; otherwise
+  // the phone keeps the old mic open and the next track fails with an error tone.
+  useEffect(() => {
+    return () => {
+      startRequestRef.current += 1;
+      try {
+        lastWebViewRef.current?.injectJavaScript("stopPassthrough(); true;");
+      } catch {
+        // The web view is already gone; its mic closes with it.
+      }
+      if (micOpenRef.current) {
+        micOpenRef.current = false;
+        keepMusicPlayback();
+      }
+    };
+  }, []);
 
   // Update volume and the shared pre-finish fade dynamically.
   useEffect(() => {
@@ -1490,7 +1572,10 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
   return (
     <View style={styles.nativeContainer}>
       <WV
-        ref={webViewRef}
+        ref={(instance: any) => {
+          webViewRef.current = instance;
+          if (instance) lastWebViewRef.current = instance;
+        }}
         source={{ html: htmlContent, baseUrl: "https://localhost" }}
         onMessage={handleMessage}
         javaScriptEnabled={true}

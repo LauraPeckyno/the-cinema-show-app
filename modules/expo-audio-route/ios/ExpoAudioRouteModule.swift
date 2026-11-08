@@ -36,16 +36,19 @@ public class ExpoAudioRouteModule: Module {
     // web view opens the microphone, which sends the music to the quiet earpiece.
     // Put playback back on the headphones (or loudspeaker) at full level and keep
     // the phone's own microphone as the input.
+    // WebKit switches the shared session to a call-style route when the effects
+    // web view opens the microphone, which sends the music to the quiet earpiece.
+    // Only move the output back to the loudspeaker. The category and the input are
+    // left exactly as WebKit has them: changing either while the microphone is
+    // recording interrupts WebKit's capture and the mic goes silent.
     AsyncFunction("keepMusicPlaybackAsync") { () -> [String: Any] in
+      let session = AVAudioSession.sharedInstance()
       do {
-        try self.configureSession()
-        let session = AVAudioSession.sharedInstance()
         if !self.headphonesConnected(),
            session.currentRoute.outputs.first?.portType == .builtInReceiver {
           try session.overrideOutputAudioPort(.speaker)
         }
-        let mic = self.preferBuiltInMic()
-        return ["applied": true, "route": self.currentRoute(), "builtInMic": mic["applied"] ?? false]
+        return ["applied": true, "route": self.currentRoute()]
       } catch {
         return ["applied": false, "reason": error.localizedDescription]
       }
@@ -64,11 +67,10 @@ public class ExpoAudioRouteModule: Module {
   /// purpose so Bluetooth headphones keep music quality and never become the mic.
   private func configureSession() throws {
     let session = AVAudioSession.sharedInstance()
-    try session.setCategory(
-      .playAndRecord,
-      mode: .default,
-      options: [.defaultToSpeaker, .allowBluetoothA2DP, .mixWithOthers]
-    )
+    let options: AVAudioSession.CategoryOptions = [.defaultToSpeaker, .allowBluetoothA2DP, .mixWithOthers]
+    if session.category != .playAndRecord || session.mode != .default || session.categoryOptions != options {
+      try session.setCategory(.playAndRecord, mode: .default, options: options)
+    }
     try session.setActive(true)
   }
 
@@ -78,6 +80,9 @@ public class ExpoAudioRouteModule: Module {
     let session = AVAudioSession.sharedInstance()
     guard let builtInMic = session.availableInputs?.first(where: { $0.portType == .builtInMic }) else {
       return ["applied": false, "available": false, "platform": "ios", "reason": "built_in_microphone_unavailable"]
+    }
+    if session.preferredInput?.uid == builtInMic.uid {
+      return ["applied": true, "available": true, "platform": "ios", "reason": "built_in_microphone_preferred"]
     }
     do {
       try session.setPreferredInput(builtInMic)
