@@ -20,7 +20,7 @@ public class ExpoAudioRouteModule: Module {
 
     AsyncFunction("preferBuiltInMicrophoneAsync") { () -> [String: Any] in
       do {
-        try self.configureSession()
+        _ = try self.configureSession()
         return self.preferBuiltInMic()
       } catch {
         return [
@@ -32,23 +32,21 @@ public class ExpoAudioRouteModule: Module {
       }
     }
 
-    // WebKit switches the shared session to a call-style route when the effects
-    // web view opens the microphone, which sends the music to the quiet earpiece.
-    // Put playback back on the headphones (or loudspeaker) at full level and keep
-    // the phone's own microphone as the input.
-    // WebKit switches the shared session to a call-style route when the effects
-    // web view opens the microphone, which sends the music to the quiet earpiece.
-    // Only move the output back to the loudspeaker. The category and the input are
-    // left exactly as WebKit has them: changing either while the microphone is
-    // recording interrupts WebKit's capture and the mic goes silent.
+    // When the effects web view opens the microphone, WebKit switches the shared
+    // session to call-style audio (voice processing, earpiece routing), which makes
+    // the music quiet and thin. Put the session back into music playback: the same
+    // play-and-record category in the default (music) mode, high-quality Bluetooth,
+    // loudspeaker instead of earpiece. The preferred input is deliberately NOT
+    // touched here: switching the mic while it records cuts the recording off.
     AsyncFunction("keepMusicPlaybackAsync") { () -> [String: Any] in
       let session = AVAudioSession.sharedInstance()
       do {
+        let changed = try self.configureSession()
         if !self.headphonesConnected(),
            session.currentRoute.outputs.first?.portType == .builtInReceiver {
           try session.overrideOutputAudioPort(.speaker)
         }
-        return ["applied": true, "route": self.currentRoute()]
+        return ["applied": true, "changed": changed, "mode": session.mode.rawValue, "route": self.currentRoute()]
       } catch {
         return ["applied": false, "reason": error.localizedDescription]
       }
@@ -65,13 +63,17 @@ public class ExpoAudioRouteModule: Module {
 
   /// Play-and-record with high-quality Bluetooth (A2DP) output. HFP is left off on
   /// purpose so Bluetooth headphones keep music quality and never become the mic.
-  private func configureSession() throws {
+  @discardableResult
+  private func configureSession() throws -> Bool {
     let session = AVAudioSession.sharedInstance()
     let options: AVAudioSession.CategoryOptions = [.defaultToSpeaker, .allowBluetoothA2DP, .mixWithOthers]
+    var changed = false
     if session.category != .playAndRecord || session.mode != .default || session.categoryOptions != options {
       try session.setCategory(.playAndRecord, mode: .default, options: options)
+      changed = true
     }
     try session.setActive(true)
+    return changed
   }
 
   /// Use the phone's own microphone instead of a headset or earbud mic: less

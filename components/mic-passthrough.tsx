@@ -902,15 +902,18 @@ function buildEffectChainJS(): string {
 // ─── Dry/Wet chain builder JS (wraps the effect chain with dry/wet blending) ──
 function buildDryWetChainJS(): string {
   return `
+    // Shared with setDryWet(), which runs later when the Effect Volume slider moves,
+    // so these live at the top level rather than inside buildDryWetChain.
+    function getDefaultDryReturnGain(trackId) {
+      return (trackId === 1 || trackId === 6 || trackId === 12) ? 0 : trackId === 4 ? 0.20 : 0.25;
+    }
+    function getDefaultWetReturnGain(trackId, effectVolumeMultiplier) {
+      var trackWetBoost = (trackId === 1 || trackId === 2 || trackId === 6) ? 1.40 : 1.0;
+      return 0.80 * trackWetBoost * effectVolumeMultiplier;
+    }
+
     // Build a dry/wet blended chain around the effect chain
     function buildDryWetChain(ctx, source, trackId, bpm, intensity, dryWetMix, effectVolumeMultiplier, strictAccessoryGate) {
-      function getDefaultDryReturnGain(trackId) {
-        return (trackId === 1 || trackId === 6 || trackId === 12) ? 0 : trackId === 4 ? 0.20 : 0.25;
-      }
-      function getDefaultWetReturnGain(trackId, effectVolumeMultiplier) {
-        var trackWetBoost = (trackId === 1 || trackId === 2 || trackId === 6) ? 1.40 : 1.0;
-        return 0.80 * trackWetBoost * effectVolumeMultiplier;
-      }
       // Higher fixed mix: dry return +5 points and effected return +10 points.
       // Gate, frequency filters, compressor, and limiter remain in place to control leakage and peaks
       var dryGain = ctx.createGain();
@@ -956,14 +959,17 @@ function buildDryWetChainJS(): string {
       dryBoost.connect(dryGain);
       dryGain.connect(merger);
 
-      // Wet path: source -> effectChain -> wetGain -> merger
+      // Wet path: source -> effectChain -> compressor -> wetGain -> merger.
+      // The compressor tames the effect BEFORE the Effect Volume gain, so the
+      // slider (wetGain) changes the effect level audibly instead of being
+      // squashed back down by the compressor.
       var effectChain = buildEffectChain(ctx, source, trackId, bpm, intensity, strictAccessoryGate);
-      effectChain.output.connect(wetGain);
+      effectChain.output.connect(compressor);
+      compressor.connect(wetGain);
       wetGain.connect(merger);
 
-      // Signal chain: merger -> compressor -> limiter -> analyser
-      merger.connect(compressor);
-      compressor.connect(limiter);
+      // Output: merger -> brick-wall limiter (peak safety only) -> analyser
+      merger.connect(limiter);
       limiter.connect(analyser);
 
       return {
@@ -1137,7 +1143,11 @@ function WebMicPassthrough({
 function keepMusicPlayback() {
   try {
     const AudioRouteModule = require("@/modules/expo-audio-route").default;
-    AudioRouteModule?.keepMusicPlaybackAsync?.().catch(() => {});
+    AudioRouteModule?.keepMusicPlaybackAsync?.()
+      .then((result: any) => {
+        if (result?.changed) console.log("[MicPassthrough] Restored music audio mode", result);
+      })
+      .catch(() => {});
   } catch {
     // Native module unavailable (e.g. web); nothing to restore.
   }
@@ -1456,8 +1466,12 @@ function fadeMicOutput(shouldFadeOut, vol) {
 function setDryWet(mix, trackId, effectVolumeMultiplier) {
   if (chain && chain.dryGain && chain.wetGain && audioCtx) {
     var t = audioCtx.currentTime;
+    var wet = getDefaultWetReturnGain(trackId, effectVolumeMultiplier);
+    chain.dryGain.gain.cancelScheduledValues(t);
     chain.dryGain.gain.setValueAtTime(getDefaultDryReturnGain(trackId), t);
-    chain.wetGain.gain.setValueAtTime(getDefaultWetReturnGain(trackId, effectVolumeMultiplier), t);
+    chain.wetGain.gain.cancelScheduledValues(t);
+    chain.wetGain.gain.setTargetAtTime(wet, t, 0.03);
+    log('Effect volume ' + effectVolumeMultiplier + 'x -> wet gain ' + wet.toFixed(2));
   }
 }
 
@@ -1485,7 +1499,9 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
           // music down. Restore normal playback now and once more after the web
           // view finishes settling its own audio route.
           keepMusicPlayback();
-          setTimeout(keepMusicPlayback, 700);
+          setTimeout(keepMusicPlayback, 300);
+          setTimeout(keepMusicPlayback, 900);
+          setTimeout(keepMusicPlayback, 2000);
           break;
         case "level":
           onLevelUpdate?.(data.level);
